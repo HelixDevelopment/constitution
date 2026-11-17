@@ -154,6 +154,22 @@ run "$W/t5.md" "$W/f5.txt" "$W/m.txt"
 printf 'open_status[In testing]=2\nopen_severity[critical]=1\n' >>"$W/f5.txt"; run "$W/t5.md" "$W/f5.txt" "$W/m.txt"
 [ "$RC" = 3 ] && [ -z "$OUT" ] && grep -qF 'open_status[In testing]' "$W/err" && grep -qF 'open_severity[critical]' "$W/err" \
   && ok "CON-231 a status/severity value the template does not render is refused" || bad "CON-231 a status/severity value the template does not render is refused ($RC: $(cat "$W/err"))"
+# round 3 (review of f4c6e8ab, N4): the FACTS reader refuses a duplicate key (it kept the last copy, a first-match
+# reader kept the first, so a forged earlier copy fooled one of them), a line that is not KEY=VALUE, a malformed key,
+# and any control or invisible format character; the value is never echoed. Payload lines are written with printf
+# escapes, never typed raw.
+printf '## r\nbase {{base}}\n' >"$W/rn.md"; : >"$W/rn_m.txt"
+for c in 'dup:base=abc\nbase=def\n:occurs twice' 'noeq:base=abc\njunk line\n:not KEY=VALUE' 'key:base=abc\nopen_status[a]b]=1\n:malformed key' 'key2:base=abc\nBase2=1\n:malformed key' \
+         'lf-forged:base=abc\nretest_item_evidence=yes\nretest_item_evidence=no\n:occurs twice' 'cr:base=ab\rc\n:control' \
+         'nel:base=ab\302\205c\n:control' 'ls:base=ab\342\200\250c\n:control' 'rlo:base=ab\342\200\256c\n:control' \
+         'zwsp:base=ab\342\200\213c\n:control' 'esc:base=ab\033[31mc\n:control' 'notutf8:base=ab\205c\n:not UTF-8'; do
+  n="${c%%:*}"; r="${c#*:}"; body="${r%:*}"; why="${r##*:}"
+  printf "$body" >"$W/rn_$n.txt"; run "$W/rn.md" "$W/rn_$n.txt" "$W/rn_m.txt"
+  [ "$RC" = 3 ] && [ -z "$OUT" ] && grep -q "$why" "$W/err" && ok "FACTS $n refused (rc 3, '$why')" || bad "FACTS $n refused (rc $RC: $(cat "$W/err"))"
+done
+printf '## r\nbase {{base}}\nready {{open_status[Ready for testing]}}\n' >"$W/rn_ok.md"
+printf 'base=ab\303\251\342\200\224c\nopen_status[Ready for testing]=1\n' >"$W/rn_ok.txt"; run "$W/rn_ok.md" "$W/rn_ok.txt" "$W/rn_m.txt"
+[ "$RC" = 0 ] && has "FACTS with non-ASCII letters accepted (false-positive control)" "base abé—c" || bad "FACTS with non-ASCII letters accepted (rc $RC: $(cat "$W/err"))"
 # B-M4 (v73.4 dry run, 2026-11-16): a lander placeholder or draft text in a MANUAL value is refused (exit 3) unless the
 # render is an explicit --draft, and a --draft render carries a fixed marker line that tag_and_release.sh refuses.
 # Oracle: the shapes below are the ones the dry run rendered with rc 0 (BLOCKERS.md B-M4), written by hand here.

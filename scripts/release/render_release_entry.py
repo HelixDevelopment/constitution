@@ -37,6 +37,13 @@ DRAFT, the token UNCONFIRMED-CUT-DATE, or a cut_date that is not a real calendar
 (first line when there is none); scripts/release/tag_and_release.sh refuses to cut a release from notes holding that line.
 --draft relaxes ONLY the placeholder check: missing values, TODO/TBD, unused blocks and unrendered facts still refuse.
 Known limit: a lower-case one-word angle token such as <sha> reads as an HTML tag and is not refused.
+
+FACTS integrity (review of f4c6e8ab, N4): every FACTS line must be KEY=VALUE with a key of the shape
+derive_release_facts.sh prints (lower-case name, optionally one [..] part without [, ] or =), no key may occur
+twice (so this reader, which would keep the last copy, and a reader that keeps the first copy cannot disagree), and
+no key or value may hold a character of the Unicode categories Cc, Cf, Zl or Zp (controls, line separators, bidi
+controls, invisible format characters) or bytes that are not UTF-8. Any violation: exit 3, nothing on stdout, and the
+message names the line number, never the value.
 Marker words (CON-423 / CON-521, merged with B-M4 at the landing on main): TODO, TBD and DRAFT are matched with no
 ASCII letter (A-Z, a-z) on either side (CON-423 review r1, M4; r3, N2): DRAFT_1, DRAFT2, 2DRAFT, v-DRAFT-3, TODO_1 and
 MY_TODO are markers, DRAFTED, DRAFTS, REDRAFT and TODOS are other words. The value is folded first (CON-423 r3): NFKD
@@ -151,6 +158,34 @@ def retest_value(val, words):
     return None
 
 
+FACT_KEY = re.compile(r"[a-z][a-z0-9_]*(\[[^\[\]=]*\])?\Z")
+BAD_CATEGORIES = {"Cc", "Cf", "Zl", "Zp", "Cs"}
+
+
+def read_facts(path):
+    """KEY=VALUE lines of derive_release_facts.sh, checked line by line (N4); exit 3 on the first bad line"""
+    try:
+        data = open(path, "rb").read().decode("utf-8")
+    except UnicodeDecodeError:
+        die("FACTS is not UTF-8", 3)
+    facts = {}
+    lines = data.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    for no, line in enumerate(lines, 1):
+        if any(unicodedata.category(c) in BAD_CATEGORIES for c in line):
+            die("FACTS line %d holds a control, line-separator, bidi or invisible format character (not shown)" % no, 3)
+        if "=" not in line:
+            die("FACTS line %d is not KEY=VALUE" % no, 3)
+        k, v = line.split("=", 1)
+        if not FACT_KEY.match(k):
+            die("FACTS line %d has a malformed key (not shown)" % no, 3)
+        if k in facts:
+            die("FACTS key %s occurs twice (line %d); a first-match and a last-match reader would disagree" % (k, no), 3)
+        facts[k] = v
+    return facts
+
+
 def main(argv):
     draft = len(argv) > 1 and argv[1] == "--draft"
     if draft:
@@ -159,12 +194,7 @@ def main(argv):
         die("usage: render_release_entry.py [--draft] TEMPLATE FACTS MANUAL", 2)
     tpl = open(argv[1], encoding="utf-8").read()
     tpl = re.sub(r"\A\s*<!--.*?-->\s*", "", tpl, count=1, flags=re.S)
-    facts = {}
-    for line in open(argv[2], encoding="utf-8"):
-        line = line.rstrip("\n")
-        if "=" in line:
-            k, v = line.split("=", 1)
-            facts[k] = v
+    facts = read_facts(argv[2])
     manual, cur = {}, None
     for line in open(argv[3], encoding="utf-8"):
         if line.startswith("@@"):

@@ -173,13 +173,18 @@ changed: it only hides ancestry, which the tool reports as diverged. Tested live
 `tests/sync/test_robustness.sh --only ref_exact,checkout_exact,objvis,symref,pin_symref`.
 
 **23. A submodule path has `[`, `*`, `:` in it, or I set `GIT_ICASE_PATHSPECS`. Can the pin write stage the wrong submodule?**
-No (review round 13). `git add -- <path>` reads `<path>` as a pathspec: `lib[1]` also matches `lib1`, `lib*` also
+Not through the path (review round 13), but one case is detected and NOT undone (review round 14): when the
+parent's own config has `core.ignoreCase=true` and it holds gitlinks whose names differ only in case, git folds the case
+inside `git add` and can rewrite the OTHER gitlink's index entry. The tool sees it (the run is `FAILED`, exit 1,
+`stage-pin-not-exact:other-entries`), leaves the entry as git wrote it, and records in the action
+`staged_other_detail` the value before and after and the exact `restore` command; run that command yourself (it
+pins `core.ignoreCase=false`). Details of the path case (review round 13): `git add -- <path>` reads `<path>` as a pathspec: `lib[1]` also matches `lib1`, `lib*` also
 `libB`, `:!x` is "everything except x", and `GIT_ICASE_PATHSPECS=1` makes `lib` match `LIB` (measured, git 2.53).
 Every git call of the tool runs with `GIT_LITERAL_PATHSPECS=1`, and your `GIT_GLOB_PATHSPECS`,
 `GIT_NOGLOB_PATHSPECS` and `GIT_ICASE_PATHSPECS` are dropped first (git refuses LITERAL together with GLOB or
 ICASE). After the add the tool also reads the parent's index again and checks that exactly ONE entry changed, the
 gitlink, now at the target; anything else (another entry changed by `core.ignoreCase` or by someone staging
 at the same moment) fails the action with `stage-pin-not-exact:<other-entries|not-staged>` naming the other
-paths, and the run does not end `applied`. Your staged files are left as they are. A tracked file named `HEAD`
+paths, and the run does not end `applied`. Your staged files are left as they are (the tool unstages and resets nothing). A tracked file named `HEAD`
 no longer makes a run blind either: every `rev-list` call ends with `--`. Tested live:
-`tests/sync/test_robustness.sh --only pathspec,stage_verify,head_file`.
+`tests/sync/test_robustness.sh --only pathspec,stage_verify,stage_icase,head_file`.

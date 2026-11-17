@@ -38,8 +38,9 @@ REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 ENGINE = os.path.join(REPO, "scripts", "sync", "sync_all_upstreams.py")
 WRAPPER = os.path.join(REPO, "scripts", "sync", "sync_all_upstreams.sh")
 
-R13S = ['unit', 'robustness:symref,pin_symref,pathspec,head_file,stage_verify,pre_index', 'robustness:ref_exact,checkout_exact,objvis',
+R13S = ['unit', 'robustness:symref,pin_symref,pathspec,head_file,stage_verify,pre_index,stage_icase', 'robustness:ref_exact,checkout_exact,objvis',
         'integration', 'security', 'hardening']
+R14S = R13S
 # (id, what it breaks, old, new, suite run when the unit suite does not kill it)
 MUTANTS = [
     ('M01', '+refspec allowed',
@@ -1182,6 +1183,56 @@ MUTANTS = [
      '["rev-list", "--count", "HEAD", "--"]', '["rev-list", "--count", "HEAD"]', R13S),
     ('AE14', 'the exact lookup format no longer reads %(symref) (6-field rows broken: every lookup no answer)',
      'FER_EXACT_FORMAT = "%(refname)%00%(symref)%00%(objecttype)', 'FER_EXACT_FORMAT = "%(refname)%00%(objecttype)', R13S),
+    ('RV13A', 'contained_refs drops a symbolic line only when it points into refs/heads/ (a symref to a local TAG holding the pin still makes it "on a remote")',
+     '    return [x[0] for x in rows if not x[1]]',
+     '    return [x[0] for x in rows if not x[1].startswith("refs/heads/")]', R14S),
+    ('RV13B', 'resolve_ref_exact treats only a symref into refs/heads/ as symbolic',
+     '    if symref:\n        if isinstance(notes, dict):',
+     '    if symref.startswith("refs/heads/"):\n        if isinstance(notes, dict):', R14S),
+    ('RV13C', 'contained_refs keeps a symbolic line that points at another remote-tracking ref',
+     '    return [x[0] for x in rows if not x[1]]',
+     '    return [x[0] for x in rows if not x[1] or x[1].startswith("refs/remotes/")]', R14S),
+    ('RV13D', 'stage_pin_verified counts only NON-gitlink other entries (another gitlink staged is ignored)',
+     '    others = sorted({k[0] for k in changed if k[0] != path})',
+     '    others = sorted({k[0] for k in changed if k[0] != path and (after.get(k) or before.get(k))[0] != "160000"})', R14S),
+    ('RV13E', 'stage_pin_verified ignores entries REMOVED by the add (only entries present after are compared)',
+     '    changed = sorted({k for k in set(before) | set(after) if before.get(k) != after.get(k)})',
+     '    changed = sorted({k for k in set(after) if before.get(k) != after.get(k)})', R14S),
+    ('RV13F', 'a non-exact stage-pin is recorded but the write returns done and nothing is marked failed',
+     '            repo.parent.rec["stage_pin_not_exact"] = verdict\n            repo.parent.rec["failed"] = True\n            rec["failed"] = True\n            return "failed"',
+     '            repo.parent.rec["stage_pin_not_exact"] = verdict\n            return "done"', R14S),
+    ('RV13G', 'status shape: any argument list starting with --porcelain=v1 accepted (a pathspec reaches status)',
+     '        if rest in (STATUS_ARGS[1:], []):',
+     '        if rest[:1] == STATUS_ARGS[1:2] or rest == []:', R14S),
+    ('RV13H', 'index_entries ignores the stage number (a conflict entry collapses onto stage 0)',
+     '        out[(path, f[2] if len(f) == 3 else "?")] = tuple(f)',
+     '        out[(path, "0")] = tuple(f)', R14S),
+    ('RV13I', 'ls-files: "-s -z" followed by anything accepted (a pathspec reaches ls-files)',
+     '        if rest in (["-s", "-z"], ["-z", "--others", "--ignored", "--exclude-standard"]):',
+     '        if rest[:2] == ["-s", "-z"] or rest == ["-z", "--others", "--ignored", "--exclude-standard"]:', R14S),
+    ('RV13J', 'rev-list range: HEAD accepted beside an id (a name reaches rev-list)',
+     '                 and all(_exact_obj(x) for x in rng)):',
+     '                 and all(_exact_obj(x) or x == "HEAD" for x in rng)):', R14S),
+    ('RV13X1', 'CONTROL (must SURVIVE): a docstring word in contained_refs (round-13 reviewer RVCX1)',
+     'its own name and is dropped; a line of the wrong shape is no answer',
+     'its own name and is skipped; a line of the wrong shape is no answer', R14S),
+    # round 14 (the author's own rows for the new code)
+    ('AF01', 'the restore command no longer pins core.ignoreCase=false (git folds the case again)',
+     '    base = "git -C %s -c core.ignoreCase=false" % q(parent_path)', '    base = "git -C %s" % q(parent_path)', R14S),
+    ('AF02', 'the other changed entries are not recorded (no before / after / restore)',
+     '    if others and detail is not None:', '    if False and detail is not None:', R14S),
+    ('AF03', 'evaluate_pin counts a ref under an unconfigured remote as "on a remote"',
+     '            refs = [x for x in refs if any(x.startswith("refs/remotes/%s/" % n) for n in configured)]',
+     '            refs = refs', R14S),
+    ('AF04', 'a non-exact stage-pin no longer marks the ACTION failed',
+     '            act["failed"] = True\n            repo.parent.rec["stage_pin_not_exact"] = verdict',
+     '            repo.parent.rec["stage_pin_not_exact"] = verdict', R14S),
+    ('AF05', 'the detail of the other changed entries is computed and then not put in the report',
+     '                act["staged_other_detail"] = detail[:20]', '                pass', R14S),
+    ('AF06', 'the configured-remote filter matches a name PREFIX (refs/remotes/origin2/x counts for origin)',
+     'x.startswith("refs/remotes/%s/" % n) for n in configured', 'x.startswith("refs/remotes/%s" % n) for n in configured', R14S),
+    ('AF07', 'restore_command restores a conflict stage by the stage-0 command',
+     '    if stage != "0":\n        return None\n', '', R14S),
 ]
 # id -> proof. A mutant listed here may survive; it is reported EQUIVALENT, never KILLED.
 # M59 is no longer listed (round 4): its round-2 proof ended with "head_after = head_before (None)", which stopped
@@ -1189,6 +1240,7 @@ MUTANTS = [
 # run and is read after it (a fault at inspect_local's read) makes the mutant report moved=True for a repository
 # that never moved; the record check of tests/sync/test_faults.sh catches it.
 EQUIVALENT = {
+    "RV13X1": "Round-13 reviewer CONTROL (RVCX1): a docstring word; must survive, and does.",
     "AC10": "Round-11 reviewer: the module-level pop of the git variables is redundant for the engine's git calls: "
             "every spawn goes through proc_run_git with env=git_env(...), which copies the environment, drops every "
             "name in _SCRUB (a superset of the popped list, checked by test_engine_scrub_covers_the_canonical_list) "
