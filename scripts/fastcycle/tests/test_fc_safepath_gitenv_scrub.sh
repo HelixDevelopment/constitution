@@ -16,6 +16,12 @@
 # [GE-sh-*]   reshaped shell scrubs are refused: a $WORD, an extra unset operand, an indented line, a PROVED variable
 #             or BASH among the words (desugared, then refused by the ordinary unset rules); a canonical line inside a
 #             here-document body is text (no EXEMPT row).
+# [GE-sh-attr-*, GE-sh-sole-*]  CON-450 round 2 (review F1-A, the class): an attribute on the helper variable (declare /
+#             local / typeset -l -u -c -i, also through a quoted, escaped, brace or glob NAME) or any other use of
+#             `_ge_v` makes the census refuse the desugar (the loop could unset other names; measured in bash).
+# [GE-sh-gf-*] golden-false controls: an attribute on another plain NAME, IFS, `unset -v` of a non-proved name are
+#             accepted (the new rules do not over-refuse, section 11.4.201(1)).
+# [GE-sh-trailing-code, GE-sh-unset-trusted-*, GE-py-expr-first, GE-py-os-receiver]  review F1-B / F1-E / F1-C.
 # [GE-mut-*]  paired mutants of the census itself (each must make at least one row above fail).
 #
 # Env: FC_CENSUS_UNDER_TEST / FC_SUP_UNDER_TEST / FC_BR_UNDER_TEST -- the files under test.
@@ -97,6 +103,7 @@ PY_CASES = {
     "GE-py-other-pop": 'for _ge_v in "%s".split(): _ge_os.environ.pop("GIT_DIR", None)' % WORDS,
     "GE-py-other-method": 'for _ge_v in "%s".split(): _ge_os.environ.clear(_ge_v, None)' % WORDS,
 }
+PY_CASES["GE-py-os-receiver"] = 'for _ge_v in "%s".split(): os.environ.pop(_ge_v, None)' % WORDS   # review F1-C (RM6)
 PY_FULL = {   # whole-pair replacements (the import line included)
     "GE-py-displaced": "_FAKE_FIRST = 1\n" + IMP + "\n" + LOOP,
     "GE-py-later-use": IMP + "\n" + LOOP + "\n_ge_alias = _ge_os",
@@ -109,30 +116,96 @@ SH_CASES = {
     "GE-sh-indented": '  for _ge_v in GIT_DIR; do unset "$_ge_v"; done; unset _ge_v',
     "GE-sh-proved-word": 'for _ge_v in GIT_DIR _FC_TMPDIR; do unset "$_ge_v"; done; unset _ge_v',
     "GE-sh-bash-word": 'for _ge_v in GIT_DIR BASH; do unset "$_ge_v"; done; unset _ge_v',
+    # review F1-B: code after `unset _ge_v` on the canonical line (the desugar would drop it from the analysis)
+    "GE-sh-trailing-code": 'for _ge_v in GIT_DIR; do unset "$_ge_v"; done; unset _ge_v; rm -f "$FAKE_TARGET"',
+}
+WT = LINE.replace("for _ge_v in ", "for _ge_v in WT_PATH ", 1)
+# id: (text inserted before the line, inside a function?, the line, True = refused by the NEW rule ("NOT desugared") /
+#      a str = refused with that text in the output / False = golden-false, must be accepted)
+SH_INSERT = {
+    "GE-sh-attr-declare-l": ("declare -l _ge_v", False, WT, True),       # review S1 (same construction)
+    "GE-sh-attr-local-l-func": ("local -l _ge_v", True, WT, True),       # review S13 (same construction)
+    "GE-sh-attr-typeset-c": ("typeset -c _ge_v", False, LINE, True),
+    "GE-sh-attr-declare-i": ("declare -i _ge_v", False, LINE, True),
+    "GE-sh-attr-backslash": ("declare -l _ge\\_v", False, WT, True),
+    "GE-sh-attr-dquote": ('declare -l "_ge"_v', False, WT, True),
+    "GE-sh-attr-brace": ("declare -l _ge_{v,w}", False, WT, True),
+    "GE-sh-attr-glob": ("declare -l _ge_?", False, WT, True),
+    "GE-sh-sole-readonly": ("readonly _ge_v", False, LINE, True),
+    "GE-sh-sole-assign": ("_ge_v=x", False, LINE, True),
+    "GE-sh-unset-trusted-f": ("unset -f _fc_safe", False, LINE, "unset of the trusted function"),
+    "GE-sh-unset-trusted-plain": ("unset _fc_safe", False, LINE, "unset of the trusted function"),
+    "GE-sh-gf-other-attr": ("declare -l _rv_other", False, LINE, False),
+    "GE-sh-gf-ifs": ("IFS=_", False, LINE, False),
+    "GE-sh-gf-unset-v": ("unset -v _fc_safe", False, LINE, False),
 }
 
 
-def suite(cen, quiet=False):
-    """{case: (held, detail)}"""
-    res = {}
-    rc, out = run(cen, tag="real")
-    ex = [l for l in out.splitlines() if l.startswith("EXEMPT") and "git-env scrub" in l]
-    res["GE-real"] = (rc == 0 and len(ex) == 2 and sum("fc_supervisor" in l or ".py:" in l for l in ex) == 1,
-                      "rc=%d scrub_rows=%d %s" % (rc, len(ex), " | ".join(l for l in out.splitlines() if l.startswith("VIOLATION"))[:300]))
+def no_docstring_expr_first():
+    """review F1-C (RM3): the module docstring replaced by an ordinary expression statement before the pair"""
+    import ast
+    t = ast.parse(SUP_SRC)
+    d = t.body[0]
+    assert isinstance(d, ast.Expr) and isinstance(d.value, ast.Constant) and isinstance(d.value.value, str)
+    ls = SUP_SRC.split("\n")
+    return "\n".join(ls[:d.lineno - 1] + ['len("x")'] + ls[d.end_lineno:])
+
+
+def sh_insert(text, fn, line):
+    body = text + "\n" + line
+    return sh_variant(("_rvf() {\n%s\n}\n_rvf" % body) if fn else body)
+
+
+def _refused(r):
+    return r[0] == 1 and "VIOLATION" in r[1], "rc=%d %s" % (
+        r[0], " | ".join(l for l in r[1].splitlines() if l.startswith("VIOLATION"))[:200])
+
+
+def cases(cen):
+    """[(name, thunk -> (held, detail))] -- every row of the suite, evaluated lazily"""
+    out = []
+
+    def real():
+        rc, o = run(cen, tag="real")
+        ex = [l for l in o.splitlines() if l.startswith("EXEMPT") and "git-env scrub" in l]
+        return (rc == 0 and len(ex) == 2 and sum("fc_supervisor" in l or ".py:" in l for l in ex) == 1,
+                "rc=%d scrub_rows=%d %s" % (rc, len(ex), " | ".join(l for l in o.splitlines() if l.startswith("VIOLATION"))[:300]))
+    out.append(("GE-real", real))
     for k, v in PY_CASES.items():
-        rc, out = run(cen, sup_text=py_variant(IMP + "\n" + v), tag=k)
-        res[k] = (rc == 1 and "VIOLATION" in out, "rc=%d" % rc)
+        out.append((k, lambda k=k, v=v: _refused(run(cen, sup_text=py_variant(IMP + "\n" + v), tag=k))))
     for k, v in PY_FULL.items():
-        rc, out = run(cen, sup_text=py_variant(v), tag=k)
-        res[k] = (rc == 1 and "VIOLATION" in out, "rc=%d" % rc)
+        out.append((k, lambda k=k, v=v: _refused(run(cen, sup_text=py_variant(v), tag=k))))
+    out.append(("GE-py-expr-first", lambda: _refused(run(cen, sup_text=no_docstring_expr_first(), tag="expr-first"))))
     for k, v in SH_CASES.items():
-        rc, out = run(cen, br_text=sh_variant(v), tag=k)
-        res[k] = (rc == 1 and "VIOLATION" in out, "rc=%d %s" % (rc, " | ".join(l for l in out.splitlines() if l.startswith("VIOLATION"))[:200]))
-    # a canonical line inside a here-document body is TEXT: no EXEMPT row for it, the census still passes
-    hd = BR_SRC.rstrip("\n") + "\n: <<'FAKE_HD_END'\n" + LINE + "\nFAKE_HD_END\n"
-    rc, out = run(cen, br_text=hd, tag="heredoc")
-    ex = [l for l in out.splitlines() if l.startswith("EXEMPT") and "git-env scrub" in l]
-    res["GE-sh-heredoc-text"] = (rc == 0 and len(ex) == 2, "rc=%d scrub_rows=%d" % (rc, len(ex)))
+        out.append((k, lambda k=k, v=v: _refused(run(cen, br_text=sh_variant(v), tag=k))))
+    for k, (text, fn, line, want) in SH_INSERT.items():
+        def t(k=k, text=text, fn=fn, line=line, want=want):
+            rc, o = run(cen, br_text=sh_insert(text, fn, line), tag=k)
+            if want is False:
+                return rc == 0, "rc=%d (golden-false: must be accepted)" % rc
+            needle = "NOT desugared" if want is True else want
+            return rc == 1 and needle in o, "rc=%d refusal-reason-present=%s" % (rc, needle in o)
+        out.append((k, t))
+
+    def heredoc():   # a canonical line inside a here-document body is TEXT: no EXEMPT row, the census still passes
+        hd = BR_SRC.rstrip("\n") + "\n: <<'FAKE_HD_END'\n" + LINE + "\nFAKE_HD_END\n"
+        rc, o = run(cen, br_text=hd, tag="heredoc")
+        ex = [l for l in o.splitlines() if l.startswith("EXEMPT") and "git-env scrub" in l]
+        return rc == 0 and len(ex) == 2, "rc=%d scrub_rows=%d" % (rc, len(ex))
+    out.append(("GE-sh-heredoc-text", heredoc))
+    return out
+
+
+def suite(cen, first=(), stop=False):
+    """{case: (held, detail)}; stop=True returns at the first row that does not hold, trying the rows named in
+    `first` first (any broken row kills a mutant; the order only saves time)"""
+    res = {}
+    cs = cases(cen)
+    cs = [c for c in cs if c[0] in first] + [c for c in cs if c[0] not in first]
+    for name, th in cs:
+        res[name] = th()
+        if stop and not res[name][0]:
+            break
     return res
 
 
@@ -162,6 +235,32 @@ MUTANTS = {
     "GE-mut-pop-target": ("and len(c.args) == 2 and isinstance(c.args[0], ast.Name) and c.args[0].id == \"_ge_v\"",
                           "and len(c.args) == 2"),
 }
+MUTANTS.update({
+    # CON-450 round 2 (review F1-A / F1-B / F1-C / F1-E): the new rules and the review's surviving mutants
+    "GE-mut-blockers-ignored": ("    if ge_blockers:                                       # fail-closed",
+                                "    if False:                                       # fail-closed"),
+    "GE-mut-no-sole-use": ('        if no not in ge and "_ge_v" in raw and not _GE_SH.match(raw):',
+                           '        if False:'),
+    "GE-mut-no-attr-rule": ('        if not (letters & (_GE_ATTR | {"$"})):\n            continue',
+                            '        if True:\n            continue'),
+    "GE-mut-attr-name-exact": ('            if not _GE_NAME.match(nm) or nm == "_ge_v":', '            if nm == "_ge_v":'),
+    "GE-mut-attr-any-name": ('            if not _GE_NAME.match(nm) or nm == "_ge_v":', '            if True:'),
+    "GE-mut-attr-nameref-only": ('_GE_ATTR = set("lucin")', '_GE_ATTR = set("n")'),
+    "GE-mut-unset-trusted": ('                    if _unq(o) in SH_TRUSTED_FUNCS:', '                    if False:'),
+    "GE-mut-RM2-trailing-anything": ("unset _ge_v(?:[ \\t]+#.*)?$')", "unset _ge_v(?:.*)?$')"),
+    "GE-mut-RM3-any-expr-first": ("    i = 1 if (body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant)\n"
+                                  "              and isinstance(body[0].value.value, str)) else 0",
+                                  "    i = 1 if (body and isinstance(body[0], ast.Expr)) else 0"),
+    "GE-mut-RM6-any-receiver": ('and isinstance(c.func.value.value, ast.Name) and c.func.value.value.id == "_ge_os"',
+                                'and isinstance(c.func.value.value, ast.Name)'),
+})
+KILLERS = {   # rows tried first (time only; any broken row kills)
+    "GE-mut-blockers-ignored": ("GE-sh-attr-declare-l",), "GE-mut-no-sole-use": ("GE-sh-sole-readonly",),
+    "GE-mut-no-attr-rule": ("GE-sh-attr-backslash",), "GE-mut-attr-name-exact": ("GE-sh-attr-backslash",),
+    "GE-mut-attr-any-name": ("GE-sh-gf-other-attr",), "GE-mut-attr-nameref-only": ("GE-sh-attr-backslash",),
+    "GE-mut-unset-trusted": ("GE-sh-unset-trusted-f",), "GE-mut-RM2-trailing-anything": ("GE-sh-trailing-code",),
+    "GE-mut-RM3-any-expr-first": ("GE-py-expr-first",), "GE-mut-RM6-any-receiver": ("GE-py-os-receiver",),
+}
 for name, (old, new) in MUTANTS.items():
     n = CEN_SRC.count(old)
     if n != 1:
@@ -169,7 +268,7 @@ for name, (old, new) in MUTANTS.items():
         continue
     mp_ = os.path.join(work, name + "_census.py")
     open(mp_, "w", encoding="utf-8").write(CEN_SRC.replace(old, new))
-    r = suite(mp_)
+    r = suite(mp_, first=KILLERS.get(name, ()), stop=True)
     broken = sorted(k for k, (held, _d) in r.items() if not held)
     if broken:
         ok("[%s] KILLED by %s" % (name, ",".join(broken)))

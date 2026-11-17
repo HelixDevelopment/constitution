@@ -49,7 +49,12 @@ Shell (a lexer, _ShLex):
   git-env      CON-402: the canonical column-0 line `for _ge_v in <UPPERCASE WORDS>; do unset "$_ge_v"; done; unset _ge_v`
                (outside a here-document body) is read as `unset <WORDS>; unset _ge_v` -- the same commands, with
                literal NAMEs -- so every rule below still applies to each NAME; any other shape keeps its
-               non-literal `unset "$_ge_v"` and is a VIOLATION (_git_env_scrub_sh)
+               non-literal `unset "$_ge_v"` and is a VIOLATION (_git_env_scrub_sh). CON-450 round 2: the desugar is
+               refused (a VIOLATION row naming the cause) when `_ge_v` is named on any other line, or a local /
+               declare / typeset -l -u -c -i -n carries a NAME that is not a plain identifier other than _ge_v --
+               bash applies such an attribute on the loop's assignment, so the loop would unset OTHER names
+               (_git_env_scrub_sh_blockers). `unset` / `unset -f` of a trusted function (SH_TRUSTED_FUNCS) is a
+               VIOLATION.
   PROVED       a variable EVERY assignment of which is: $(_fc_safe mkdtemp ...), $(_fc_safe mkdir --exclusive ...) (a
                plain `_fc_safe mkdir` result is NOT a namespace), $(_fc_mktemp), $(mktemp [-d] "$_FC_TMPDIR/NAME") with
                NAME free of '/' and '..', ${FC_BR_TMPDIR} (proved --exclusive at worker start), or a proved variable +
@@ -867,9 +872,54 @@ def _git_env_scrub_sh(lines):
     return out, hits
 
 
+SH_TRUSTED_FUNCS = ("_fc_safe", "_fc_run_child", "_fc_mktemp")   # the functions the census gives a meaning to
+_GE_ATTR = set("lucin")      # value-transforming attributes: case (-l -u -c), arithmetic (-i), nameref (-n)
+_GE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _git_env_scrub_sh_blockers(raw_lines, ge_lines, cmds):
+    """CON-450 round 2 (review F1-A, the CLASS): the desugar `unset WORDS; unset _ge_v` is only the same command as
+    the canonical line when "$_ge_v" expands to each WORD exactly as written. Bash applies a variable's attributes on
+    every assignment, the `for` assignment included: `declare -l _ge_v` (or local / typeset, -u -c -i, -n) before the
+    line makes the loop unset OTHER names (measured: a PROVED lower-case variable and the trusted function _fc_safe).
+    The desugar is refused (the line is left to the fail-closed rules) when either holds:
+      (1) the text `_ge_v` occurs on any line other than a line that is exactly the canonical line (any declaration,
+          assignment, read or use; also in a comment or a here-document body -- conservative);
+      (2) a local / declare / typeset command carries a value-transforming attribute (-l -u -c -i -n, or an option
+          letter the census cannot read) on a NAME word that is not a plain identifier other than _ge_v (a quoted,
+          escaped, brace, glob, subscript or expanded NAME can be _ge_v at run time without the text `_ge_v`).
+    Both are decided on the whole file, so a declaration in a calling function (bash's dynamic scope) is seen.
+    Returns [(line, reason)]; empty when the desugar holds."""
+    out = []
+    ge = set(ge_lines)
+    for no, raw in enumerate(raw_lines, 1):
+        # a here-document body line that is exactly the canonical line (its text, never desugared) does not count
+        if no not in ge and "_ge_v" in raw and not _GE_SH.match(raw):
+            out.append((no, "the helper variable _ge_v is named outside the canonical scrub line"))
+    for cm in cmds:
+        if cm["cmd"] not in ("local", "declare", "typeset"):
+            continue
+        letters, _vals, ops = _options(cm["args"])
+        if not (letters & (_GE_ATTR | {"$"})):
+            continue
+        for o in ops:
+            nm = o.split("=", 1)[0]
+            if not _GE_NAME.match(nm) or nm == "_ge_v":
+                out.append((cm["line"], "%s -%s on a NAME (%s) that may be _ge_v at run time"
+                            % (cm["cmd"], "".join(sorted(letters & (_GE_ATTR | {"$"}))), nm[:30])))
+                break
+    return out
+
+
 def sh_census(path):
-    lines, ge_lines = _git_env_scrub_sh(open(path).read().split("\n"))
+    raw_lines = open(path).read().split("\n")
+    lines, ge_lines = _git_env_scrub_sh(raw_lines)
     cmds, funcs, extents = sh_commands(lines)
+    ge_blockers = _git_env_scrub_sh_blockers(raw_lines, ge_lines, cmds) if ge_lines else []
+    ge_refused = []
+    if ge_blockers:                                       # fail-closed: no desugar, the line is censused as written
+        ge_refused, ge_lines, lines = ge_lines, [], raw_lines
+        cmds, funcs, extents = sh_commands(lines)
     bodies = _heredoc_bodies(lines)
     # ---- provenance: every assignment of every variable, by function ----
     assigns = {}                                          # (func, name) -> [value]
@@ -994,6 +1044,10 @@ def sh_census(path):
                 return proved_in(fn, v)
         return K()
     rows = []
+    for no in ge_refused:                           # CON-450 round 2: the refusal is its own row, with its cause
+        rows.append((os.path.basename(path), no, func_at(extents, no), "for _ge_v ... unset", "VIOLATION",
+                     "the CON-402 git-env scrub line is NOT desugared: %s (line %d) -- the loop may unset other "
+                     "names (fail-closed, _git_env_scrub_sh_blockers)" % (ge_blockers[0][1], ge_blockers[0][0])))
     for no in ge_lines:                             # CON-402: one row per desugared scrub line (visible, not silent)
         rows.append((os.path.basename(path), no, func_at(extents, no), "for _ge_v ... unset", "EXEMPT",
                      "the CON-402 file-level git-env scrub: read as `unset <literal NAMEs>`, each NAME checked by the "
@@ -1119,6 +1173,14 @@ def sh_census(path):
             return
         # round 14 (V4R14-2) -> round 15 (V4R15-2, the CLASS): every variable-NAME position of every name-taking
         # builtin the tables admit (NAME_BUILTINS), after quote removal; each a VIOLATION at its own line
+        if w0 == "unset":                                 # CON-450 round 2 (review F1-E): the trusted functions
+            u_letters, _uv, u_ops = _options(args)
+            if "v" not in u_letters:                      # `unset NAME` falls back to a function; -f is a function
+                for o in u_ops:
+                    if _unq(o) in SH_TRUSTED_FUNCS:
+                        add(cm, "unset " + _unq(o), "VIOLATION", "unset of the trusted function %s: every later call "
+                            "of it would run whatever command of that name PATH finds (fail-closed)" % _unq(o))
+                        return
         if w0 in NAME_BUILTINS:
             words, letters = _name_words(w0, args)
             if "$" in letters:
@@ -2041,6 +2103,11 @@ def self_test(sup, br):
             if want and text in SELF_REASON:
                 hits = [r for r in hits if SELF_REASON[text] in r[5]]
             other = [r for r in rows if r[4] == "VIOLATION" and r[1] != at]
+            if lang == "sh" and "_ge_v" in text:    # CON-450 round 2: a needle naming _ge_v blocks the desugar of the
+                ge_at = {i for i, l in enumerate(src_sh.split("\n"), 1) if _GE_SH.match(l)}   # file's own scrub line
+                ge_rows = [r for r in other if r[1] in ge_at]
+                if [r for r in ge_rows if "NOT desugared" in r[5]]:      # expected there, with the new rule's row
+                    other = [r for r in other if r[1] not in ge_at]
             if text in SELF_UNPROVES:                 # elsewhere rows expected: provenance refusals only
                 hits = hits + [r for r in other if "not proved" in r[5] or "not a listed parameter" in r[5]]
                 other = [r for r in other if not ("not proved" in r[5] or "not a listed parameter" in r[5])]
