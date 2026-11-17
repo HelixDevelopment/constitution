@@ -61,7 +61,7 @@ the per-token rendered-text comparison (r8 code; their mutants are retired, belo
 
 ## Mutants
 
-Final suite run (`final/suite_run1.txt`, RESULT pass=107 fail=0, including the P13 mutation run; the second run was killed before it finished, so determinism over two runs of the final code is UNCONFIRMED):
+Final suite runs (`final/suite_run1.txt` on the final code before its commit, `final/suite_run2.txt` on commit 85d8d1a7; each RESULT pass=107 fail=0, each including the P13 mutation run; the two files are byte-identical, sha256 1951ea68756bb509468845be18767bc16b38d223f502ed4eb34537300ffa6665):
 `MUTATE total=105 killed=105 survived=0 not_applied=0 retired=47 equivalent=0 retired_fail=0`. 80 own rows; new in
 round 9: O90 to O108, R9A01, R9A01b, R9A03, R9A07, R9A08, R9A09, R9A12, R9A59 and the r8 reviewer analogs RVA02,
 RVA05, RVA06, RVA10, RVA11. O59 is retired with its code (no equivalent rows remain); the hole it stood for (a label
@@ -94,3 +94,20 @@ raw-html 10, blank 4, noline 2.
   reader that writes a tag outside the allowlist is refused, not judged.
 - THE NEAR RULE reads with Unicode 17.0 / ICU 78.2; a font or reader with other rules may show a character differently.
 - Gate-logic only: the line's job is not run and its counts are not observed.
+
+## Gates and merge test
+
+`gates.txt` (on 85d8d1a7, 2026-11-17T11:18:05Z):
+
+- `--verify-manifest`: `MANIFEST-MISMATCH`, 1 problem: the excluded set differs from the accepted lock by the addition
+  of `tests/release/pvl_grid.py` (the expected one; the accept is the lander's, with a rostered reviewer).
+- git-env census: PASS, members=666 hermetic=507 exempt=159 unscrubbed=0.
+- `CM-GATE-LEDGER-RATCHET`: PASS, unimplemented=394 baseline=394.
+- `CM-CONSTITUTION-INDEX-FRESH`: PASS.
+- `--sync-guide`: total=977; the working tree was unchanged after it.
+- workable-items `validate`: OK, 486 items. `diff`: the database and the Markdown are in sync.
+
+`merge_test.txt`: `git merge --no-ff --no-commit` of this head onto main `ebd8818c` in a separate clone (then
+aborted). Conflicts in `config/full_suite_manifest.tsv` (one hunk: the next entry row on each side),
+`docs/guides/full_suite_runner_guide.md` (one hunk: the generated census line) and `docs/workable_items.db` (binary).
+`docs/Issues.md` and `docs/Issues_Summary.md` merged without conflict.
