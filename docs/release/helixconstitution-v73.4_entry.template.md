@@ -63,7 +63,7 @@ Review follow-ups of the ATM-1809 audits (audit 3 M1 to M7 and N1 to N4) are {{M
 
 #### §11.4.297 and §11.4.298 for this release
 
-§11.4.297: no tracked file of this repository declares pull-request delivery (no `config/delivery.conf`; no `delivery_mode` / `pr_reviewers` / `mode: pr` outside the anchor text, gates and tests), so §11.4.288 applies as written and the release commit lands on `main` by a direct fast-forward push. §11.4.298: this repository ships governance text, scripts and a tracker, declares no product and no deployable build for target hardware; the reading is that §11.4.298 does not apply, and no product is reported `RELEASABLE`. The operator may read it otherwise.
+§11.4.297: `config/delivery.conf` is tracked on `main` and declares `mode=pr` (a PROVISIONAL declaration of 2026-11-16: its own header says no delivery tool reads it yet and nothing is ENFORCED, §11.4.297(G)); this release's own landing is the release commit pushed fast-forward together with the tag by `scripts/release/tag_and_release.sh` (decision 8 of the 2026-11-11 relayed decisions kept delivery direct; whether the release commit should go through a pull request is the operator's open question). §11.4.298: this repository ships governance text, scripts and a tracker, declares no product and no deployable build for target hardware; the reading is that §11.4.298 does not apply, and no product is reported `RELEASABLE`. The operator may read it otherwise.
 
 #### Installer note
 
