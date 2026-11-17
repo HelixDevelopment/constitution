@@ -1,5 +1,14 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+## Unreleased — 2026-11-17 — workable-items engine: one fence-aware definition of an item's own lines; fenced headings and table rows mint no item (CON-456, round 6)
+
+**Status of this entry: UNRELEASED; PROVISIONAL (§11.4.290), not VERIFIED-DONE; evidence class gate-logic and host-only; not independently reviewed after round 6 (§11.4.142).**
+
+- **Review r5 findings F1/M1/M2.** A status writer rewrote a fenced `**Status:**` example and left the item's own line stale; the parser, the Status canonicalizer, the metadata-block finder and the owned-line gate now share one fence-aware definition (`ownlines.go`); CRLF endings are kept.
+- **Follow-up.** A fenced `## ID — title` heading or legacy table row minted a phantom item in `parseIssues` / `parseFixed`; fixed with failing-first tests. The real tracker holds 0 such lines.
+- **Evidence** (`docs/qa/engine_idgrammar_2026_11_17/r6/`): two identical `go test` runs (1134 pass, 0 fail, 6 skip); real-tracker copy FAILS=0; builds byte-equal.
+- **Owed.** Mutants N8, N9, N15, N19, N20 survived the copy-based run (N8 probably equivalent) and six mutants did not compile as written; see the r6 README section 3.
+
 ## Unreleased — 2026-11-17 — workable-items engine: body writers patch the stored body in place and change only the lines they own; leaving Operator-blocked removes the block record (CON-456, round 5, structural)
 
 **Status of this entry: UNRELEASED; PROVISIONAL (§11.4.290), not VERIFIED-DONE; evidence class gate-logic and host-only (§11.4.289(C)(2)): host tests, the engine on scratch copies of the tracker database and a class sweep; round 5 (structural, §11.4.276(E)(2)) after a NO-GO review, not yet independently reviewed again (§11.4.142).**

@@ -122,8 +122,13 @@ and 0 on the second (the derived description column, unchanged since round 2).
 
 ## 7. Gates
 
-From the repository root (`gates/gates.tsv`, run at `60b87d73`, which differs
-from the final head only in Go code under `scripts/workable-items`):
+From the repository root (`gates/gates.tsv`, run at `60b87d73`. CORRECTION (round 6, review r5): the
+earlier text said this commit differs from the final r5 head only in Go code.
+That was false: `git diff --stat 60b87d73 47244803` lists 46 files, including
+the revert of the 60b87d73 change, the tracked binaries and `.source.sha256`,
+and the whole r5 evidence tree (these tools, mutants, logs). The gate rows below
+describe the tree at `60b87d73`, not the final r5 head; round 6 re-runs every
+gate at its own final head and records that head):
 verify-manifest MANIFEST-OK; full-suite manifest census PASS (966);
 gate-ledger ratchet PASS; constitution index fresh PASS; git-env census PASS
 (664 members, 510 hermetic, 154 exempt, 0 unscrubbed); state-fields anchor PASS
