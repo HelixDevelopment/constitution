@@ -45,9 +45,8 @@ derive_release_facts.sh	sort	e639c7f0	fixed	allowlist	pipe-local	none	local
 derive_release_facts.sh	grep	3fe815d3	fixed	allowlist	pipe-local	none	local	
 derive_release_facts.sh	tr	3062847e	validated-data	allowlist	pipe-local	none	local	
 derive_release_facts.sh	sed	3062847e	validated-data	allowlist	pipe-local	none	local	
-derive_release_facts.sh	awk	ec4eeb4c	fixed	allowlist	pipe-local	none	local	
-derive_release_facts.sh	sed	b6ea1bf7	fixed	allowlist	pipe-local	none	local	
-derive_release_facts.sh	awk	5897175c	validated-data	allowlist	pipe-local	none	local	
+derive_release_facts.sh	awk	2b857167	fixed	allowlist	pipe-local	none	local	
+derive_release_facts.sh	awk	8a44f99b	validated-data	allowlist	pipe-local	none	local	
 derive_release_facts.sh	grep	ba69dffe	fixed	allowlist	pipe-local	none	local	
 derive_release_facts.sh	sed	91525da3	validated-data	allowlist	pipe-local	none	local	
 derive_release_facts.sh	sort	91525da3	validated-data	allowlist	pipe-local	none	local	

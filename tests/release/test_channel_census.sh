@@ -178,7 +178,7 @@ s2="$(env -i PATH=/nonexistent LANG=C.UTF-8 "$PY3" -I "$CEN" netgate --pin "$PIN
 ns="$(printf '%s\n' "$s1" | grep -c '^SITE')"
 nf="$(printf '%s\n' "$s1" | awk -F '\t' '$1=="SITE" && $6=="FINDING"' | wc -l)"
 nu="$(printf '%s\n' "$s1" | awk -F '\t' '$1=="SITE" && $6 !~ /^(network-through-(rc_net|nt|net)|interpreter-allow-listed|local|local-checked-(awk|sed|sort|sqlite3))$/' | wc -l)"
-[ "$ns" -eq 136 ] && [ "$nf" -eq 0 ] && [ "$nu" -eq 0 ] && ok "netgate: the golden-FALSE corpus: 136 sites of the real scripts, every one labelled with a class of the closed set, none a finding" || bad "netgate golden-FALSE: sites=$ns findings=$nf unlabelled=$nu"
+[ "$ns" -eq 135 ] && [ "$nf" -eq 0 ] && [ "$nu" -eq 0 ] && ok "netgate: the golden-FALSE corpus: 135 sites of the real scripts, every one labelled with a class of the closed set, none a finding" || bad "netgate golden-FALSE: sites=$ns findings=$nf unlabelled=$nu"
 
 # ---- part 2d (round 13, F3 of the round-12 review): the byte pin, the first layer of the network-spawn gate ----
 # tests/release/netgate_pin.tsv pins the exact bytes of the four release files: every line (key8 of the normalised
@@ -194,7 +194,7 @@ pin(){ # pin NAME WANT-RC PATTERN TABLE FILE...: netgate --pin on the files
   local n="$1" want="$2" pat="$3" tab="$4"; shift 4
   o="$(env -i PATH=/nonexistent LANG=C.UTF-8 "$PY3" -I "$CEN" netgate --pin "$tab" "$@" 2>&1)"; r=$?
   if [ "$r" -eq "$want" ] && printf '%s\n' "$o" | grep -qF -- "$pat"; then ok "netgate pin: $n"; else bad "netgate pin: $n (rc $r): $(printf '%s\n' "$o" | head -3 | tr '\n' ' ')"; fi; }
-pcopy "$W/pc0"; pin "unchanged copies pass (control)" 0 'NETGATE layer=pin+analyser invocations=136 network_through_rc_net=52 findings=0' "$PIN" "${PCS[@]}"
+pcopy "$W/pc0"; pin "unchanged copies pass (control)" 0 'NETGATE layer=pin+analyser invocations=135 network_through_rc_net=52 findings=0' "$PIN" "${PCS[@]}"
 pcopy "$W/pc1"; sed -i '2s/$/ /' "$W/pc1/release/tag_and_release.sh"
 pin "a trailing space on one line (same normalised key, other bytes)" 1 'PIN tag_and_release.sh:2 line key' "$PIN" "${PCS[@]}"
 pcopy "$W/pc2"; printf '%s\n' '# a comment line' >>"$W/pc2/release_publish_gitea.sh"

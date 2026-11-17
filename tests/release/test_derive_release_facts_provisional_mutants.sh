@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 # tests/release/test_derive_release_facts_provisional_mutants.sh — paired mutations (§1.1) of the rel1 and
 # rel2 derivations of scripts/release/derive_release_facts.sh: each mutant is a copy of scripts/release and
-# scripts/lib with one line changed back to the broken behaviour; test_derive_release_facts_provisional.sh must
-# FAIL on it (and pass on the unmutated copy, the control). Evidence class: gate-logic (PROVISIONAL).
+# scripts/lib with one change back to a broken behaviour; test_derive_release_facts_provisional.sh must FAIL on it
+# (and pass on the unmutated copy, the control). M1-M5 are the author's first set, M6-M16 cover the review of
+# e5efbf77 (F2 fences, F3 word boundary, F4 first due:, F8 closure binding, F9 lookup failure, CR handling), R1-R8
+# are the reviewer's mutants of that review re-expressed on this code (R2 = M1, R4 = M3; R5, removing the awk exit,
+# is equivalent here: every line after the first starts with "V", so the shell's date test and ${due:0:10} read
+# the first line only; it is listed as equivalent, not run). MUT_ONLY=ID runs one mutant.
+# Evidence class: gate-logic (PROVISIONAL).
 set -u
+for _ge_v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX; do unset "$_ge_v"; done; unset _ge_v  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; ROOT="$(cd "$HERE/../.." && pwd)"
 pass=0; fail=0
 ok(){ pass=$((pass+1)); echo "PASS $*"; }; bad(){ fail=$((fail+1)); echo "FAIL $*"; }
@@ -12,47 +18,47 @@ cleanup(){ [ -n "${W:-}" ] && [ -d "$W" ] && . "$ROOT/scripts/lib/safe_rm.sh" 2>
 trap cleanup EXIT; trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM
 mk(){ local d="$W/$1"; mkdir -p "$d/scripts"; cp -r "$ROOT/scripts/release" "$ROOT/scripts/lib" "$d/scripts/"; echo "$d/scripts/release/derive_release_facts.sh"; }
 run(){ DRF_SCRIPT="$1" bash "$HERE/test_derive_release_facts_provisional.sh" >"$W/out" 2>&1; }
+# apply ID FILE: replace the one occurrence of the mutant's text (python, so no shell quoting touches the texts)
+apply(){ python3 -I - "$1" "$2" <<'MUTPY'
+import sys
+mid, p = sys.argv[1], sys.argv[2]
+M = {
+ "M1": ('if (index(line, m) != 1) next', 'if (index(line, m) == 0) next'),
+ "M2": ('if (fc != "") next', 'if (0) next'),
+ "M3": ('if [ "$rloc" = Fixed ] && [ -n "$rclos" ] && [ "$rclos" \\> "$PREV_DATE" ]; then', 'if [ -n "$rloc" ]; then'),
+ "M4": ('if [ "$REQ_RETEST" -eq 1 ]; then', 'if false; then'),
+ "M5": ('  elif [ -z "$rrow" ]; then', '  elif [ -z "$rrow" ] && false; then'),
+ "M6": ('(c == "`" || c == "~")', '(c == "`")'),
+ "M7": ('while (ind < 4 && substr(line, ind + 1, 1) == " ") ind++', 'while (ind < 0 && substr(line, ind + 1, 1) == " ") ind++'),
+ "M8": ('fc == c && n >= fl && tail', 'fc == c && tail'),
+ "M9": ('n >= fl && tail ~ /^[ \\t]*$/) { fc = ""', 'n >= fl) { fc = ""'),
+ "M10": ('if (after ~ /[A-Za-z0-9_]/) next', 'if (0) next'),
+ "M11": ('due = substr(r, 1, RLENGTH); break }', 'due = substr(r, 1, RLENGTH) }'),
+ "M12": ('if (pre !~ /[A-Za-z0-9_]/) {', 'if (1) {'),
+ "M13": (' && [ "$rclos" \\> "$PREV_DATE" ]; then', '; then'),
+ "M14": (' && !(c == "`" && index(tail, "`") > 0)', ''),
+ "M15": ('  if [ "$rok" -eq 0 ]; then', '  if false; then'),
+ "M16": ('sub(/\\r$/, "", line)', 'line = line'),
+ "R1": ('  [ -n "$vline" ] || continue\n', ''),
+ "R3": ('if (n >= 3 && fc == ""', 'if (n >= 99 && fc == ""'),
+ "R6": ('"$RETEST" "$rstat" "$rloc" >&3\n        echo retest >>"$QFAIL"', '"$RETEST" "$rstat" "$rloc" >&3'),
+ "R7": ('"$RETEST" "$B" >&3\n    echo retest >>"$QFAIL"', '"$RETEST" "$B" >&3'),
+ "R8": ('  due="${vline#V}"', "  due=\"$(printf '%s\\n' \"$body\" | grep -m1 -F '**Verification:** provisional' | sed -n 's/.*due:[[:space:]]*\\([^[:space:]]*\\).*/\\1/p')\""),
+}
+a, b = M[mid]
+s = open(p, encoding="utf-8").read()
+if s.count(a) != 1:
+    sys.exit("mutant %s: text found %d times, expected 1" % (mid, s.count(a)))
+open(p, "w", encoding="utf-8").write(s.replace(a, b))
+MUTPY
+}
 S0="$(mk control)"; run "$S0" && ok "control: the unmutated copy passes" || bad "control: the unmutated copy passes"
-# M1 (rel1): the marker may be anywhere in the body again (the pre-fix whole-body match)
-S1="$(mk m1)"; python3 -I - "$S1" <<'PY' || { bad "M1 could not be applied"; }
-import sys
-p=sys.argv[1]; s=open(p,encoding='utf-8').read()
-a="index($0,\"**Verification:** provisional\")==1{print; exit}"
-b="index($0,\"**Verification:** provisional\")>0{print; exit}"
-assert s.count(a)==1; open(p,'w',encoding='utf-8').write(s.replace(a,b))
-PY
-run "$S1" && bad "M1 (marker anywhere in a line) is caught" || ok "M1 (marker anywhere in a line) is caught"
-# M2 (rel1): fences are not honoured
-S2="$(mk m2)"; python3 -I - "$S2" <<'PY' || { bad "M2 could not be applied"; }
-import sys
-p=sys.argv[1]; s=open(p,encoding='utf-8').read()
-a="/^```/{f=!f; next} !f && "
-assert s.count(a)==1; open(p,'w',encoding='utf-8').write(s.replace(a,""))
-PY
-run "$S2" && bad "M2 (fences ignored) is caught" || ok "M2 (fences ignored) is caught"
-# M3 (rel2): every retest item counts as evidence
-S3="$(mk m3)"; python3 -I - "$S3" <<'PY' || { bad "M3 could not be applied"; }
-import sys
-p=sys.argv[1]; s=open(p,encoding='utf-8').read()
-a='if [ "$rloc" = Fixed ]; then'
-assert s.count(a)==1; open(p,'w',encoding='utf-8').write(s.replace(a,'if [ -n "$rloc" ]; then'))
-PY
-run "$S3" && bad "M3 (any item is evidence) is caught" || ok "M3 (any item is evidence) is caught"
-# M4 (rel2): --require-retest-evidence does not refuse
-S4="$(mk m4)"; python3 -I - "$S4" <<'PY' || { bad "M4 could not be applied"; }
-import sys
-p=sys.argv[1]; s=open(p,encoding='utf-8').read()
-a='if [ "$REQ_RETEST" -eq 1 ]; then'
-assert s.count(a)==1; open(p,'w',encoding='utf-8').write(s.replace(a,'if false; then'))
-PY
-run "$S4" && bad "M4 (no refusal under --require-retest-evidence) is caught" || ok "M4 (no refusal under --require-retest-evidence) is caught"
-# M5 (rel2): an unknown id is cited without a refusal
-S5="$(mk m5)"; python3 -I - "$S5" <<'PY' || { bad "M5 could not be applied"; }
-import sys
-p=sys.argv[1]; s=open(p,encoding='utf-8').read()
-a='  if [ -z "$rrow" ]; then'
-assert s.count(a)==1; open(p,'w',encoding='utf-8').write(s.replace(a,'  if [ -z "$rrow" ] && false; then'))
-PY
-run "$S5" && bad "M5 (unknown id not refused) is caught" || ok "M5 (unknown id not refused) is caught"
+for id in M1 M2 M3 M4 M5 M6 M7 M8 M9 M10 M11 M12 M13 M14 M15 M16 R1 R3 R6 R7 R8; do
+  [ -z "${MUT_ONLY:-}" ] || [ "$MUT_ONLY" = "$id" ] || continue
+  Sm="$(mk "$id")"
+  if ! apply "$id" "$Sm"; then bad "$id could not be applied"; continue; fi
+  if run "$Sm"; then bad "$id survives"; else ok "$id is caught ($(grep -c '^FAIL' "$W/out") failing checks)"; fi
+done
+echo "EQUIVALENT R5 (awk exit removed): not run, see the header"
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" -eq 0 ]
