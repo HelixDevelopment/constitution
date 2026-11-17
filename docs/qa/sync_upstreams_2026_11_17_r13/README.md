@@ -53,7 +53,9 @@ How the table was run, stated honestly: the full run was interrupted twice (once
 API rate-limit stop at row 325). Part 1 ran on the tree before the S04 test fix; part 2 and the S04 rerun ran on the
 final tree. The test changes in between only added checks (`pre_index`, `refused_stage.after_pre_index`, the
 config `+` unit test); no check was removed or weakened, so a row killed in part 1 stays killed. The six
-equivalent rows are the same as in round 12 (each was re-checked by the harness's own equivalence probe).
+equivalent rows were not changed by this round: each is listed in the `EQUIVALENT` table of
+`tests/sync/test_mutations.py` with its written proof from the round that added it, and each ran every suite on its
+list in this round without being killed.
 
 ### Suites, run twice on the committed engine (`suites/suites_run1.txt`, `suites/suites_run2.txt`)
 
@@ -85,8 +87,9 @@ after `test_faults` and restarted; its partial log is `suites/suites_run1_interr
 ratchet `unimplemented=394 baseline=394` (unchanged); INDEX-FRESH PASS; MANIFEST-OK; workable-items validate OK
 (390 items) and diff in sync; the defaults are unchanged (setup `CONSTITUTION_SYNC_UPSTREAMS:-off`, hook
 `CONSTITUTION_SYNC_CHECK:-offline`, no diff on `post_update_hook.sh` or `setup.sh`); gate meta-test PASS (110 cases).
-The census and `tests/test_git_env_class.sh` were also run in a fresh clone of the committed head
-(`gates/pristine_clone.txt`).
+The census and `tests/test_git_env_class.sh` were also run in a fresh clone of the committed head `93b70b3`
+(`gates/pristine_clone.txt`): census PASS, 680 members (the two round-13 inventory scripts added), 0 unscrubbed;
+git-env class test 142 passed, 0 failed, 1 skipped. The commit after it changes only this README, SHA256SUMS and that file.
 
 ### Follow-ups (not fixed in this round)
 
