@@ -1,0 +1,54 @@
+== green_r10: tool sha256 3a9a9555a71abc83
+-- R9-5 (3): real target f67d926c; CON-313, CON-387, CON-388 name the vehicle's CON-308 (lands elsewhere)
+x1_real rc=0 RESULT: PLAN mode=REPLAY own=46 base_changes=3 steps=72 conflicts=0 refusals=0 first=CON-412 last=CON-456
+  xref lines: 46 (declared: 46)
+annotations: ['CON-313', 'CON-387', 'CON-388'] target_own: ['CON-234', 'CON-305', 'CON-345', 'CON-346', 'CON-347', 'CON-348', 'CON-349', 'CON-350', 'CON-351', 'CON-352', 'CON-353', 'CON-354', 'CON-355', 'CON-358', 'CON-363', 'CON-364', 'CON-365', 'CON-366', 'CON-367', 'CON-368', 'CON-369', 'CON-370', 'CON-371', 'CON-387', 'CON-389', 'CON-390', 'CON-391', 'CON-392', 'CON-393', 'CON-394', 'CON-395', 'CON-396', 'CON-397', 'CON-398', 'CON-399', 'CON-400', 'CON-401']
+-- R9-5 (3): the same plan without the --target-own and CON-387/CON-388 declarations (the RED probe's arguments)
+x1_undeclared rc=1 RESULT: NOT-LANDABLE mode=REPLAY own=46 base_changes=3 steps=70 conflicts=0 refusals=44 first=CON-412 last=CON-456
+  xref lines: 46 (declared: 2)
+REFUSED XREF-AMBIGUOUS CON-234: names CON-310, which the target holds as its own item and the vehicle holds as another item that lands as CON-423; --annotate-foreign CON-234=CON-310 declares it the vehicle's, --target-own CON-234=CON-310 the target's
+REFUSED XREF-AMBIGUOUS CON-234: names CON-311, which the target holds as its own item and the vehicle holds as another item that lands as CON-424; --annotate-foreign CON-234=CON-311 declares it the vehicle's, --target-own CON-234=CON-311 the target's
+REFUSED XREF-AMBIGUOUS CON-305: names CON-304, which the target holds as its own item and the vehicle holds as another item that lands as CON-417; --annotate-foreign CON-305=CON-304 declares it the vehicle's, --target-own CON-305=CON-304 the target's
+REFUSED XREF-AMBIGUOUS CON-345: names CON-299, which the target holds as its own item and the vehicle holds as another item that lands as CON-412; --annotate-foreign CON-345=CON-299 declares it the vehicle's, --target-own CON-345=CON-299 the target's
+REFUSED XREF-AMBIGUOUS CON-346: names CON-299, which the target holds as its own item and the vehicle holds as another item that lands as CON-412; --annotate-foreign CON-346=CON-299 declares it the vehicle's, --target-own CON-346=CON-299 the target's
+REFUSED XREF-AMBIGUOUS CON-347: names CON-299, which the target holds as its own item and the vehicle holds as another item that lands as CON-412; --annotate-foreign CON-347=CON-299 declares it the vehicle's, --target-own CON-347=CON-299 the target's
+REFUSED XREF-AMBIGUOUS CON-348: names CON-299, which the target holds as its own item and the vehicle holds as another item that lands as CON-412; --annotate-foreign CON-348=CON-299 declares it the vehicle's, --target-own CON-348=CON-299 the target's
+REFUSED XREF-AMBIGUOUS CON-349: names CON-299, which the target holds as its own item and the vehicle holds as another item that lands as CON-412; --annotate-foreign CON-349=CON-299 declares it the vehicle's, --target-own CON-349=CON-299 the target's
+  refusals by class:  44 REFUSED XREF-AMBIGUOUS,
+-- R9-5 (3): reviewer probe b1 (CON-405 names the vehicle's CON-320 on a colliding target)
+b1_rebound_collides rc=1 RESULT: NOT-LANDABLE mode=REPLAY own=46 base_changes=3 steps=72 conflicts=0 refusals=1 first=CON-412 last=CON-456
+  xref lines: 47 (declared: 46)
+REFUSED XREF-AMBIGUOUS CON-405: names CON-320, which the target holds as its own item and the vehicle holds as another item that lands as CON-433; --annotate-foreign CON-405=CON-320 declares it the vehicle's, --target-own CON-405=CON-320 the target's
+-- R9-7 (5): probe a7 (supersede onto an unrelated target item, nothing names the pair)
+a7_other_target rc=1 RESULT: NOT-LANDABLE mode=REPLAY own=46 base_changes=3 steps=72 conflicts=0 refusals=1 first=CON-412 last=CON-456
+  xref lines: 46 (declared: 46)
+REFUSED --supersede CON-339=CON-411: nothing records that the two are one defect: the target's CON-411 does not name CON-339, and no --dup-resolution row gives the pair SAME-DEFECT
+-- R9-7 (5): probe a6 (supersede an own id onto the target's item of the same number)
+a6_same_number rc=1 RESULT: NOT-LANDABLE mode=REPLAY own=46 base_changes=3 steps=74 conflicts=0 refusals=17 first=CON-412 last=CON-456
+  xref lines: 30 (declared: 30)
+REFUSED --target-own CON-367: the item names no provisional vehicle id
+REFUSED --target-own CON-368: the item names no provisional vehicle id
+REFUSED --target-own CON-369: the item names no provisional vehicle id
+REFUSED --target-own CON-370: the item names no provisional vehicle id
+REFUSED --target-own CON-371: the item names no provisional vehicle id
+REFUSED --target-own CON-387=CON-313: the item does not name CON-313 as a vehicle id that lands elsewhere
+REFUSED --target-own CON-391: the item names no provisional vehicle id
+REFUSED --target-own CON-392: the item names no provisional vehicle id
+  the supersede refusal: REFUSED --supersede CON-313=CON-313: nothing records that the two are one defect: a shared number is not a shared defect (the target's item calling itself CON-313 says nothing), and no --dup-resolutio
+-- R9-6 (4): a SHARED-PATH pair with no verdict (the bcac0882 file without the three new rows)
+d1_missing_rows rc=1 RESULT: NOT-LANDABLE mode=REPLAY own=46 base_changes=3 steps=72 conflicts=0 refusals=3 first=CON-412 last=CON-456
+  xref lines: 46 (declared: 46)
+REFUSED SHARED-PATH CON-326: names redact_cut.sh, which the target's open CON-407 names too, and no --dup-resolution row gives the pair a verdict (section 11.4.214)
+REFUSED SHARED-PATH CON-328: names test_release_tooling_mutations.sh, which the target's open CON-409 names too, and no --dup-resolution row gives the pair a verdict (section 11.4.214)
+REFUSED SHARED-PATH CON-330: names redact_cut.sh, which the target's open CON-407 names too, and no --dup-resolution row gives the pair a verdict (section 11.4.214)
+-- R9-6 (4): reviewer plan_edit_probe: a made plan edited consistently (DISTINCT -> SAME-DEFECT, reason gains an id and ';'), replayed, verified
+replay rc=0 RESULT: APPLIED steps=72 items=46
+verify rc=1 RESULT: FAIL mode=REPLAY items=49 mismatches=4 known=46
+MISMATCH plan dup-resolution row CON-300/CON-314: SAME-DEFECT lands through --supersede CON-300=CON-314, not as a landing check
+MISMATCH the plan's landing checks are not the ones its --dup-resolution rows give
+MISMATCH CON-413 description: text differs outside the ids near '; sibling item: the sync-upstreams imple'
+MISMATCH CON-413 body_md: text differs outside the ids near '; sibling item: the sync-upstreams imple'
+-- R9-9 (7): refs on an empty directory under ambient GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE of a sentinel repository
+refs rc=3 (want 3 BLIND: the directory is no repository); first lines:
+BLIND: /mnt/DATA1TB/claude-work/scratch/fix_ti_r10_remint.cp1v/green.gdMqa6/empty is not a git repository: Command '['git', '-C', '/mnt/DATA1TB/claude-work/scratch/fix_ti_r10_remint.cp1v/green.gdMqa6/
+work dir /mnt/DATA1TB/claude-work/scratch/fix_ti_r10_remint.cp1v/green.gdMqa6

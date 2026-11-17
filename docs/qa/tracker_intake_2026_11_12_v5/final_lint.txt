@@ -1,0 +1,96 @@
+# the intake batch (CON-299..CON-342, passed as the comma list below)
+$ python3 -I scripts/workable-items/intake_lint.py --db docs/workable_items.db --ids CON-299\,CON-300\,CON-301\,CON-302\,CON-303\,CON-304\,CON-305\,CON-306\,CON-307\,CON-308\,CON-309\,CON-310\,CON-311\,CON-312\,CON-313\,CON-314\,CON-315\,CON-316\,CON-317\,CON-318\,CON-319\,CON-320\,CON-321\,CON-322\,CON-323\,CON-324\,CON-325\,CON-326\,CON-327\,CON-328\,CON-329\,CON-330\,CON-331\,CON-332\,CON-333\,CON-334\,CON-335\,CON-336\,CON-337\,CON-338\,CON-339\,CON-340\,CON-341\,CON-342 --prefix CON --require-dup-check --repo-root .
+RESULT: PASS selected=44 findings=0 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md
+rc=0
+# base items the vehicle changed, with the intake-format codes skipped (their descriptions predate the
+# section 11.4.148 intake format); every other code runs
+$ python3 -I scripts/workable-items/intake_lint.py --db docs/workable_items.db --ids CON-046\,CON-243\,CON-262 --prefix CON --repo-root . --skip-check SECTIONS\,XREF-LABEL\,XREF-UNLABELLED\,XREF-DANGLING\,PATH-MISSING\,SHARED-PATH\,DUP-CHECK
+RESULT: PASS selected=3 findings=0 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md
+rc=0
+# the same base items with no skip list: the findings the skip list hides (recorded, not introduced by
+# the vehicle when the base database shows them too; see base_lint_noskip_on_base below)
+$ python3 -I scripts/workable-items/intake_lint.py --db docs/workable_items.db --ids CON-046\,CON-243\,CON-262 --prefix CON --repo-root .
+FINDING SECTIONS CON-046 missing: What
+FINDING SECTIONS CON-046 missing: Reproduction / context
+FINDING SECTIONS CON-046 missing: Acceptance criteria
+FINDING SECTIONS CON-046 missing: Parent / links
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/review_con046_r5.md
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/review_con046_r6.md
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/review_con046_r7.md
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/r8_runs/
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/r9_runs/
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/r10_redgreen/
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/r11_runs/
+FINDING PATH-MISSING CON-046 docs/qa/con046_review/
+FINDING SECTIONS CON-243 missing: What
+FINDING SECTIONS CON-243 missing: Affected scope
+FINDING SECTIONS CON-243 missing: Reproduction / context
+FINDING SECTIONS CON-243 missing: Acceptance criteria
+FINDING SECTIONS CON-243 missing: Parent / links
+FINDING XREF-DANGLING CON-262 CON-207
+FINDING XREF-LABEL CON-262 CON-033 (vehicle/con033) vs title: Retire ref atm1220_r9 (13 unique commits incl. the HELD snap
+FINDING XREF-LABEL CON-262 CON-121 (main owned CON-092..CON-107) vs title: env-read census reported cm_github_issues_source_anchor_wire
+FINDING XREF-UNLABELLED CON-262 CON-107 without a label in a clause that shares no title word: Clear CDPATH in the consumer-data helper root cd (review R2-
+FINDING XREF-LABEL CON-262 CON-129 (main owns up to CON-115) vs title: test_reopen_rate_red.sh needle #2 needed the sqlite3 CLI and
+FINDING XREF-UNLABELLED CON-262 CON-115 without a label in a clause that shares no title word: ownership wave 2 FU (round 4 N5): make the C02 hermetic prop
+FINDING XREF-UNLABELLED CON-262 CON-105 without a label in a clause that shares no title word: Map reason=rb05_mock_absent to a section 11.4.69 closed reas
+FINDING XREF-UNLABELLED CON-262 CON-121 without a label in a clause that shares no title word: env-read census reported cm_github_issues_source_anchor_wire
+FINDING XREF-UNLABELLED CON-262 CON-129 without a label in a clause that shares no title word: test_reopen_rate_red.sh needle #2 needed the sqlite3 CLI and
+FINDING XREF-LABEL CON-262 CON-159 (main owns up to CON-145) vs title: CON-158 census wording overstates coverage: every decision p
+FINDING XREF-UNLABELLED CON-262 CON-145 without a label in a clause that shares no title word: Full-suite manifest auto note of scripts/fastcycle/tests/run
+FINDING XREF-UNLABELLED CON-262 CON-159 without a label in a clause that shares no title word: CON-158 census wording overstates coverage: every decision p
+FINDING XREF-LABEL CON-262 CON-176 (main owns up to CON-162) vs title: fastcycle tests: patch-machinery whole-tree manifest does no
+FINDING XREF-UNLABELLED CON-262 CON-162 without a label in a clause that shares no title word: fsfix6 review nits: census timeout kill misses timeout's pro
+FINDING XREF-UNLABELLED CON-262 CON-176 without a label in a clause that shares no title word: fastcycle tests: patch-machinery whole-tree manifest does no
+FINDING XREF-UNLABELLED CON-262 CON-193 without a label in a clause that shares no title word: Guard test_con144_blk_read_order.sh mutant M1 re-checks the 
+FINDING XREF-UNLABELLED CON-262 CON-248 without a label in a clause that shares no title word: CON-235 follow-up (review N-1): the full-suite guide should 
+FINDING XREF-UNLABELLED CON-262 CON-033 without a label in a clause that shares no title word: Retire ref atm1220_r9 (13 unique commits incl. the HELD snap
+FINDING XREF-UNLABELLED CON-262 CON-058 without a label in a clause that shares no title word: atm1217-base FU-4 (R2-6): assert rc == 0 in the D14 RM1 flip
+FINDING SECTIONS CON-262 missing: Parent / links
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-145
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-261
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-299
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-339
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-340
+RESULT: FAIL selected=3 findings=42 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md
+rc=1
+# base_lint_noskip_on_base: the same command on the base database
+$ python3 -I scripts/workable-items/intake_lint.py --db "$TMP"/base.db --ids CON-046\,CON-243\,CON-262 --prefix CON --repo-root .
+FINDING SECTIONS CON-046 missing: What
+FINDING SECTIONS CON-046 missing: Affected scope
+FINDING SECTIONS CON-046 missing: Reproduction / context
+FINDING SECTIONS CON-046 missing: Acceptance criteria
+FINDING SECTIONS CON-046 missing: Parent / links
+FINDING BODY-SYNC CON-046 body_md carries text before the description outside the heading and header block
+FINDING SECTIONS CON-243 missing: What
+FINDING SECTIONS CON-243 missing: Affected scope
+FINDING SECTIONS CON-243 missing: Reproduction / context
+FINDING SECTIONS CON-243 missing: Acceptance criteria
+FINDING SECTIONS CON-243 missing: Parent / links
+FINDING BODY-SYNC CON-243 body_md carries text before the description outside the heading and header block
+FINDING EPHEMERAL CON-243 bare-review-file: review_fix216.md on body_md
+FINDING EPHEMERAL CON-243 scratchpad: scratchpad on body_md
+FINDING XREF-DANGLING CON-262 CON-207
+FINDING XREF-LABEL CON-262 CON-033 (vehicle/con033) vs title: Retire ref atm1220_r9 (13 unique commits incl. the HELD snap
+FINDING XREF-LABEL CON-262 CON-121 (main owned CON-092..CON-107) vs title: env-read census reported cm_github_issues_source_anchor_wire
+FINDING XREF-UNLABELLED CON-262 CON-107 without a label in a clause that shares no title word: Clear CDPATH in the consumer-data helper root cd (review R2-
+FINDING XREF-LABEL CON-262 CON-129 (main owns up to CON-115) vs title: test_reopen_rate_red.sh needle #2 needed the sqlite3 CLI and
+FINDING XREF-UNLABELLED CON-262 CON-115 without a label in a clause that shares no title word: ownership wave 2 FU (round 4 N5): make the C02 hermetic prop
+FINDING XREF-UNLABELLED CON-262 CON-105 without a label in a clause that shares no title word: Map reason=rb05_mock_absent to a section 11.4.69 closed reas
+FINDING XREF-UNLABELLED CON-262 CON-121 without a label in a clause that shares no title word: env-read census reported cm_github_issues_source_anchor_wire
+FINDING XREF-UNLABELLED CON-262 CON-129 without a label in a clause that shares no title word: test_reopen_rate_red.sh needle #2 needed the sqlite3 CLI and
+FINDING XREF-LABEL CON-262 CON-159 (main owns up to CON-145) vs title: CON-158 census wording overstates coverage: every decision p
+FINDING XREF-UNLABELLED CON-262 CON-145 without a label in a clause that shares no title word: Full-suite manifest auto note of scripts/fastcycle/tests/run
+FINDING XREF-UNLABELLED CON-262 CON-159 without a label in a clause that shares no title word: CON-158 census wording overstates coverage: every decision p
+FINDING XREF-LABEL CON-262 CON-176 (main owns up to CON-162) vs title: fastcycle tests: patch-machinery whole-tree manifest does no
+FINDING XREF-UNLABELLED CON-262 CON-162 without a label in a clause that shares no title word: fsfix6 review nits: census timeout kill misses timeout's pro
+FINDING XREF-UNLABELLED CON-262 CON-176 without a label in a clause that shares no title word: fastcycle tests: patch-machinery whole-tree manifest does no
+FINDING XREF-UNLABELLED CON-262 CON-193 without a label in a clause that shares no title word: Guard test_con144_blk_read_order.sh mutant M1 re-checks the 
+FINDING XREF-UNLABELLED CON-262 CON-248 without a label in a clause that shares no title word: CON-235 follow-up (review N-1): the full-suite guide should 
+FINDING XREF-UNLABELLED CON-262 CON-033 without a label in a clause that shares no title word: Retire ref atm1220_r9 (13 unique commits incl. the HELD snap
+FINDING XREF-UNLABELLED CON-262 CON-058 without a label in a clause that shares no title word: atm1217-base FU-4 (R2-6): assert rc == 0 in the D14 RM1 flip
+FINDING SECTIONS CON-262 missing: Parent / links
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-145
+FINDING SHARED-PATH CON-262 run_all.sh also named by open CON-261
+RESULT: FAIL selected=3 findings=36 prefix=CON rendered=Issues.md,Fixed.md,Issues_Summary.md,Fixed_Summary.md
+rc=1

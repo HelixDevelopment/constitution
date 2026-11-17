@@ -1,0 +1,5 @@
+# target items the landing wrote: CON-313
+# findings on the landed copy that the unlanded target does not have (sorted, comm -23):
+# findings on the unlanded target that the landing removed (comm -13):
+REMOVED FINDING XREF-UNLABELLED CON-313 CON-339 without a label in a clause that shares no title word: Git identity guard F9/F10: conservative-refusal wording; opt
+RESULT landed=12 target=13 NEW=0 REMOVED=1

@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "<scratch>/trackintake_v3/constitution/scripts/workable-items/intake_lint.py", line 691, in <module>
+    sys.exit(main(sys.argv[1:]))
+             ~~~~^^^^^^^^^^^^^^
+  File "<scratch>/trackintake_v3/constitution/scripts/workable-items/intake_lint.py", line 681, in main
+    for f in lint_items(sel, items, prefix, a.require_dup_check, a.repo_root):
+             ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<scratch>/trackintake_v3/constitution/scripts/workable-items/intake_lint.py", line 361, in lint_items
+    for p in body_problems(r):
+             ~~~~~~~~~~~~~^^^
+  File "<scratch>/trackintake_v3/constitution/scripts/workable-items/intake_lint.py", line 249, in body_problems
+    key = re.match(r"\*\*([A-Za-z-]+):\*\*", line).group(1)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'group'

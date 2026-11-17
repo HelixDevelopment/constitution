@@ -1,0 +1,86 @@
+# range scan, 2026-11-14T05:38:57Z; HEAD b48091ea with the round-5 working-tree changes (staged); files = git ls-files (4126 paths)
+# databases: base = 02c10935:docs/workable_items.db, vehicle = working-tree docs/workable_items.db (after apply_v5.py), fix227-r11 = fed933c0:docs/workable_items.db, main = bd0036bd:docs/workable_items.db
+$ python3 -I docs/qa/tracker_intake_2026_11_12_v5/tools/range_scan.py --prefix CON --moved CON-299..CON-342 --files-from <git ls-files> --db base=<base.db> --db vehicle=docs/workable_items.db --db fix227-r11=<fix227.db> --db main=<main.db>
+control needles: PASS (every claimed form found; plain lists and read ranges not reported)
+source tracked-files (4074 read, 24 not UTF-8 text): cross_line=3 unlisted_pairs=1033 open_forms=196 cross_line_moved=2 unlisted_pairs_moved=378 open_forms_moved=0
+  connectors outside the read set: 39 distinct (connector, hits, hits naming a moved id; top 25)
+    '->' 506 0
+    '|' 309 276
+    '\\,' 49 43
+    'is now' 33 0
+    "','" 17 9
+    'names' 17 0
+    'changed to' 14 14
+    'items now' 12 0
+    'was' 10 0
+    'finding ephemeral' 8 8
+    'pass' 8 8
+    'heading names' 7 7
+    'in' 4 0
+    '=' 3 0
+    'as' 3 0
+    '→' 3 2
+    'closed onto' 2 2
+    'description names' 2 2
+    'finding sections' 2 0
+    'first' 2 0
+    'landed as' 2 2
+    'mismatch' 2 2
+    'records' 2 0
+    '##' 1 0
+    'are the' 1 0
+  cross_line NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v2/inventory/inv_I2_xref.txt: CON-29...\nCON-330'
+  cross_line NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v2/inventory/inv_I2_xref.txt: CON-29...\nCON-332'
+  sign_pair NAMES A MOVED ID x1: "docs/qa/tracker_intake_2026_11_12_v3/apply_v3.py: CON-336','CON-337"
+  sign_pair NAMES A MOVED ID x1: "docs/qa/tracker_intake_2026_11_12_v3/apply_v3b.py: CON-262','CON-308"
+  sign_pair NAMES A MOVED ID x2: "docs/qa/tracker_intake_2026_11_12_v4/make_evidence.sh: CON-262','CON-308"
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-299 | CON-312'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-300 | CON-313'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-301 | CON-314'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-302 | CON-315'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-303 | CON-316'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-304 | CON-317'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-305 | CON-318'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-306 | CON-319'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-307 | CON-320'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-308 | CON-321'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-309 | CON-322'
+  sign_pair NAMES A MOVED ID x1: 'docs/qa/tracker_intake_2026_11_12_v4/remint/fix227/tdiff3.md: CON-310 | CON-323'
+  sign_pair NAMES A MOVED ID: 312 more distinct hits not listed
+source db base (8833 text values): cross_line=0 unlisted_pairs=478 open_forms=158 cross_line_moved=0 unlisted_pairs_moved=0 open_forms_moved=0
+  connectors outside the read set: 6 distinct (connector, hits, hits naming a moved id; top 25)
+    '->' 447 0
+    'items now' 12 0
+    'was' 10 0
+    'in' 4 0
+    'as' 3 0
+    '=' 2 0
+source db vehicle (10490 text values): cross_line=0 unlisted_pairs=486 open_forms=158 cross_line_moved=0 unlisted_pairs_moved=0 open_forms_moved=0
+  connectors outside the read set: 7 distinct (connector, hits, hits naming a moved id; top 25)
+    '->' 451 0
+    'items now' 12 0
+    'was' 10 0
+    'in' 4 0
+    'is now' 4 0
+    'as' 3 0
+    '=' 2 0
+source db fix227-r11 (9245 text values): cross_line=0 unlisted_pairs=494 open_forms=158 cross_line_moved=0 unlisted_pairs_moved=0 open_forms_moved=0
+  connectors outside the read set: 7 distinct (connector, hits, hits naming a moved id; top 25)
+    '->' 447 0
+    'vehicle and' 16 0
+    'items now' 12 0
+    'was' 10 0
+    'in' 4 0
+    'as' 3 0
+    '=' 2 0
+source db main (8833 text values): cross_line=0 unlisted_pairs=478 open_forms=158 cross_line_moved=0 unlisted_pairs_moved=0 open_forms_moved=0
+  connectors outside the read set: 6 distinct (connector, hits, hits naming a moved id; top 25)
+    '->' 447 0
+    'items now' 12 0
+    'was' 10 0
+    'in' 4 0
+    'as' 3 0
+    '=' 2 0
+RESULT: sources=5 cross_line=3 unlisted_pairs=2969 open_forms=828 cross_line_moved=2 unlisted_pairs_moved=378 open_forms_moved=0
+rc=0
+# scrubbed copy (tools/scrub_paths.py): <tmp> x0, <work> x0, <home> x0, <tmp> x0

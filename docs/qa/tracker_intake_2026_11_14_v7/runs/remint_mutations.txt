@@ -1,0 +1,175 @@
+$ env -i PATH=... HOME=<scratch> TMPDIR=<scratch> LANG=C.UTF-8 REMINT_IDS_MUT_JOBS=2 bash tests/workable_items/test_remint_ids_mutations.sh (under systemd-run --user --scope -p TasksMax=2000, nice -n 10)
+PASS control: unmutated copy passes the suite (RESULT: pass=458 fail=0)
+PASS RM1 verify re-render branch: landed body compared with the vehicle body itself: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS RM2 slots: the reopen Evidence bullet is not a slot: rc=1 first-failure=R7-F3: verify PASS: the legacy bullets, Evidence included, are engine slots: rc=1 wan
+PASS RM3 slots: Obsolete-Details is not a slot: rc=1 first-failure=R7-F3: verify PASS: the Obsolete-Details line is an engine slot: rc=1 want=0: MISMATC
+PASS RM4 planner: every map pair goes to the rewriter (R5-2 reverted): rc=1 first-failure=R5-2: FAST-FORWARD: a base path naming an own id that does not move is not refused: r
+PASS RM5 cmd_plan: a refused plan carries no refusal: rc=1 first-failure=R4-9: plan refuses a vehicle with a non-empty -wal: rc=0 want=1: NOTE the plan stoppe
+PASS RM6 planner: body conflict test ignores template meta lines: rc=1 first-failure=R7-F3: a re-render over a target edit of a template meta line is a CONFLICT: rc=0 wan
+PASS RM7 verify: a landed body without a heading line is not checked: rc=1 first-failure=R5-1: verify FAIL on a heading that does not name the landed title: rc=0 want=1: RESU
+PASS RM8 verify no-re-render branch ignores template meta lines: rc=1 first-failure=R7-F3: verify FAIL on an altered template meta line when nothing re-renders: rc=0 wan
+PASS RC1 verify: obsolete_details values not compared: rc=1 first-failure=verify FAIL: an obsolete_details field: /^MISMATCH CON-357 obsolete_details.since: la
+PASS RC2 verify: own status not compared: rc=1 first-failure=verify FAIL: an own status: /^MISMATCH CON-359 status: landed 'Queued', expected 'In 
+PASS RC3 verify: Opened history row not required: rc=1 first-failure=verify FAIL: a missing Opened history row: rc=0 want=1: KNOWN CON-347 created_at: lan
+PASS RC4 rewrite: each file written before the next is checked: rc=1 first-failure=a refusal writes no file at all (the first file is checked before any write): got: se
+PASS RC5 replay: states updated_at dropped: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS RC6 replay: assigned_to dropped: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS RC7 map: two old ids may share one new id: rc=1 first-failure=map giving two old ids one new id is BLIND: rc=0 want=3: /mnt/DATA1TB/claude-work/scr
+PASS RC8 plan: first new id = max(target) (collides): rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want
+PASS X1 base item: update step not replayed: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X2 base item: state block not replayed: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X3 base item: lifecycle not replayed: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X4 conflicts not detected: rc=1 first-failure=conflict: both sides changed one column: /^CONFLICT CON-345: both changed description
+PASS X5 plan foreign set from the title only (R3-2 shape): rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS X6 verify foreign set from the title only (R3-2 shape): rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS X7 plan always FAST-FORWARD: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X8 replay: target sha256 not checked: rc=1 first-failure=a second replay is refused before any write: /re-plan against this target/ not in: cl
+PASS X9 replay: -wal sidecar not checked: rc=1 first-failure=replay refuses a target copy with a non-empty -wal sidecar: rc=0 want=1: step 1 updat
+PASS X10 verify: untouched target items not compared: rc=1 first-failure=verify FAIL: an untouched target item: rc=0 want=1: KNOWN CON-347 created_at: landed 
+PASS X11 --resolve target ignored: rc=1 first-failure=verify of --resolve target: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-14 
+PASS X12 stamp-only change not refused: rc=1 first-failure=plan refusal: only a state stamp changed: rc=0 want=1: BASE-CHANGE CON-345 vehicle=de
+PASS X13 body_md-only change not refused: rc=1 first-failure=plan refusal: body_md changed with no column change: rc=0 want=1: BASE-CHANGE CON-345
+PASS X14 red/green scripts not scanned: rc=1 first-failure=plan refusal: a red command whose script names a moved id: rc=0 want=1: BASE-CHANGE C
+PASS X15 another table changed by the vehicle not refused: rc=1 first-failure=plan refusal: another table changed: rc=0 want=1: BASE-CHANGE CON-345 vehicle=descrip
+PASS X16 own item with a column add cannot carry not refused: rc=1 first-failure=plan refusal: an own item with a column add cannot carry: rc=0 want=1: BASE-CHANGE CO
+PASS X17 verify: closure row evidence not compared: rc=1 first-failure=verify FAIL: a closure row citing other evidence: rc=0 want=1: KNOWN CON-347 created_
+PASS X18 obsolete_details lost on close-then-reopen (round-4 fix reverted): rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X19 obsolete_details lost on close: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X20 obsolete_details lost when the lifecycle is unchanged: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X21 obsolete_details lost before a reopen of a closed item: rc=1 first-failure=plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: /^RESULT:
+PASS X22 obsolete_details on an open item not refused: rc=1 first-failure=plan refusal: an obsolete_details row on an item left open: rc=0 want=1: BASE-CHANGE 
+PASS X23 a script comment Foreign line not honoured: rc=1 first-failure=plan: a script that declares its id foreign in a comment is not refused: rc=1 want=0:
+PASS X24 the item foreign set not applied to its scripts: rc=1 first-failure=plan: --foreign covers the script scan too: rc=1 want=0: BASE-CHANGE CON-345 vehicle=
+PASS X25 verify: database sha256 not checked against the plan: rc=1 first-failure=verify refuses databases the plan was not made from: /the vehicle database is not the
+PASS X26 verify: Reopened row not compared: rc=1 first-failure=verify FAIL: a changed Reopened row: rc=0 want=1: KNOWN CON-347 created_at: landed 20
+PASS X27 verify: target history rows not compared: rc=1 first-failure=verify FAIL: a target history row: rc=0 want=1: KNOWN CON-347 created_at: landed 2026
+PASS X28 verify: other tables not compared: rc=1 first-failure=verify FAIL: another table: rc=0 want=1: KNOWN CON-347 created_at: landed 2026-11-14 
+PASS X29 verify: --require-segments not checked: rc=1 first-failure=verify --require-segments FAILs on an item with no segment: rc=0 want=1: KNOWN CON-34
+PASS X30 rewrite: Foreign line rewritten: rc=1 first-failure=Foreign line left alone before its colon too: /replaced=1$/ not in: /mnt/DATA1TB/clau
+PASS X31 verify: map keys not checked against the own set: rc=1 first-failure=verify FAIL: a plan map that is not the own set: /^MISMATCH the plan's map keys are n
+PASS X32 verify: plan map prefix not checked: rc=1 first-failure=verify: a plan whose map prefix is not its prefix is BLIND: rc=1 want=3: KNOWN CON-34
+PASS X33 a deleted base item not refused: rc=1 first-failure=plan refusal: the vehicle deleted a base item: rc=0 want=1: BASE-CHANGE CON-345 vehic
+PASS X34 a rewritten base history row not refused: rc=1 first-failure=plan refusal: a base history row rewritten: rc=0 want=1: BASE-CHANGE CON-345 vehicle=
+PASS X35 a non-item doc segment not refused: rc=1 first-failure=plan refusal: a non-item doc segment: rc=0 want=1: BASE-CHANGE CON-345 vehicle=descri
+PASS X36 an ambiguous base text not refused: rc=1 first-failure=plan refusal: a base text that already names an id the vehicle minted later: rc=0 wan
+PASS X37 rewrite: partly moved range not refused: rc=1 first-failure=partly moved range refused: /is partly moved \(2 of 3 ids\)/ not in: Traceback (most 
+PASS X38 rewrite: tokens chained once: rc=1 first-failure=tokens, no chaining, boundaries, range, sentence dot: got: see CON-3 and CON-3; CON-1
+PASS X39 rewrite: non-contiguous range not refused: rc=1 first-failure=range with non-contiguous new ids refused: rc=0 want=1: /mnt/DATA1TB/claude-work/scra
+PASS X40 rewrite: a .db file accepted: rc=1 first-failure=a .db file refused: rc=0 want=1: /mnt/DATA1TB/claude-work/scratch/fix_ti8.Sg4t/tmp.QJ
+PASS X41 verify: a vehicle-side non-text column not compared: rc=1 first-failure=verify FAIL: a base-change state stamp: rc=0 want=1: KNOWN CON-347 created_at: landed
+PASS X42 rewrite: an id inside a path rewritten: rc=1 first-failure=an id inside a path refused (slash): rc=0 want=1: /mnt/DATA1TB/claude-work/scratch/fi
+PASS RV1 verify: target-side units not compared with the target (round-4 reviewer): rc=1 first-failure=R4-1a: verify FAIL when the target's text is re-pointed through the map: /^MISMATCH C
+PASS RV2 plan: merged base item always takes the vehicle description (round-4 reviewer; remapped to the round-6 update argv): rc=1 first-failure=plan: an update step passes --description once: got: 2 want: 1
+PASS RV3 plan/rewrite: en dash ranges no longer recognised (round-4 reviewer): rc=1 first-failure=sweep: a moved en dash range with an extension is refused as part of a path: /moved r
+PASS RV4 verify: own-item created_at drift not reported as KNOWN (round-4 reviewer): rc=1 first-failure=RV4: verify reports the own created_at as KNOWN: /^KNOWN CON-359 created_at: replay t
+PASS RV5 verify: base-item created_at drift without a closure is KNOWN (round-4 reviewer): rc=1 first-failure=verify FAIL: a base created_at drift with no closure (RV5): rc=0 want=1: KNOWN CON-34
+PASS RV6 verify: base-item body_md not compared (round-4 reviewer; remapped to the round-6 check_body call): rc=1 first-failure=verify FAIL: a base body_md the target did not change (RV6): rc=0 want=1: KNOWN CON-3
+PASS RV7a plan: vehicle lifecycle + target change no longer a conflict (round-4 reviewer): rc=1 first-failure=RV7a: a vehicle lifecycle change and a target change is a CONFLICT: rc=0 want=1: BASE
+PASS RV7b plan: target lifecycle + vehicle change no longer a conflict (round-4 reviewer): rc=1 first-failure=conflict: a lifecycle change on one side and a change on the other: /^CONFLICT CON-34
+PASS N1 plan: a target stamp-only change of a block is not a target change: rc=1 first-failure=the merge line names the target's stamp: MERGE CON-345: vehicle description, target s
+PASS N2 plan: block convergence ignores the stamps: rc=1 first-failure=a block both changed to the same content with other stamps is a CONFLICT: rc=0 want=1
+PASS N3 plan: a block clash is downgraded to the same change: rc=1 first-failure=R4-1b: both sides changed one state block (other columns) is a CONFLICT: rc=0 want=1:
+PASS N4 plan: a column clash is downgraded to the same change: rc=1 first-failure=conflict: both sides changed one column: /^CONFLICT CON-345: both changed description
+PASS N5 plan: column convergence compares the unmapped vehicle text: rc=1 first-failure=a title both sides changed the same way (after the map) converges: rc=1 want=0: BASE-
+PASS N6 plan: a converged block is written anyway: rc=1 first-failure=R4-1b: the same block change on both sides converges (nothing to write): /^RESULT: PL
+PASS N7 plan: the target description runs through the map (R4-1a reverted; remapped to the round-6 update argv): rc=1 first-failure=R4-1a: plan of a disjoint merge whose target text names a target id the map moves: rc
+PASS N8 plan: a target stamp change does not mark its block changed: rc=1 first-failure=R4-1b: a target stamp change on a block the vehicle changed is a CONFLICT: rc=0 want=
+PASS N9 plan: columns the vehicle did not change are written: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS N10 plan: an unlandable --resolve vehicle of stamps is not refused: rc=1 first-failure=--resolve vehicle of a same-content block with other stamps is refused: rc=0 want=1: 
+PASS N11 plan: every --resolve vehicle of a block clash is refused: rc=1 first-failure=R4-1b: --resolve vehicle: rc=1 want=0: BASE-CHANGE CON-352 vehicle=reproduction_env t
+PASS N12 plan: a non-ASCII new id gets the wrong refusal: rc=1 first-failure=plan refusal: a new id with non-ASCII digits: /^REFUSED CON-９０１: a new vehicle id wit
+PASS N13 plan/verify: a non-empty -wal sidecar read: rc=1 first-failure=R4-9: plan refuses a vehicle with a non-empty -wal: rc=0 want=1: BASE-CHANGE CON-345 
+PASS N14 plan/verify: the database path read as URI syntax: rc=1 first-failure=R4-9: a database path holding ? and # is opened as that file: rc=3 want=0: BLIND: dat
+PASS N15 rewrite: no loose or between range checked: rc=1 first-failure=R4-4: a spaced en dash partly-moved range is refused: rc=0 want=1: /mnt/DATA1TB/claud
+PASS N16 rewrite: between ... and not checked: rc=1 first-failure=R4-4: a 'between ... and' partly-moved range is refused: rc=0 want=1: /mnt/DATA1TB/cl
+PASS N17 rewrite: ids joined by a tight hyphen accepted: rc=1 first-failure=R4-4: ids joined by a tight hyphen are refused (the tokens are never rewritten): rc=0
+PASS N18 rewrite: a moved id in non-ASCII digits accepted: rc=1 first-failure=R4-5: fullwidth digits of a moved id are refused: rc=0 want=1: /mnt/DATA1TB/claude-wo
+PASS N19 rewrite: a chained range read pair by pair without overlap: rc=1 first-failure=R4-4: a chained range is checked link by link: rc=0 want=1: /mnt/DATA1TB/claude-work/
+PASS N20 verify: the refused columns dropped from the landing units: rc=1 first-failure=verify PASS after the replay: rc=3 want=0: BLIND: verify's landing units do not parti
+PASS N21 verify: an unresolved column conflict not reported: rc=1 first-failure=verify FAIL: a column conflict whose --resolve vehicle is stripped: /^MISMATCH CON-34
+PASS N22 verify: an unresolved block conflict not reported: rc=1 first-failure=verify FAIL: a block conflict whose --resolve is stripped: rc=0 want=1: RESULT: PASS 
+PASS N23 verify: an unresolved lifecycle conflict not reported: rc=1 first-failure=verify FAIL: a lifecycle conflict whose --resolve is stripped: /^MISMATCH CON-345: a 
+PASS N24 verify: block convergence ignores the stamps: rc=1 first-failure=verify FAIL: a same-content block with other stamps whose --resolve is stripped: rc=0
+PASS N25 verify: a vehicle-side block compared with the target: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS N26 verify: the same text change compared exactly (no map): rc=1 first-failure=verify of the converged plan: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS N27 verify: the lifecycle always compared with the target: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS N28 verify: an obsolete_details row the vehicle did not write not caught: rc=1 first-failure=verify FAIL: an obsolete_details row the vehicle did not write: rc=0 want=1: KNOWN CO
+PASS N29 verify: the text rules not applied: rc=1 first-failure=verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needl
+PASS N30 verify: a partly moved range accepted: rc=1 first-failure=verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needl
+PASS N31 verify: a moved id in non-ASCII digits accepted: rc=1 first-failure=verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needl
+PASS N32 verify: between ... and read as a list: rc=1 first-failure=verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needl
+PASS N33 verify: ids joined by a hyphen accepted: rc=1 first-failure=verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needl
+PASS N34 verify: a short-form range accepted: rc=1 first-failure=verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needl
+PASS N35 verify: a reverse range accepted: rc=1 first-failure=verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needl
+PASS N36 verify: a range that lands apart accepted: rc=1 first-failure=verify PASS after the replay: rc=3 want=0: BLIND: verify control needle failed: needl
+PASS N37 plan: the merge line hides the same change on both sides: rc=1 first-failure=the converged merge line: MERGE CON-345: vehicle description, target severity (disjoi
+PASS N38 keep: a moved id in a value passed as written accepted: rc=1 first-failure=plan refusal: an evidence value that is a moved id: rc=0 want=1: BASE-CHANGE CON-345 
+PASS N39 replay: a block non-text column not kept: rc=1 first-failure=plan refusal: an evidence path naming a moved id: rc=0 want=1: BASE-CHANGE CON-345 ve
+PASS N40 replay: the closure evidence not kept: rc=1 first-failure=plan refusal: a closure evidence path naming a moved id: rc=0 want=1: BASE-CHANGE CON
+PASS N41 replay: the obsolete_details fields not kept: rc=1 first-failure=plan refusal: an obsolete_details evidence path naming a moved id: rc=0 want=1: BASE-
+PASS N42 replay: the Reopened row not kept: rc=1 first-failure=plan refusal: a reopen incident path naming a moved id: rc=0 want=1: BASE-CHANGE CON-
+PASS N43 replay: a base non-text column not kept: rc=1 first-failure=plan refusal: a base assignee naming a moved id: rc=0 want=1: BASE-CHANGE CON-345 veh
+PASS N44 replay: an own item column not kept: rc=1 first-failure=plan refusal: an own assignee naming a moved id: rc=0 want=1: BASE-CHANGE CON-345 veh
+PASS N45 replay: the block author not kept: rc=1 first-failure=plan refusal: a block author naming a moved id: rc=0 want=1: BASE-CHANGE CON-345 vehi
+PASS N46 replay: an empty time stamp dropped (lands as the replay time): rc=1 first-failure=landed: the empty stamp: got: UNREPRODUCED|2026-11-14T22:52:01Z|remint test want: UNR
+PASS N47 plan: a merge line for an item only the vehicle changed: rc=1 first-failure=plan: a merge line only for the item both sides changed: got: 5 want: 1
+PASS N48 rewrite: a moved range inside a path rewritten (T1): rc=1 first-failure=sweep: a moved tight range after a slash is refused as part of a path: rc=0 want=1: /
+PASS N49 verify: a plan the planner did not call landable is verified (T2): rc=1 first-failure=verify refuses a plan the planner did not call landable: /it was never landable, so t
+PASS N50 verify: a new vehicle id outside the prefix not flagged (T3): rc=1 first-failure=verify FAIL: a new id outside the prefix, on a plan whose refusals were removed: rc=0
+PASS N51 verify: the own set counts a new id outside the prefix: rc=1 first-failure=verify: the id outside the prefix is the only mismatch: MISMATCH AA-001: a new vehicl
+PASS N52 verify: the referent of a rewritten id not checked: rc=1 first-failure=verify FAIL: an id whose landed item is not the item it named in the vehicle: /^MISMA
+PASS N53 verify: a vehicle or base item with two rows not flagged: rc=1 first-failure=verify FAIL: a vehicle item with two rows, on a plan whose refusals were removed: rc=
+PASS N54 verify: an item nobody changed checked as replayed (the planner skips it): rc=1 first-failure=verify PASS: an unchanged two-row item is skipped, as the planner skips it: rc=1 want
+PASS N55 verify: an item whose only change is a time stamp checked as replayed: rc=1 first-failure=verify FAIL: the landing wrote to an item it was not to touch: rc=0 want=1: KNOWN CON
+PASS N56 verify: a replayed item that landed as two rows not flagged: rc=1 first-failure=verify FAIL: a replayed item that landed as two rows: rc=0 want=1: KNOWN CON-347 crea
+PASS N57 verify: a column outside the rewrite set compared under the map: rc=1 first-failure=verify FAIL: a column outside the rewrite set equal only under the map is two changes
+PASS N58 verify: a plan map entry that is not a pair is read: rc=1 first-failure=verify: a plan map entry that is not a pair is BLIND: rc=0 want=3: KNOWN CON-347 crea
+PASS N59 replay: a failing engine step does not stop the replay: rc=1 first-failure=replay stops at the first engine step that fails: rc=0 want=1: step 1 update CON-345 
+PASS N60 verify: its control needle result ignored: rc=1 first-failure=verify is BLIND when its comparator misses a needle: /verify control needle failed/ n
+PASS N61 verify: its landing-unit partition not checked: rc=1 first-failure=verify is BLIND when its landing units miss a column: /landing units do not partition
+PASS N62 verify: a range of ids that do not move held to the moved-range rules: rc=1 first-failure=verify of a text holding a range of ids that do not move: rc=1 want=0: KNOWN CON-347 
+PASS N63 verify: a range mixing foreign and moved ids accepted: rc=1 first-failure=verify text rules: a range of moved ids around a foreign id mixes them: got: range 'C
+PASS N64 verify: every skeleton piece reported as the differing one: rc=1 first-failure=verify FAIL: a description changed after its last id names the piece that differs: /^
+PASS N65 verify: the differing skeleton piece never named: rc=1 first-failure=verify FAIL: a changed own description: /^MISMATCH CON-355 description: text differs 
+PASS N66 verify: the piece count of a longer skeleton not reported: rc=1 first-failure=verify FAIL: a description with an id appended gives the piece count: /^MISMATCH CON-
+PASS N67 verify: a target obsolete_details change not named when body_md is left uncompared: rc=1 first-failure=verify: the closure row is the only mismatch of the stripped plan: MISMATCH CON-349 b
+PASS N68 verify: a base item obsolete_details held to the vehicle when the vehicle did not change it: rc=1 first-failure=verify of the obsolete_details --resolve vehicle: rc=1 want=0: MISMATCH CON-350 obsol
+PASS N69 verify: a base item obsolete_details the vehicle changed not compared: rc=1 first-failure=verify FAIL: a base item's obsolete_details field: /^MISMATCH CON-349 obsolete_detail
+PASS N70 verify: an untouched item obsolete_details row not compared with the target: rc=1 first-failure=verify FAIL: an obsolete_details row added to an untouched item: rc=0 want=1: KNOWN C
+PASS N71 verify: every own item reported with a created_at KNOWN line: rc=1 first-failure=no created_at KNOWN line for an own item whose created_at was carried: KNOWN CON-357 
+PASS N72 verify: doc_segments checked without --require-segments: rc=1 first-failure=verify without --require-segments leaves doc_segments unchecked: rc=1 want=0: KNOWN C
+PASS N73 verify: a landing that touched every target item not BLIND: rc=1 first-failure=verify is BLIND when the landing touched every target item: rc=0 want=3: RESULT: PASS
+PASS N74 verify: every target item counted as untouched: rc=1 first-failure=verify is BLIND when the landing touched every target item: rc=0 want=3: RESULT: PASS
+PASS N75 check_od: a one-sided row always named as the vehicle side: rc=1 first-failure=check_od fact control: a row on one side only is reported: got: ['CON-1 obsolete_deta
+PASS N76 check_od: a one-sided row always named as the landed side: rc=1 first-failure=verify FAIL: an own item's obsolete_details row missing from the landing: /^MISMATCH 
+PASS N77 check_od: no row on either side read as a row: rc=1 first-failure=check_od fact: no row on either side appends nothing: got: Traceback (most recent cal
+PASS N78 plan: a removed obsolete_details row not refused (B10): rc=1 first-failure=plan refusal: the vehicle removed a base item's obsolete_details row: rc=0 want=1: BA
+PASS N79 check_history: every vehicle row counts as a cited closure: rc=1 first-failure=verify FAIL: a landed closure row with no evidence: rc=0 want=1: KNOWN CON-347 create
+PASS N80 check_history: the last landed row of any kind read as the Reopened row: rc=1 first-failure=verify: a later history row is not the Reopened row: MISMATCH CON-358 assigned_to: la
+PASS N81 check_history: a missing landed closure row not reported: rc=1 first-failure=verify of the stripped removed-row plan: the closure row has no step: rc=0 want=1: KN
+PASS N82 check_history: every vehicle history row counted as a lifecycle row: rc=1 first-failure=verify: no lifecycle-count KNOWN line when the counts agree: got: 7 want: 0
+PASS N83 check_history: no vehicle history row counted as a lifecycle row: rc=1 first-failure=verify: no lifecycle-count KNOWN line when the counts agree: got: 5 want: 0
+PASS N84 check_history: every landed history row counted as a lifecycle row: rc=1 first-failure=verify: no lifecycle-count KNOWN line when the counts agree: got: 7 want: 0
+PASS N85 check_history: no landed history row counted as a lifecycle row: rc=1 first-failure=verify: no lifecycle-count KNOWN line when the counts agree: got: 5 want: 0
+PASS N86 check_history: a lifecycle-count KNOWN line for every item: rc=1 first-failure=verify: no lifecycle-count KNOWN line when the counts agree: got: 10 want: 0
+PASS N87 check_history: no lifecycle-count KNOWN line: rc=1 first-failure=verify: a lifecycle-count KNOWN line when the counts differ: KNOWN CON-359 created_at
+PASS N88 verify: a rewritten id naming another item not reported (the referent condition): rc=1 first-failure=verify FAIL: an id whose landed item is not the item it named in the vehicle: /^MISMA
+PASS N89 verify FAST-FORWARD: landed ids that are not the vehicle ids not reported: rc=1 first-failure=verify FAST-FORWARD FAILs on a copy with an item the vehicle does not hold: /^MISMATC
+PASS N90 verify FAST-FORWARD: a table that differs from the vehicle not reported: rc=1 first-failure=verify FAST-FORWARD FAILs on a copy whose item_history differs: rc=0 want=1: RESULT: 
+PASS N91 verify: a created_at MISMATCH carries the CON-339 note of a KNOWN line: rc=1 first-failure=verify FAIL: a base created_at drift with no closure carries no CON-339 note: /^MISMA
+PASS ROV1 verify FAST-FORWARD: item_history not compared: rc=1 first-failure=verify FAST-FORWARD FAILs on a copy whose item_history differs: rc=0 want=1: RESULT: 
+PASS ROV2 verify: a new vehicle id in non-ASCII digits read into the own set: rc=1 first-failure=verify FAIL: a new id in non-ASCII digits, on a plan whose refusals were removed: /^M
+PASS ROV3 verify: the referent check ignores the item type: rc=1 first-failure=verify FAIL: an id whose landed item has another type: /^MISMATCH CON-355 description
+PASS ROV4 planner: the close step replays the latest closure row, not the plain close: rc=1 first-failure=plan: the close step replays the plain close's evidence: got: --evidence=docs/qa/y.tx
+PASS ROV5 planner: a base item foreign set read from the vehicle row only: rc=1 first-failure=plan: a base Foreign line the vehicle drops still covers the base text: rc=1 want=0: 
+PASS ROV6 verify: obsolete_details triple_check_evidence not compared: rc=1 first-failure=verify FAIL: an obsolete_details evidence path: rc=0 want=1: KNOWN CON-347 created_at
+PASS ROV7 Rewriter: ids of at most three digits: rc=1 first-failure=ROV7: ids of four and five digits are rewritten: got: 0|see CON-1000 and CON-12345. w
+PASS ROV8 verify: foreign-id declarations of one digit only: rc=1 first-failure=verify PASS after the replay: rc=1 want=0: KNOWN CON-347 created_at: landed 2026-11-1
+PASS ROV9 verify: the referent check ignores created_by: rc=1 first-failure=verify FAIL: an id whose landed item is not the item it named in the vehicle: /^MISMA
+PASS ROV10 verify: the referent check ignores the title: rc=1 first-failure=verify FAIL: an id whose landed item has another title: /^MISMATCH CON-355 descriptio
+PASS ROVFIX planner: a field-only update re-renders the body through a forced --description (the round-5 defect R5-1): rc=1 first-failure=plan: an update step passes --description once: got: 2 want: 1
+PASS S1 suite: a failing fixture edit is ignored: rc=1 first-failure=fx_sql refuses an edit that changes no row: rc=0
+PASS S2 suite: a fixture edit that matches no row is accepted: rc=1 first-failure=fx_sql refuses an edit that changes no row: rc=0
+PASS S3 suite: fx_sql may touch the real database: rc=1 first-failure=fx_sql refuses the real database: rc=0
+RESULT: mutants=171 all killed
+rc=0

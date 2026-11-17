@@ -1,0 +1,6 @@
+# $ python3 -I scripts/workable-items/intake_lint.py --db docs/workable_items.db --origin 'tracker-intake vehicle 2026-11-12' --require-dup-check --repo-root .
+RESULT: PASS selected=44 findings=0 prefix=CON
+# exit=0
+# $ python3 -I scripts/workable-items/intake_lint.py --db docs/workable_items.db --ids CON-243,CON-262,CON-308 --skip-check SECTIONS,XREF-DANGLING,XREF-LABEL,XREF-UNLABELLED,SHARED-PATH  (decision 8 items; the skipped codes fire on the pre-intake text of CON-243 and CON-262 and on the cross-batch shared path run_all.sh, measured unchanged or fewer by the change)
+RESULT: PASS selected=3 findings=0 prefix=CON
+# exit=0

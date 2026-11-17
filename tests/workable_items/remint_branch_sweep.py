@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+"""tests/workable_items/remint_branch_sweep.py -- automated branch-mutation sweep (section 1.1) of the
+remint_ids.py planner, replay and verify (round 5, R4-2).
+
+Documentation (section 11.4.18): docs/guides/remint_ids_guide.md, section "Branch sweep".
+
+WHAT  Reads scripts/workable-items/remint_ids.py with the ast module and lists every branch point in
+  the planner, the replay and the verify oracle (make_plan, block_steps, lifecycle_steps, the Rewriter,
+  cmd_replay, cmd_verify with its nested functions, v_text_rules, v_compare, check_od, check_history):
+  each `if`/`elif`/`while` test, each conditional expression and each comprehension filter. For each
+  branch point it makes two mutants, the condition forced to True and forced to False, by replacing the
+  exact source span of the condition (offsets from the ast, so a condition written twice is never
+  confused). Each mutant is compiled, then the suite tests/workable_items/test_remint_ids.sh runs on it
+  (REMINT_IDS=<mutant>, REMINT_IDS_FAILFAST=1). KILLED = the suite exits 1 with a FAIL line;
+  SURVIVED = the suite passes; TIMEOUT = the suite did not finish within --timeout seconds (a mutant
+  that makes a loop endless; the suite never reports a pass, so it counts as killed and is listed
+  apart); SETUP = any other exit. A survivor is accepted only when the
+  equivalence register (tests/workable_items/remint_branch_equivalents.tsv) holds its key with a
+  written reason; every other survivor fails the sweep.
+  `while True` loops are not mutated (forcing True changes nothing, forcing False removes the loop
+  and is killed by every case that reads it); they are listed as skipped.
+  CONTROL  Before any mutant runs, the suite runs once on an unmutated copy and must pass: a suite
+  that fails on every input would otherwise report every mutant KILLED (round 5, found by the sweep's
+  own test). A failed control is a setup error and no mutant is run.
+USAGE  remint_branch_sweep.py [--list] [--jobs N] [--only KEY]... [--only-file FILE] [--out FILE] [--timeout S]
+  --list   print the branch inventory (one line per mutant: key, line, condition) and exit 0
+  --jobs   parallel suite runs (default 3)
+  --only   run only this key (as printed by --list); repeat it for more keys (a key can hold a comma,
+           so keys are never split at commas)
+  --only-file  run only the keys listed in FILE, one per line (the first TAB-separated field)
+  --out    write the per-mutant TSV here (default: stdout only)
+  --timeout  seconds one suite run may take (default 1800); the run's process group is then stopped
+ENV   WORKABLE_ITEMS  the engine binary the suite uses (inherited)
+EXIT  0 every mutant killed or a registered equivalent; 1 a survivor without a register entry, a
+      SETUP verdict, or a register key that no longer names a branch (a stale entry); 2 usage or setup
+      (a missing or unparsable source, a missing suite, a bad register line, a span that does not
+      parse back, a failed control; printed as `setup: ...`).
+TESTS  tests/workable_items/test_remint_branch_sweep.sh (a fake tool and a stand-in suite).
+EVIDENCE CLASS  gate-logic only (section 11.4.289).
+"""
+import argparse
+import ast
+import concurrent.futures as cf
+import os
+import py_compile
+import signal
+import subprocess
+import sys
+import tempfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(HERE))
+SRC = os.path.join(ROOT, "scripts", "workable-items", "remint_ids.py")
+SUITE = os.path.join(HERE, "test_remint_ids.sh")
+REGISTER = os.path.join(HERE, "remint_branch_equivalents.tsv")
+class SetupError(Exception):
+    """a setup failure: main() prints it as `setup: <message>` and the sweep exits 2"""
+
+
+TARGETS = ("make_plan", "block_steps", "lifecycle_steps", "Rewriter", "cmd_replay", "cmd_verify",
+           "v_text_rules", "v_compare", "check_od", "check_history")
+
+
+def source_lines(src):
+    """the lines as the parser numbers them: split at "\\n" only (str.splitlines also splits at U+2028,
+    form feed and other characters the parser does not count as line ends)"""
+    parts = src.split("\n")
+    return [p + "\n" for p in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
+
+
+def offsets(lines):
+    """line number (1-based) -> offset of its first character in src"""
+    out, pos = [0, 0], 0
+    for line in lines:
+        pos += len(line)
+        out.append(pos)
+    return out
+
+
+def inventory(src):
+    """[(key, line, start, end, condition text, value)] for every mutant; skipped while-True loops apart."""
+    tree = ast.parse(src)
+    lines = source_lines(src)
+    lo = offsets(lines)
+    found, skipped, seen = [], [], {}
+
+    def pos(lineno, col):
+        # the parser's col_offset counts UTF-8 bytes, not characters: a line holding a non-ASCII
+        # character before the condition would otherwise shift the span (found in round 5: an en dash
+        # in a condition of Rewriter._checks, since removed, made two mutants that did not compile)
+        return lo[lineno] + len(lines[lineno - 1].encode("utf-8")[:col].decode("utf-8"))
+
+    def span(e):
+        return pos(e.lineno, e.col_offset), pos(e.end_lineno, e.end_col_offset)
+
+    def add(top, kind, e):
+        s, t = span(e)
+        text = src[s:t]
+        # control needle: the span must parse back to the very node it was taken from, so a span that
+        # drifted can never yield a mutant of some other text
+        try:
+            back = ast.dump(ast.parse("(" + text + ")", mode="eval").body)
+        except SyntaxError:
+            back = ""
+        if back != ast.dump(e):
+            raise SetupError("the span of the condition at line %d does not parse back to it: %r"
+                             % (e.lineno, text[:80]))
+        base = "%s|%s|%s" % (top, kind, " ".join(text.split()))
+        seen[base] = seen.get(base, 0) + 1
+        key = "%s#%d" % (base, seen[base])
+        for value in ("True", "False"):
+            found.append((key + "=" + value, e.lineno, s, t, text, value))
+
+    def walk(node, top):
+        for ch in ast.iter_child_nodes(node):
+            if isinstance(ch, (ast.If, ast.While)):
+                if isinstance(ch, ast.While) and isinstance(ch.test, ast.Constant) and ch.test.value is True:
+                    skipped.append("%s|while|True (line %d)" % (top, ch.lineno))
+                else:
+                    add(top, "if" if isinstance(ch, ast.If) else "while", ch.test)
+            elif isinstance(ch, ast.IfExp):
+                add(top, "ifexp", ch.test)
+            elif isinstance(ch, ast.comprehension):
+                for f in ch.ifs:
+                    add(top, "compif", f)
+            walk(ch, top)
+
+    for n in tree.body:
+        if isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name in TARGETS:
+            walk(n, n.name)
+    return found, skipped
+
+
+def read_register():
+    reg = {}
+    if not os.path.isfile(REGISTER):
+        return reg
+    for ln, line in enumerate(open(REGISTER, encoding="utf-8"), 1):
+        line = line.rstrip("\n")
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 2 or not parts[1].strip():
+            raise SetupError("%s line %d: want <key>TAB<reason>" % (REGISTER, ln))
+        reg[parts[0]] = parts[1]
+    return reg
+
+
+def run_suite(path, timeout):
+    """run the suite on the tool copy at PATH: (rc, output), rc None when it did not finish in time"""
+    env = dict(os.environ, REMINT_IDS=path, REMINT_IDS_FAILFAST="1")
+    p = subprocess.Popen(["bash", SUITE], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                         start_new_session=True)
+    try:
+        out, _ = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # the suite runs in its own session, so its group id is its pid; never signal a group id <= 1
+        if isinstance(p.pid, int) and p.pid > 1:
+            os.killpg(p.pid, signal.SIGKILL)
+        p.communicate()
+        return None, ""
+    return p.returncode, out
+
+
+def write_copy(work, text):
+    d = tempfile.mkdtemp(dir=work)
+    path = os.path.join(d, "remint_ids.py")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return d, path
+
+
+def control(src, work, timeout):
+    """the unmutated source must pass the suite, or no verdict of the sweep means anything"""
+    _, path = write_copy(work, src)
+    rc, out = run_suite(path, timeout)
+    if rc != 0:
+        raise SetupError("the unmutated source does not pass the suite (%s): %s" % (
+            "no result in %d s" % timeout if rc is None else "rc=%d" % rc, " | ".join(out.splitlines()[-2:])[:200]))
+
+
+def run_one(m, src, work, timeout):
+    key, line, s, t, text, value = m
+    d, path = write_copy(work, src[:s] + "(" + value + ")" + src[t:])
+    try:
+        py_compile.compile(path, doraise=True, cfile=os.path.join(d, "c.pyc"))
+    except py_compile.PyCompileError as e:
+        return key, line, "SETUP", "does not compile: %s" % str(e).splitlines()[-1][:120]
+    rc, out = run_suite(path, timeout)
+    if rc is None:
+        return key, line, "TIMEOUT", "the suite did not finish in %d s" % timeout
+    fails = [x for x in out.splitlines() if x.startswith("FAIL")]
+    if rc == 1 and fails:
+        return key, line, "KILLED", fails[0][5:125]
+    if rc == 0:
+        return key, line, "SURVIVED", ""
+    return key, line, "SETUP", "suite rc=%d %s" % (rc, " | ".join(out.splitlines()[-2:])[:160])
+
+
+def main():
+    ap = argparse.ArgumentParser(add_help=True)
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--jobs", type=int, default=3)
+    ap.add_argument("--only", action="append", default=[])
+    ap.add_argument("--only-file", default="")
+    ap.add_argument("--out", default="")
+    ap.add_argument("--timeout", type=int, default=1800)
+    a = ap.parse_args()
+    if a.jobs < 1:
+        print("setup: --jobs must be >= 1", file=sys.stderr)
+        return 2
+    try:
+        with open(SRC, encoding="utf-8") as f:
+            src = f.read()
+    except (OSError, UnicodeDecodeError) as e:
+        raise SetupError("cannot read %s: %s" % (SRC, e))
+    try:
+        muts, skipped = inventory(src)
+    except SyntaxError as e:
+        raise SetupError("%s does not parse: %s" % (SRC, e))
+    if a.list:
+        for key, line, s, t, text, value in muts:
+            print("%s\tline %d" % (key, line))
+        for k in skipped:
+            print("SKIPPED\t%s" % k)
+        print("INVENTORY: mutants=%d branch-points=%d skipped=%d" % (len(muts), len(muts) // 2, len(skipped)))
+        return 0
+    reg = read_register()
+    keys = {m[0] for m in muts}
+    stale = sorted(k for k in reg if k not in keys)
+    sel = muts
+    want = set(a.only)
+    if a.only_file:
+        try:
+            with open(a.only_file, encoding="utf-8") as f:
+                for line in f:
+                    k = line.rstrip("\n").split("\t")[0]
+                    if k:
+                        want.add(k)
+        except OSError as e:
+            print("setup: --only-file: %s" % e, file=sys.stderr)
+            return 2
+    if want:
+        sel = [m for m in muts if m[0] in want]
+        if len(sel) != len(want):
+            print("setup: --only names keys that are not in the inventory: %s" % sorted(want - keys), file=sys.stderr)
+            return 2
+    if not os.path.isfile(SUITE):
+        raise SetupError("the suite is missing: %s" % SUITE)
+    rows = []
+    with tempfile.TemporaryDirectory(prefix="remint_sweep.") as work, cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
+        control(src, work, a.timeout)
+        print("CONTROL: the unmutated source passes the suite", flush=True)
+        for key, line, verdict, detail in ex.map(lambda m: run_one(m, src, work, a.timeout), sel):
+            if verdict == "SURVIVED" and key in reg:
+                verdict, detail = "EQUIVALENT", reg[key]
+            rows.append((key, line, verdict, detail))
+            print("%s\t%d\t%s\t%s" % (key, line, verdict, detail), flush=True)
+    if a.out:
+        with open(a.out, "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write("%s\t%d\t%s\t%s\n" % r)
+    tally = {}
+    for r in rows:
+        tally[r[2]] = tally.get(r[2], 0) + 1
+    for k in stale:
+        print("STALE-REGISTER\t%s" % k)
+    bad = tally.get("SURVIVED", 0) + tally.get("SETUP", 0) + (len(stale) if not want else 0)
+    print("RESULT: mutants=%d %s skipped=%d stale-register=%d %s" % (
+        len(rows), " ".join("%s=%d" % kv for kv in sorted(tally.items())), len(skipped), len(stale),
+        "PASS" if not bad else "FAIL"))
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except SetupError as err:
+        print("setup: %s" % err, file=sys.stderr)
+        sys.exit(2)

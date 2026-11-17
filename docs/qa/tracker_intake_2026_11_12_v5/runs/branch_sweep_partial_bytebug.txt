@@ -1,0 +1,57 @@
+# Branch sweep, first partial run (round 5), stopped after 49 of its mutants; output ended 2026-11-13T20:41:08Z.
+# Command: python3 -I tests/workable_items/remint_branch_sweep.py --jobs 3 --out <out>, on the round-5 work
+# tree of that time. Its inputs' sha256 were NOT recorded (the sweep did not yet record them), so the line
+# numbers and verdicts below name a source that is not kept. Kept for what it found: the two SETUP verdicts
+# ('does not compile' at a condition after a non-ASCII character) are the sweep's own byte-offset defect
+# (B5 of class_inventory.md), and its nine survivors were re-run with --only (runs/branch_sweep_only_rerun.txt).
+Rewriter|compif|not foreign.has(n)#1=True	270	SURVIVED	
+Rewriter|compif|not foreign.has(n)#1=False	270	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|not text#1=True	273	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|not text#1=False	273	SURVIVED	
+Rewriter|if|FOREIGN_LINE.match(line)#1=True	278	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|FOREIGN_LINE.match(line)#1=False	278	KILLED	Foreign line left alone before its colon too: /replaced=1$/ not in: <home>/.cache/claude-tmp/claude-1000/-home
+Rewriter|if|d.isascii()#1=True	302	KILLED	R4-5: fullwidth digits of a moved id are refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/-home-milo
+Rewriter|if|d.isascii()#1=False	302	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|n in self.by_num and not foreign.has(n)#1=True	305	KILLED	R4-5: non-ASCII digits of an id the map does not move are left alone: got: 1|see CON-４４ want: 0|see CON-４４
+Rewriter|if|n in self.by_num and not foreign.has(n)#1=False	305	KILLED	R4-5: fullwidth digits of a moved id are refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/-home-milo
+Rewriter|if|not r#1=True	311	KILLED	R4-4: a spaced en dash partly-moved range is refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/-home-
+Rewriter|if|not r#1=False	311	KILLED	rewrite dry run counts: rc=1 want=0: Traceback (most recent call last):|  File "<home>/.cache/claude-tmp/claud
+Rewriter|if|rx is self.loose and r.group(3) in ("..", "–"):#1=True	314	SETUP	does not compile: SyntaxError: invalid syntax
+Rewriter|if|rx is self.loose and r.group(3) in ("..", "–"):#1=False	314	SETUP	does not compile: SyntaxError: invalid syntax
+Rewriter|if|r.group(3) == "-"#1=True	316	KILLED	R4-4: a spaced en dash partly-moved range is refused: /range CON-4 – CON-6 is partly moved \(2 of 3 ids\)/ not in: REFUS
+Rewriter|if|r.group(3) == "-"#1=False	316	KILLED	R4-4: ids joined by a tight hyphen are refused (the tokens are never rewritten): rc=0 want=1: <home>/.cache/cl
+Rewriter|if|self.moved_in(min(lo, hi), max(lo, hi), foreign)#1=True	318	SURVIVED	
+Rewriter|if|self.moved_in(min(lo, hi), max(lo, hi), foreign)#1=False	318	KILLED	R4-4: ids joined by a tight hyphen are refused (the tokens are never rewritten): rc=0 want=1: <home>/.cache/cl
+Rewriter|if|not moved#1=True	326	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|not moved#1=False	326	SURVIVED	
+Rewriter|if|not moved#2=True	337	KILLED	partly moved range refused: /is partly moved \(2 of 3 ids\)/ not in: Traceback (most recent call last):|  File "<home>
+Rewriter|if|not moved#2=False	337	KILLED	R4-4: a worded range with no moved id is left alone: got: 1|see CON-40 to CON-50 want: 0|see CON-40 to CON-50
+Rewriter|if|r.group(4) is None#1=True	339	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|r.group(4) is None#1=False	339	KILLED	short-form range refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|lo > hi#1=True	341	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|lo > hi#1=False	341	KILLED	reverse range refused: /reverse range CON-7\.\.CON-5/ not in: REFUSED: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|foreign.any_in(a, b)#1=True	343	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|foreign.any_in(a, b)#1=False	343	KILLED	range mixing foreign and moved ids refused: /mixes foreign and moved ids/ not in: REFUSED: <home>/.cache/claud
+Rewriter|if|len(moved) != b - a + 1#1=True	345	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|len(moved) != b - a + 1#1=False	345	KILLED	partly moved range refused: /is partly moved \(2 of 3 ids\)/ not in: Traceback (most recent call last):|  File "<home>
+Rewriter|if|k in self.ambiguous#1=True	349	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|k in self.ambiguous#1=False	349	SURVIVED	
+Rewriter|if|self.by_num[a] != r.group(1) or self.by_num[b] != "%s-%s" % (self.prefix, r.group(5))#1=True	351	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|self.by_num[a] != r.group(1) or self.by_num[b] != "%s-%s" % (self.prefix, r.group(5))#1=False	351	SURVIVED	
+Rewriter|if|new != list(range(new[0], new[0] + len(new)))#1=True	354	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|new != list(range(new[0], new[0] + len(new)))#1=False	354	KILLED	range with non-contiguous new ids refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|n not in self.by_num or foreign.has(n)#1=True	364	KILLED	rewrite dry run counts: /^RESULT: DRY-RUN files=1 replaced=4$/ not in: <home>/.cache/claude-tmp/claude-1000/-h
+Rewriter|if|n not in self.by_num or foreign.has(n)#1=False	364	KILLED	rewrite dry run counts: rc=1 want=0: Traceback (most recent call last):|  File "<home>/.cache/claude-tmp/claud
+Rewriter|if|t.group(0) != k#1=True	367	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|t.group(0) != k#1=False	367	KILLED	a zero-padded token of a moved id refused: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|ifexp|pos > 0#1=True	371	SURVIVED	
+Rewriter|ifexp|pos > 0#1=False	371	SURVIVED	
+Rewriter|if|before == "/" or after[:1] == "/" or re.match(r"\.\w", after)#1=True	373	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|before == "/" or after[:1] == "/" or re.match(r"\.\w", after)#1=False	373	KILLED	an id inside a path refused (slash): rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|k in self.ambiguous#2=True	375	KILLED	rewrite dry run counts: rc=1 want=0: REFUSED: <home>/.cache/claude-tmp/claude-1000/<session>
+Rewriter|if|k in self.ambiguous#2=False	375	KILLED	an id the target also holds is refused as ambiguous: rc=0 want=1: <home>/.cache/claude-tmp/claude-1000/-home-m
+lifecycle_steps|if|not ev#1=True	454	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+lifecycle_steps|if|not ev#1=False	454	SURVIVED	
+lifecycle_steps|ifexp|t_term#1=True	457	KILLED	plan: REPLAY, five own ids from max(target)+1, five base changes, 20 steps: rc=1 want=0: BASE-CHANGE CON-343 vehicle=des
+# scrubbed copy (tools/scrub_paths.py): <work> x0, <home> x31, <tmp> x0
+# cut path fragments replaced: 17

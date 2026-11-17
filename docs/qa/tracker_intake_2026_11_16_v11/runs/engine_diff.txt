@@ -1,0 +1,6 @@
+## diff --issues docs/Issues.md --fixed docs/Fixed.md
+diff: DB and Markdown are in sync (compared 309 Markdown item(s) against 309 DB item(s); read docs/Issues.md, docs/Fixed.md)
+rc=0
+## diff --db-only
+diff: DB-internal checks passed — 309 item(s) inspected; no Markdown compared (--db-only)
+rc=0

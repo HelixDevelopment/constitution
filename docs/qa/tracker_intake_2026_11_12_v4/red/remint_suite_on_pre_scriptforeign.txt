@@ -1,0 +1,136 @@
+PASS rewrite dry run counts
+PASS rewrite dry run writes nothing
+PASS rewrite --write without --target-db is a usage error
+PASS rewrite --write
+PASS tokens, no chaining, boundaries, range, sentence dot
+PASS an id the target also holds is refused as ambiguous
+PASS --own declares the ambiguous id
+PASS --foreign declares the ambiguous id
+PASS Foreign line and its ids left alone in the whole file
+PASS Foreign line text
+PASS Foreign line left alone before its colon too
+PASS Foreign line text before its colon
+PASS --foreign excludes an id
+PASS --foreign that does not parse is BLIND
+PASS partly moved range refused
+PASS a refusal writes no file at all (the first file is checked before any write)
+PASS range with non-contiguous new ids refused
+PASS short-form range refused
+PASS reverse range refused
+PASS range mixing foreign and moved ids refused
+PASS a zero-padded token of a moved id refused
+PASS an id inside a path refused (slash)
+PASS an id inside a path refused (extension)
+PASS a .db file refused
+PASS a binary file refused
+PASS a non-UTF-8 file is BLIND
+PASS map naming an id twice is BLIND
+PASS map giving two old ids one new id is BLIND
+PASS map mixing prefixes is BLIND
+PASS empty map is BLIND
+PASS map line that does not parse is BLIND
+PASS map without header is BLIND
+PASS usage: no subcommand
+PASS usage: unknown option
+PASS refs lists LIVE, EVIDENCE and DATABASE
+PASS refs lines (a Foreign-only file, another .db and a binary are not listed)
+PASS refs on a repository with no tracked file is BLIND
+PASS plan: REPLAY, five own ids from max(target)+1, five base changes, 19 steps
+PASS plan: disjoint base change merged
+PASS plan: the three databases are not written
+PASS plan: map file
+PASS replay dry run
+PASS dry run: own text rewritten without chaining
+PASS dry run: obsolete_details replayed on the reopened own item and on the rewritten base row
+PASS replay --apply through the engine
+PASS verify PASS after the replay
+PASS verify: the close rewriting created_at is KNOWN (CON-339), never a pass
+PASS landed: base description change carried and rewritten; target severity kept
+PASS landed: base state block with the vehicle's stamps
+PASS landed: base close with its obsolete_details row, superseding rewritten
+PASS landed: target-only title kept
+PASS landed: rewritten obsolete_details row of a closed base item
+PASS landed: base reopen
+PASS landed: own alpha text and assignee
+PASS landed: own beta keeps its fix227 id on every column (R3-2)
+PASS landed: own beta state stamps
+PASS landed: own gamma Obsolete onto alpha
+PASS landed: own delta Reopened with its obsolete_details row
+PASS landed: own epsilon status
+PASS landed: the colliding target items are untouched
+PASS validate reports no new finding on the landed copy (control needle seen)
+PASS a second replay is refused before any write
+PASS the refused second replay wrote nothing
+PASS verify FAIL: a changed own description
+PASS verify FAIL: a foreign id re-pointed to the map (R3-2)
+PASS verify FAIL: an own status
+PASS verify FAIL: an untouched target item
+PASS verify FAIL: a lost base-item change (R3-1)
+PASS verify FAIL: an obsolete_details field
+PASS verify FAIL: an obsolete_details superseding id
+PASS verify FAIL: a missing Opened history row
+PASS verify FAIL: a closure row citing other evidence
+PASS verify FAIL: a changed Reopened row
+PASS verify FAIL: a target history row
+PASS verify FAIL: another table
+PASS verify FAIL: missing landed items
+PASS verify FAIL: an extra landed item
+PASS verify --require-segments PASS (the engine's add writes the item segment)
+PASS verify --require-segments FAILs on an item with no segment
+PASS verify FAIL: a plan map that is not the own set
+PASS verify: a plan whose map prefix is not its prefix is BLIND
+PASS verify refuses databases the plan was not made from
+PASS plan: FAST-FORWARD when the target is the base
+PASS replay refuses a FAST-FORWARD plan
+PASS verify FAST-FORWARD PASS on the vehicle database
+PASS verify FAST-FORWARD FAILs on a changed copy
+PASS plan --no-fast-forward replays with the own ids kept
+PASS replay of the --no-fast-forward plan
+PASS verify PASS of the --no-fast-forward landing
+PASS conflict: both sides changed one column
+PASS conflict: the plan is NOT-LANDABLE
+PASS replay refuses a plan with a conflict
+PASS --resolve vehicle
+PASS replay of --resolve vehicle
+PASS verify of --resolve vehicle
+PASS --resolve vehicle lands the vehicle's description
+PASS --resolve target
+PASS replay of --resolve target
+PASS verify of --resolve target
+PASS --resolve target keeps the target's description
+PASS --resolve that does not parse is BLIND
+PASS conflict: a lifecycle change on one side and a change on the other
+PASS conflict: the target deleted an item the vehicle changed
+PASS plan refusal: the vehicle deleted a base item
+PASS plan refusal: a new id outside the prefix
+PASS plan refusal: only a state stamp changed
+PASS plan refusal: body_md changed with no column change
+PASS plan refusal: a column with no replay rule
+PASS plan refusal: another table changed
+PASS plan refusal: a base history row rewritten
+PASS plan refusal: a non-item doc segment
+PASS plan refusal: an own item with a column add cannot carry
+PASS plan refusal: an own item with another representation
+PASS plan refusal: a base text that already names an id the vehicle minted later
+PASS plan refusal: an obsolete_details row on an item left open
+PASS plan refusal: a red command whose script names a moved id
+PASS plan refusal: a red command whose script names another moved id
+FAIL plan: --foreign covers the script scan too: rc=1 want=0: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHANGE CON-344 vehicle=reproduction_state target=-|BASE-CHANGE CON-345 vehicle=status,current_location,obsolete_details target=-|BASE-CHANGE CON-347 vehicle=obsolete_details target=-|BASE-CHANGE CON-348 vehicle=status,current_location target=-|MERGE CON-343: vehicle description, target severity (disjoint columns)|NOTE CON-345: created_at
+FAIL plan: a script that declares its id foreign in a comment is not refused: rc=1 want=0: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHANGE CON-344 vehicle=reproduction_state target=-|BASE-CHANGE CON-345 vehicle=status,current_location,obsolete_details target=-|BASE-CHANGE CON-347 vehicle=obsolete_details target=-|BASE-CHANGE CON-348 vehicle=status,current_location target=-|MERGE CON-343: vehicle description, target severity (disjoint columns)|NOTE CON-345: created_at
+FAIL plan: a script naming an id the item itself declares foreign is not refused: rc=1 want=0: BASE-CHANGE CON-343 vehicle=description target=severity|BASE-CHANGE CON-344 vehicle=reproduction_state target=-|BASE-CHANGE CON-345 vehicle=status,current_location,obsolete_details target=-|BASE-CHANGE CON-347 vehicle=obsolete_details target=-|BASE-CHANGE CON-348 vehicle=status,current_location target=-|MERGE CON-343: vehicle description, target severity (disjoint columns)|NOTE CON-345: created_at
+PASS plan refusal: a Foreign text that is not a comment line declares nothing
+PASS plan: a missing database is BLIND
+PASS plan: an unknown table is BLIND
+PASS plan: an unknown items column is BLIND
+PASS plan: a schema_version that differs is BLIND
+PASS plan: a target without an id of the prefix is BLIND
+PASS replay: a plan of another schema is BLIND
+PASS replay: an unreadable plan is BLIND
+PASS replay: a plan without steps is BLIND
+PASS replay --apply without --engine is a usage error
+PASS replay: a missing target copy is BLIND
+PASS replay refuses a target copy with a non-empty -wal sidecar
+PASS replay refuses a target copy whose sha256 is not the plan's
+PASS the refused replay wrote nothing
+PASS the real database is untouched
+RESULT: pass=132 fail=3

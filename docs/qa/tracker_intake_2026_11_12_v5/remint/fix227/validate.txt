@@ -1,0 +1,3 @@
+validate: note — reproduction closure gate NOT armed (run `states freeze`); closed Bugs without a reproduction record are not checked
+validate: OK — 319 items, all invariants satisfied
+rc=0

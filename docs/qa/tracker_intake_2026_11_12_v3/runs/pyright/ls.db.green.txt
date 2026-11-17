@@ -1,0 +1,2 @@
+FINDING BODY-SYNC FX-002 body_md header line carries a line separator other than a newline: '**Type:** Task\u2028note: closed upstream'
+RESULT: FAIL selected=1 findings=1 prefix=FX
