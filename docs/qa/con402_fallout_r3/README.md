@@ -66,7 +66,7 @@ export dropped from the func-only leg only, the suite reports `NOT ok layer chec
 
 ## Double runs
 
-`runs/summary.txt`: the ten suites twice and the gates twice on a clean worktree of the code commit.
+`runs/summary.txt`: the ten suites twice and the gates twice on a clean worktree of 66fb5655 (all rc=0; every suite run1 == run2 after normalisation, `test_fc_safepath_v4r15` and `test_custody_sweep_r15_regression` after also normalising commit ids and mktemp suffixes, files `*.norm_volatile.txt`; git-env census PASS unscrubbed=0; safepath violations=0; ratchet PASS; index fresh; validate and diff OK with 491 items; guard table ok; sync-guide leaves the tree clean).
 
 ## Follow-ups
 
