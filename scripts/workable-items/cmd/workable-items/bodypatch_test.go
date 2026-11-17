@@ -148,6 +148,39 @@ func TestBodyPatch_SetRecordCollapsesDuplicateRecords(t *testing.T) {
 	}
 }
 
+// OM11: a blocked item whose only block record sits inside its description
+// (a legacy shape the parser reads, first marker wins): replacing the
+// description would drop the record while the row stays, so update refuses.
+// Control needle: the same edit with the record kept is accepted.
+func TestBodyPatch_UpdateRefusesDroppingBlockRecordFromDescription(t *testing.T) {
+	dbPath := newTestDB(t)
+	g456Add(t, dbPath, "CON-960", "legacy block record probe", "Task", "Low")
+	if rc := blockCmd([]string{"--db", dbPath, "--id", "CON-960", "--details", "w", "--why", "y",
+		"--unblock", "[A] a · [B] b", "--who", "o"}); rc != exitOK {
+		t.Fatalf("block exited %d", rc)
+	}
+	rec := "**Operator-Block-Details:** WHAT: w WHY: y UNBLOCK: [A] a · [B] b WHO: o"
+	desc := "Legacy description line one of the probe item.\n" + rec
+	body := "## CON-960 — legacy block record probe\n\n**Status:** Operator-blocked\n**Type:** Task\n**Severity:** Low\n\n" + desc + "\n\n"
+	db, err := openDB(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE items SET body_md=?, description=? WHERE atm_id='CON-960'`, body, desc); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	if rc := updateCmd([]string{"--db", dbPath, "--id", "CON-960", "--description", "A replacement description without the record line."}); rc == exitOK {
+		t.Fatalf("update dropped the block record living in the description:\n%s", r4Body(t, dbPath, "CON-960"))
+	}
+	if got := r4Body(t, dbPath, "CON-960"); got != body {
+		t.Fatalf("a refused update wrote the body:\n%s", got)
+	}
+	if rc := updateCmd([]string{"--db", dbPath, "--id", "CON-960", "--description", "A replacement first line.\n" + rec}); rc != exitOK {
+		t.Fatal("control: an edit that keeps the record was refused")
+	}
+}
+
 // Class sweep (upd_sev / upd_type / upd_assign): a field update owns only the
 // lines of the fields it sets.
 func TestBodyPatch_FieldOwnership(t *testing.T) {
