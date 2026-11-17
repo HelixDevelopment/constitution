@@ -1,0 +1,29 @@
+AD03 KILLED     by unit           10.4s  evaluate_upstream back to the DWIM rev-parse lookup
+AD13 KILLED     by unit           10.3s  the malformed-row check dropped (a short row is read as no hit)
+RV12A KILLED     by unit           10.3s  resolve_ref_exact takes a ref to ANY non-tag object (tree/blob) as the upstream commit id
+RV12B KILLED     by unit           10.0s  obj() wraps ANY string as <x>^{commit} (a ref name becomes a rev expression)
+RV12C KILLED     by unit           10.2s  rev-list shape: any "--count <name>" accepted (a DWIM name reaches rev-list)
+RV12D KILLED     by unit           10.1s  for-each-ref --contains: the format/pattern half of the shape no longer checked
+RV12E KILLED     by unit           10.1s  merge-base --is-ancestor: the second object no longer checked
+RV12F KILLED     by unit           10.1s  evaluate_pin: a remote ref counts as main by PREFIX (refs/remotes/o/main-x, .../main/y)
+RV12G KILLED     by unit           10.2s  resolve_ref_exact: the id-shape check of the hit dropped (only the 2-line check kept)
+RV12H KILLED     by unit           10.1s  ls-tree -r -z: any third argument accepted (a ref name reaches ls-tree)
+RV12I KILLED     by unit            9.9s  rev-parse --verify -q: any third argument accepted
+RVCX2 KILLED     by unit           10.0s  CONTROL (must DIE): _exact_obj accepts any string
+AE01 KILLED     by unit           10.2s  resolve_ref_exact: a symbolic hit is read as the ref (its target's id is the upstream)
+AE02 KILLED     by unit           10.2s  contained_refs keeps symbolic lines (a symbolic ref makes a pin "on a remote")
+AE03 KILLED     by unit           10.4s  git_env no longer pins GIT_LITERAL_PATHSPECS=1 (the add path is a pattern again)
+AE04 KILLED     by unit           10.2s  the caller's pathspec variables are no longer scrubbed (GIT_ICASE_PATHSPECS reaches git)
+AE05 KILLED     by robustness:symref,pin_symref,pathspec,head_file,stage_verify   42.5s  the stage-pin is never verified on the index (git said 0 is enough)
+AE06 KILLED     by unit           10.3s  stage_pin_verified ignores other changed entries
+AE07 KILLED     by unit           10.4s  count_range drops the trailing -- (a file named HEAD / an id is ambiguous)
+AE08 KILLED     by unit           10.5s  ls-files shape no longer closed (any argument, a pathspec included, accepted)
+AE09 KILLED     by unit           10.3s  contained_refs accepts lines of the wrong shape as refs (no "no answer")
+AE10 KILLED     by unit           10.3s  evaluate_upstream no longer records a symbolic tracking ref (no reason given)
+AE11 KILLED     by unit           10.3s  stage_pin_verified ignores the intended entry (a wrong id at the path is accepted)
+AE12 SURVIVED   by -             172.4s  the pre-add index read failing is ignored (verification against nothing)
+AE13 KILLED     by robustness:symref,pin_symref,pathspec,head_file,stage_verify   34.5s  control_needle rev-list drops its trailing -- (blind on a file named HEAD)
+AE14 KILLED     by unit           10.0s  the exact lookup format no longer reads %(symref) (6-field rows broken: every lookup no answer)
+sync-mutations (all): mutants 26 killed 25 equivalent 0 survived 1 harness-errors 0
+survivors: AE12
+mut rc=1

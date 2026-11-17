@@ -1,0 +1,4 @@
+# command: gh pr view 7 -R HelixDevelopment/HelixConstitution --json number,state,author,mergedBy,mergeCommit,headRefName,headRefOid,reviewRequests,reviews,baseRefName
+# time: 2026-11-16T13:10:34Z
+{"author":{"id":"MDQ6VXNlcjE4MDM1OTc=","is_bot":false,"login":"<reviewer-account>","name":"Милош Васић 🇷🇸 🇷🇺"},"baseRefName":"main","headRefName":"task/ATM-1875-pr0v3-main-repair","headRefOid":"da7cb991553b96fa4f1e64a3798163bf6f5083c6","mergeCommit":{"oid":"e3f1566170b94e483ae97f6ca5b06d0194c35801"},"mergedBy":{"id":"MDQ6VXNlcjE4MDM1OTc=","is_bot":false,"login":"<reviewer-account>","name":"Милош Васић 🇷🇸 🇷🇺"},"number":7,"reviewRequests":[],"reviews":[],"state":"MERGED"}
+# exit: 0

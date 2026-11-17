@@ -1,0 +1,54 @@
+=== R8 regression guard: control needle -- fixed tool + lib both exist ===
+ok control needle: implementation + lib both resolve
+
+=== R8-I1 repro (1): reverting propose_action_for's entry.get(...) point-fix ===
+ok R8-I1 repro (1a): point-fix reverted, widened boundary alone catches the
+   resulting KeyError -- rc=2, no traceback, --out names KeyError (defense
+   in depth: the general boundary closes this even without the specific fix)
+ok R8-I1 repro (1b) guard-viability: reverting BOTH the point-fix AND the
+   boundary reproduces the reviewer's own exact finding -- KeyError escapes
+   main()'s own boundary entirely, caught only by run_cli_main's OUTER,
+   tool-agnostic fallback (no rich --out internal-error document written)
+
+=== R8-I1 repro (2): {KeyError, IndexError, AttributeError} injected at the top of cmd_verify_proposal ===
+ok R8-I1 repro (2, KeyError) real (fixed) tool: rc=2, no traceback, --out names KeyError
+ok R8-I1 repro (2, KeyError) guard-viability: reverting JUST the boundary's own
+   catch set back to fc_common.SAFE_EXCEPTIONS makes the SAME injected KeyError
+   escape main()'s own boundary entirely (no rich --out doc; only run_cli_main's
+   OUTER fallback fires) -- proving the Exception widening genuinely does the work
+ok R8-I1 repro (2, IndexError) real (fixed) tool: rc=2, no traceback, --out names IndexError
+ok R8-I1 repro (2, IndexError) guard-viability: reverting JUST the boundary's own
+   catch set back to fc_common.SAFE_EXCEPTIONS makes the SAME injected IndexError
+   escape main()'s own boundary entirely (no rich --out doc; only run_cli_main's
+   OUTER fallback fires) -- proving the Exception widening genuinely does the work
+ok R8-I1 repro (2, AttributeError) real (fixed) tool: rc=2, no traceback, --out names AttributeError
+ok R8-I1 repro (2, AttributeError) guard-viability: reverting JUST the boundary's own
+   catch set back to fc_common.SAFE_EXCEPTIONS makes the SAME injected AttributeError
+   escape main()'s own boundary entirely (no rich --out doc; only run_cli_main's
+   OUTER fallback fires) -- proving the Exception widening genuinely does the work
+
+=== R8-I1(c): the RuntimeError branch (--repo-root not a git checkout) now writes --out too ===
+ok R8-I1(c): a RuntimeError (not-a-git-checkout refusal) now writes a real --out
+   document naming RuntimeError, matching every other dispatch-boundary path
+   in this file -- the audit trail is no longer silently lost for this ONE
+   exception class
+
+=== R8-I2: selftest's scratch-repo git calls are fully isolated from an inherited GIT_DIR/GIT_WORK_TREE ===
+ok R8-I2 real (fixed) tool: selftest rc=0 under an inherited victim
+   GIT_DIR/GIT_WORK_TREE, golden-good case correctly resolves ALLOWED, and the
+   victim's own .git/config is BYTE-UNCHANGED (md5 faa4c6783b78dc39e7256fbc04a5b686 before and after)
+ok R8-I2 reverted: guard-viability: reverting the scratch-env isolation AND the CON-402 scrub makes the SAME victim-GIT_DIR scenario mutate the victim's .git/config again -- the sanitized-environment fix genuinely does the work, never a tautological mutation (victim wrote)
+ok R8-I2 scrub_only: file-level scrub alone (CON-402 layer): with the in-function isolation reverted but the file-level scrub kept, the victim's .git/config stays byte-unchanged (victim clean)
+ok R8-I2 scrub_only_polarity: D4 polarity control: the same measurement on a fresh victim with both layers removed sees the write (the D4 check can fail) (victim wrote)
+ok R8-I2 scrub_lib_only: the scrub of lib/fc_common.py alone (custody_sweep.py's scrub stripped, in-function layers reverted) keeps the victim unchanged (victim clean)
+ok R8-I2 scrub_tool_only: the scrub of custody_sweep.py alone (lib/fc_common.py's scrub stripped, in-function layers reverted) keeps the victim unchanged (victim clean)
+ok R8-I2 func_only: in-function isolation alone (round-8 scratch_env + round-15 _targeted_git_env, the CON-402 scrub stripped from both files) keeps the victim unchanged (victim clean)
+
+=== R8 REGRESSION GUARD (custody_sweep.py): ALL CHECKS PASS -- the widened
+    except Exception dispatch boundary catches KeyError/IndexError/
+    AttributeError (both the reviewer's own point-fix-revert repro AND a
+    fresh top-of-handler injection, each proven load-bearing via a live
+    boundary-revert mutation), the RuntimeError branch now writes --out
+    too, and the selftest scratch-repo git calls are fully isolated from
+    an inherited GIT_DIR/GIT_WORK_TREE (proven both positively and via a
+    live env-sanitization-revert mutation). ===

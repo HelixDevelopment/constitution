@@ -1,0 +1,9 @@
+== git diff e8a2df2 -- post_update_hook.sh setup.sh (empty = unchanged)
+== setup default
+174:SYNC_UPSTREAMS="${CONSTITUTION_SYNC_UPSTREAMS:-off}"
+== hook
+30:#      scripts/sync/sync_all_upstreams.sh --check [--no-fetch]; CONSTITUTION_SYNC_CHECK=offline (default,
+1185:# fast-forwards, stages or commits from here): CONSTITUTION_SYNC_CHECK=offline (default: --check --no-fetch,
+1192:    local m="${CONSTITUTION_SYNC_CHECK:-offline}" lib="$CONST_DIR/scripts/sync/sync_step_lib.sh"
+1196:        *) warn "CONSTITUTION_SYNC_CHECK=$m is not offline|fetch|off: skipped"; WARNINGS+=("upstream sync check: unknown mode $m"); return 0 ;;
+1192:    local m="${CONSTITUTION_SYNC_CHECK:-offline}" lib="$CONST_DIR/scripts/sync/sync_step_lib.sh"

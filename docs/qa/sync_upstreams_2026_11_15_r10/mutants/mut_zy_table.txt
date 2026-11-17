@@ -1,0 +1,20 @@
+Z01  KILLED     by unit           10.1s  reviewer r9: a failed stage-pin (git add) is always settled: the marker is cleared whatever the parent index shows
+Z04  KILLED     by unit           10.2s  reviewer r9: the branch ref lock is always refs/heads/main.lock whatever branch is checked out
+Z07  KILLED     by robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only   79.1s  reviewer r9: write-time step 1 re-check drops the common dir and branch (git-dir locks only)
+Z11  KILLED     by unit           10.3s  reviewer r9: the marker read accepts a too-large marker as unknown->None (no marker): read_marker ignores too-large
+Z12  EQUIVALENT by -              84.3s  reviewer r9: fs_remove follows the lstat kind only for "absent": an unreadable path is unlinked anyway
+Y01  KILLED     by unit           10.1s  RV9-1 class: the git-dir locks are looked for in the common dir (a linked worktree's own HEAD.lock missed)
+Y02  KILLED     by unit           10.2s  RV9-1 class: the common-dir locks are looked for in the write's git dir
+Y03  KILLED     by unit           10.2s  RV9-1 class: the branch ref lock uses the last name component only (feature/x -> x.lock)
+Y04  KILLED     by unit           10.2s  RV9-1 class: the branch name is flattened (feature/x -> feature_x.lock)
+Y05  KILLED     by unit           10.2s  RV9-1 class: MERGE_HEAD and the other operation names are looked for in the common dir
+Y06  KILLED     by unit           10.1s  RV9-1 class: the write-marker path kind is read in the common dir
+Y07  KILLED     by robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only   82.3s  RV9-1 class: inspection registers the git dir without its branch (begin_write misses the branch ref lock)
+Y08  KILLED     by robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only   81.8s  RV9-1 class: inspection registers the git dir as its own common dir (begin_write misses common-dir locks)
+Y09  KILLED     by robustness:branch_lock,wt_param,run_lock,write_race,marker_read,wt_only   78.8s  RV9-1 class: the root's run lock is keyed by its git dir, not its common dir (worktree runs overlap)
+Y10  KILLED     by unit           10.1s  RV9-6: a failed write is settled whatever the work tree shows (the work-tree-only half-write is missed)
+Y11  KILLED     by unit           10.0s  RV9-6: an unanswered work-tree read after a failed write counts as settled
+Y12  KILLED     by unit           10.1s  RV9-1 class: a common-dir lock of a linked worktree loses its 'common:' label (the reason names the wrong place)
+Y13  KILLED     by unit           10.1s  RV9-1 class: an unknown branch is taken as main (a detached repository is blocked by main's ref lock)
+sync-mutations (no-gate): mutants 18 killed 17 equivalent 1 survived 0 harness-errors 0
+done-table

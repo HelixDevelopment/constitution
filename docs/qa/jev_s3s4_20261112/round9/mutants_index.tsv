@@ -1,0 +1,34 @@
+CTRL	CONTROL: the T_START-frozen base, no change (must survive every suite)	c4727410581bb7204189df2b108eb03dee923282e224d2cf8ebc5c310aa6c232
+RV01	lease_json: heartbeat_at / heartbeat_mono stamped with the process-start clocks	838d4489f093e30f6810ac92ed9fe2e6f35047d92900c9b3848dad6827124156
+RV02	obs_locked: health.at stamped with the process-start clock	3c829b31059a8eb897ece0e08d1c6e3500ebb51074e303ddc4ca8deb3ca547e0
+RV03	obs_locked: gone.at stamped with the process-start clock	106f544e9a106c65a3fd8e6a5d27105a745eaa58a92d839dd1817371472cd944
+RV04	write_placement: evaluated_at stamped with the process-start clock	f2901c21d9b03d99385af4a5621eb0e947f62fe3bbc8e9a07ff78cfaf908856e
+RV05	finish_stop_locked (dispose): stop_owed.at / stop_failed.at stamped with the process-start clock	02833c529c31e58ce798a5bc445d97abc35f2ede08b9a45881e3b50c14face6d
+RV06	reap_locked: mark_cleared / health stamped with the process-start clocks	4b84114f47a7f72bff3eb2a23364e4d7c2a910e69fe300ad3b7790e51c264e1e
+RV07	hb_locked: heartbeat refreshed with the process-start clocks	cccd1af527a1065f7981431f09cf05a59543896121545bc39419646e5b5af2f4
+RV08	reap_locked: a mark's age is judged with the process-start clocks	9c42f4476d84fd44d61a74ed573046fcefd6032befd8dc57b2560e1eb74757ad
+RV09	holder_alive: a lease heartbeat's age is judged with the process-start clocks	8b81883633c5a5734e419cdee3953a031d6807daecddfcb9f7e6c419bbbad56b
+RV10	finish_start_locked (released): started_at stamped with the process-start clock	7a8d9da60fa31435e4384c858315695491bba4414e83abe81b2e561af71af27b
+RV11	finish_start_locked (failed): started_at / start_failed.at stamped with the process-start clock	590f9fc21874923cbf3f67e9ed4a5b150ab67778cfa0565a5e70523743f9fa9b
+RV12	me_mark: pid_start not recorded	1428583ef2eefd5c35362a3c4ff527cb501195bd648f9b3f67e78cd3db348c77
+O9-01	finish_stop_locked rc 0: the set is deleted even when it holds a lease (R8-2 removed)	45a5e881d5cf79771bdeac59e82abd66e8b104d8bd41239eb6957de3ecd2605a
+O9-02	arm_stop_locked stamps the mark with the PLAN's clock (the round-8 defect: a mark written for a later call)	e6a6f878fbfbcba7b0521f712ba5cf9ad101769b1a049cd038a4cffc1f2c4278
+O9-03	arm_stop_locked does not judge the set again at its turn	c36056ab49d94225233960ed45d874f1b4354997bea7f5363297c91ea90822be
+O9-04	finish_stop_locked treats every mark as its own	05fe001722ed9aa5786ef939dbefa2f254b7a423345afa8846d0a3a8d19973eb
+O9-05	age_of ignores the monotonic clock (wall time only)	5b9d968c530f24cad44fa1463f38aa46a206e2c5ff73bae704bf59c02271d769
+O9-06	reap_locked: no lease-TTL suspension while a live mark names the holder	5dfbef8e11768cb0592f8ec1cb48525fe6d101f4b77f016581699547709e7a4e
+O9-07	plan_locked: the join is taken in a plan that also stops a set	3ef95452f1e1c1cc20bbb20a3b4f0988c7d98550d3837a5e4fdfadf5f7bc71b9
+O9-08	leases_save: no heartbeat refresh of the acquire's holder	e84f675cce4d49a9b7f8e49ad3d60d9635717176abf086a1dae546e78e9c7a39
+O9-09	me_mark: holder not recorded	96c14ce307594658a4f7c9fa39c2a585c092fc9e5286b2e400778c822af33752
+O9-10	me_mark: mono not recorded	15515d8548d50fb5bac544001ea2e0f31373f0ddd06001612c4f19239d49cd6d
+O9-11	age_of: a record from another boot is fresh (age 0)	421c11ab609f701d8379753802df8457286251d0fa30a3623df0ea4dec8c4ffe
+O9-12	clock_refresh: an unreadable monotonic clock is not a config error	a97b95fbd82106ffe72190ebd167767d96c68ca0d15e541ba36cf8ebeff8fcb7
+O9-13	pid_dead: a recorded pid is never dead (a dead holder is kept by a live mark naming it)	30e88758b0cc52a665baa2612a4aba2f83d9049a006c07386697b65d465efb4e
+O9-14	release_locked marks every stop candidate at release time (the round-8 rule)	1a5bde66414e14bdde04a8c6d1dfeabbf619bfd74d195e54a08dd75df21eebb0
+O9-15	hb_locked: heartbeat_mono not refreshed	a74e06c9dcaec6db22219c8b484e4ab66d778e6cb57feacc3033541eaca2aa02
+O9-16	lease_json: heartbeat_mono not recorded	586bb049e8db674d8f481b3cafb0dde7d4fb9effbc603eb5fc2ec7cee1ca61c4
+O9-17	arm_stop_locked (dispose): the recorded-health check is removed	dd7723e7e67cb0f25d01311e757f72e81fd8406aa2a168f859d8e69e5d4fffb9
+O9-18	arm_stop_locked: the "holds a lease now" check is removed	1ccd78691c8b94b5394e2425a4710305e905ed4f1def974feb873c5e002963b1
+O9-19	finish_stop_locked rc 0 with a lease or a foreign mark: the mark is cleared even when it is another stopper's	b56cf4e4b4911b84a3995b10e8ec62b53b62daae82dacc150e3c8d92ce75841b
+C-RV01+O9-08	RV01 with the ACQ_REFRESH of leases_save removed (proves RV01 is masked only by that refresh)	e4a474481df8a035f1f0fd94bc2030822378b5f7ad891a2972dafd94f7c6fd14
+C-O9-16+O9-08	O9-16 with the ACQ_REFRESH of leases_save removed (proves O9-16 is masked only by that refresh)	91577c8a922929fadde8d84f6f02bad69cfc54268d66250d010e9b78dde9d59e

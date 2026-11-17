@@ -1,0 +1,9 @@
+# mutant P29, check default_out_relative
+== default_out_relative
+  ok   default_out_relative.refused
+  ok   default_out_relative.nothing_in_tree
+  FAIL default_out_relative.outside_cwd_refused  (rc=0)
+  FAIL default_out_relative.outside_cwd_nothing_written  (['relcache'])
+  ok   default_out_relative.control_absolute_accepted
+sync-robustness: PASS 3 FAIL 2
+rc=1

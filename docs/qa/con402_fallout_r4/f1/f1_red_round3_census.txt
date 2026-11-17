@@ -1,0 +1,183 @@
+ok [GE-real] rc=0 scrub_rows=2 
+ok [GE-py-import-alone] rc=1 VIOLATION GE-py-import-alone.py:239 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-import-alone.py:240 <module> import os as _g
+ok [GE-py-second-stmt] rc=1 VIOLATION GE-py-second-stmt.py:239 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-second-stmt.py:241 <module> _ge_os -- uses a 
+ok [GE-py-for-else] rc=1 VIOLATION GE-py-for-else.py:239 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-for-else.py:241 <module> _ge_os -- uses a name b
+ok [GE-py-nonliteral] rc=1 VIOLATION GE-py-nonliteral.py:239 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-nonliteral.py:240 <module> _ge_os -- uses a na
+ok [GE-py-lowercase] rc=1 VIOLATION GE-py-lowercase.py:239 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-lowercase.py:240 <module> _ge_os -- uses a name
+ok [GE-py-other-pop] rc=1 VIOLATION GE-py-other-pop.py:239 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-other-pop.py:240 <module> _ge_os -- uses a name
+ok [GE-py-other-method] rc=1 VIOLATION GE-py-other-method.py:239 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-other-method.py:240 <module> _ge_os -- uses 
+ok [GE-py-os-receiver] rc=1 VIOLATION GE-py-os-receiver.py:239 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS)
+ok [GE-py-displaced] rc=1 VIOLATION GE-py-displaced.py:240 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-displaced.py:241 <module> _ge_os -- uses a name
+ok [GE-py-later-use] rc=1 VIOLATION GE-py-later-use.py:241 <module> _ge_os -- uses a name bound by an unmodelled import (fail-closed)
+ok [GE-py-second-pair] rc=1 VIOLATION GE-py-second-pair.py:241 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-second-pair.py:242 <module> _ge_os -- uses a 
+ok [GE-py-other-module] rc=1 VIOLATION GE-py-other-module.py:239 <module> import shutil as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION GE-py-other-module.py:240 <module> _ge_os -- u
+ok [GE-py-expr-first] rc=1 VIOLATION expr-first.py:3 <module> import os as _ge_os -- an import outside the census's modelled set (fail-closed: PY_IMPORTS) | VIOLATION expr-first.py:4 <module> _ge_os -- uses a name bound by an u
+ok [GE-sh-dollar-word] rc=1 VIOLATION GE-sh-dollar-word.sh:298 <top> unset $NAME -- a non-literal variable NAME ($) in a name position of unset NAME...: the census cannot know which variable it changes (fail-closed, round 15)
+ok [GE-sh-extra-operand] rc=1 VIOLATION GE-sh-extra-operand.sh:298 <top> unset $NAME -- a non-literal variable NAME ($) in a name position of unset NAME...: the census cannot know which variable it changes (fail-closed, round 15)
+ok [GE-sh-indented] rc=1 VIOLATION GE-sh-indented.sh:298 <top> unset $NAME -- a non-literal variable NAME ($) in a name position of unset NAME...: the census cannot know which variable it changes (fail-closed, round 15)
+ok [GE-sh-proved-word] rc=1 VIOLATION GE-sh-proved-word.sh:298 <top> unset -- unset of the PROVED variable _FC_TMPDIR outside the provenance model -- it would expand to a value the census never proved, or EMPTY (fail-closed, rou
+ok [GE-sh-bash-word] rc=1 VIOLATION GE-sh-bash-word.sh:298 <top> BASH identity -- a script-side assignment, unset, rebinding or read-into of BASH, the interpreter identity the re-exec `"$BASH"` is exempted on (fail-closed, CON
+ok [GE-sh-trailing-code] rc=1 VIOLATION GE-sh-trailing-code.sh:298 <top> unset $NAME -- a non-literal variable NAME ($) in a name position of unset NAME...: the census cannot know which variable it changes (fail-closed, round 15) 
+ok [GE-sh-attr-declare-l] rc=1 refusal-reason-present=True
+ok [GE-sh-attr-local-l-func] rc=1 refusal-reason-present=True
+ok [GE-sh-attr-typeset-c] rc=1 refusal-reason-present=True
+ok [GE-sh-attr-declare-i] rc=1 refusal-reason-present=True
+ok [GE-sh-attr-backslash] rc=1 refusal-reason-present=True
+ok [GE-sh-attr-dquote] rc=1 refusal-reason-present=True
+ok [GE-sh-attr-brace] rc=1 refusal-reason-present=True
+ok [GE-sh-attr-glob] rc=1 refusal-reason-present=True
+ok [GE-sh-sole-readonly] rc=1 refusal-reason-present=True
+ok [GE-sh-sole-assign] rc=1 refusal-reason-present=True
+ok [GE-sh-unset-trusted-f] rc=1 refusal-reason-present=True
+ok [GE-sh-unset-trusted-plain] rc=1 refusal-reason-present=True
+ok [GE-sh-pre-command-declare-l] rc=1 refusal-reason-present=True
+ok [GE-sh-pre-command-declare-emptyquote] rc=1 refusal-reason-present=True
+ok [GE-sh-pre-command-local-l-func] rc=1 refusal-reason-present=True
+ok [GE-sh-pre-builtin-declare-l] rc=1 refusal-reason-present=True
+ok [GE-sh-pre-command-declare-continued] rc=1 refusal-reason-present=True
+ok [GE-sh-pre-trap-debug-printf-v] rc=1 refusal-reason-present=True
+ok [GE-sh-pre-trap-err-declare-l] rc=1 refusal-reason-present=True
+ok [GE-sh-pre-set-option] rc=1 refusal-reason-present=True
+ok [GE-sh-pre-gf-comments] rc=0 (golden-false: must be accepted)
+ok [GE-sh-pre-code-then-comment] rc=1 refusal-reason-present=True
+ok [GE-sh-post-unset-f-backslash] rc=1 refusal-reason-present=True
+ok [GE-sh-post-unset-f-squote] rc=1 refusal-reason-present=True
+ok [GE-sh-post-unset-f-brace] rc=1 refusal-reason-present=True
+ok [GE-sh-post-unset-f-var] rc=1 refusal-reason-present=True
+ok [GE-sh-post-unset-f-bracevar] rc=1 refusal-reason-present=True
+ok [GE-sh-post-unset-f-cmdsubst] rc=1 refusal-reason-present=True
+ok [GE-sh-post-unset-plain-trusted] rc=1 refusal-reason-present=True
+ok [GE-sh-post-unset-proved-brace] rc=1 refusal-reason-present=True
+ok [GE-sh-post-trap-unset-f] rc=1 refusal-reason-present=True
+ok [GE-sh-post-command-unset-f] rc=1 refusal-reason-present=True
+ok [GE-sh-post-unset-other-func] rc=1 refusal-reason-present=True
+ok [GE-sh-post-helper-call-after] rc=1 refusal-reason-present=True
+ok [GE-sh-post-helper-loop] rc=1 refusal-reason-present=True
+ok [GE-sh-post-command-func] rc=1 refusal-reason-present=True
+ok [GE-sh-post-redefine-trusted] rc=1 refusal-reason-present=True
+ok [GE-sh-post-trap-defines-func] rc=1 refusal-reason-present=True
+ok [GE-sh-post-attr-declare-i-escaped] rc=1 refusal-reason-present=True
+ok [GE-sh-post-attr-local-l-func] rc=1 refusal-reason-present=True
+ok [GE-sh-post-attr-typeset-u-escaped] rc=1 refusal-reason-present=True
+ok [GE-sh-post-sole-readonly] rc=1 refusal-reason-present=True
+ok [GE-sh-post-sole-assign] rc=1 refusal-reason-present=True
+ok [GE-sh-gf-other-attr] rc=0 (golden-false: must be accepted) 
+ok [GE-sh-gf-ifs] rc=0 (golden-false: must be accepted) 
+ok [GE-sh-gf-unset-v] rc=0 (golden-false: must be accepted) 
+ok [GE-sh-gf-unset-f-undefined] rc=0 (golden-false: must be accepted) 
+ok [GE-sh-gf-scoped-helper] rc=0 (golden-false: must be accepted) 
+ok [GE-sh-post-helper-defined-twice] rc=1 refusal-reason-present=True
+ok [GE-sh-post-command-file-func] rc=1 refusal-reason-present=True
+ok [GE-sh-post-dash-c-func] rc=1 refusal-reason-present=True
+NOT ok [GE-r4-pre-cr-B01] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-cr-debug-trap-B08] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-cr-declare-i-B10] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-cr-shadow-unset-B12] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-vt-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-vt-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-ff-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-ff-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-fs-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-fs-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-gs-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-gs-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-rs-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-rs-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-us-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-us-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-del-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-del-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-nul-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-nul-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-nel-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-nel-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-nbsp-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-nbsp-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-emsp-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-emsp-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-idsp-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-idsp-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-lsep-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-lsep-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-psep-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-psep-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-zwsp-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-zwsp-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-rlo-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-rlo-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-lri-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-lri-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-bom-lead] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-bom-comment] rc=0 gate-reason-present=False
+NOT ok [GE-r4-pre-ff-blank] rc=1 gate-reason-present=False
+NOT ok [GE-r4-pre-tab-ff-blank] rc=1 gate-reason-present=False
+ok [GE-r4-gf-unicode-comment] rc=0 (golden-false: must be accepted)
+ok [GE-r4-gf-tab-comment] rc=0 (golden-false: must be accepted)
+ok [GE-r4-gf-blank-blanks] rc=0 (golden-false: must be accepted)
+NOT ok [GE-r4-crlf-file] rc=0 gate-reason-present=False
+NOT ok [GE-r4-cr-hidden-op-after] rc=0 gate-reason-present=False
+NOT ok [GE-r4-cr-trailing-canonical] rc=0 gate-reason-present=False
+NOT ok [GE-r4-nonascii-code-after] rc=0 gate-reason-present=False
+NOT ok [GE-r4-nbsp-code-after] rc=1 gate-reason-present=False
+NOT ok [GE-r4-invalid-utf8] rc=1 gate-reason-present=False
+NOT ok [GE-r4-shebang-env-S-B13] rc=0 gate-reason-present=False
+NOT ok [GE-r4-shebang-argument] rc=0 gate-reason-present=False
+NOT ok [GE-r4-shebang-space] rc=0 gate-reason-present=False
+ok [GE-r4-gf-shebang-env-bash] rc=0 (golden-false: must be accepted) 
+ok [GE-r4-gf-no-shebang] rc=0 (golden-false: must be accepted) 
+ok [GE-sh-heredoc-text] rc=0 scrub_rows=2
+ok [GE-mut-no-body-len] KILLED by GE-py-second-stmt
+ok [GE-mut-no-orelse] KILLED by GE-py-for-else
+ok [GE-mut-no-word-check] KILLED by GE-py-lowercase
+ok [GE-mut-no-literal-iter] KILLED by GE-py-nonliteral
+ok [GE-mut-no-seed] KILLED by GE-py-later-use
+ok [GE-mut-no-del] KILLED by GE-real
+ok [GE-mut-anywhere] KILLED by GE-py-displaced
+ok [GE-mut-sh-indent] KILLED by GE-sh-indented
+ok [GE-mut-sh-no-heredoc] KILLED by GE-r4-pre-cr-B01
+ok [GE-mut-sh-drop-words] KILLED by GE-sh-proved-word
+ok [GE-mut-any-module] KILLED by GE-py-other-module
+ok [GE-mut-any-method] KILLED by GE-py-other-method
+ok [GE-mut-pop-target] KILLED by GE-py-other-pop
+ok [GE-mut-blockers-ignored] KILLED by GE-sh-attr-declare-l
+ok [GE-mut-no-sole-use] KILLED by GE-sh-post-sole-readonly
+ok [GE-mut-no-attr-rule] KILLED by GE-sh-post-attr-declare-i-escaped
+ok [GE-mut-attr-name-exact] KILLED by GE-sh-post-attr-declare-i-escaped
+ok [GE-mut-attr-any-name] KILLED by GE-sh-gf-other-attr
+ok [GE-mut-attr-nameref-only] KILLED by GE-sh-post-attr-declare-i-escaped
+ok [GE-mut-unset-trusted] KILLED by GE-sh-post-unset-f-squote
+ok [GE-mut-RM2-trailing-anything] KILLED by GE-sh-trailing-code
+ok [GE-mut-RM3-any-expr-first] KILLED by GE-py-expr-first
+ok [GE-mut-RM6-any-receiver] KILLED by GE-py-os-receiver
+ok [RVM1-attr-set-luc] KILLED by GE-sh-post-attr-declare-i-escaped
+ok [RVM2-blocker2-declare-only] KILLED by GE-sh-post-attr-local-l-func
+ok [GE-mut-RVM4-f-only] KILLED by GE-sh-post-unset-plain-trusted
+ok [GE-mut-no-preamble] KILLED by GE-sh-pre-command-declare-l
+ok [GE-mut-preamble-set-ok] KILLED by GE-sh-pre-set-option
+ok [GE-mut-preamble-no-comment] KILLED by GE-real
+ok [GE-mut-unset-nonident-ok] KILLED by GE-sh-post-unset-f-brace
+ok [GE-mut-unset-f-expansion-ok] KILLED by GE-sh-post-unset-f-var
+ok [GE-mut-unset-file-funcs-ok] KILLED by GE-sh-post-unset-other-func
+ok [GE-mut-helper-any-mention] KILLED by GE-sh-post-helper-call-after
+ok [GE-mut-helper-loop-ok] KILLED by GE-sh-post-helper-loop
+ok [GE-mut-helper-always] KILLED by GE-sh-post-unset-other-func
+ok [GE-mut-wrapper-func-ok] KILLED by GE-sh-post-command-func
+ok [GE-mut-trap-funcdef-ok] KILLED by GE-sh-post-trap-defines-func
+ok [GE-mut-dup-trusted-ok] KILLED by GE-sh-post-redefine-trusted
+ok [RV3M1-preamble-adjacent-only] KILLED by GE-sh-pre-code-then-comment
+ok [RV3M2-preamble-admits-set] KILLED by GE-sh-pre-set-option
+ok [RV3M3-scoped-helper-no-loop-check] KILLED by GE-sh-post-helper-loop
+ok [RV3M4-scoped-helper-multi-def] KILLED by GE-sh-post-helper-defined-twice
+ok [RV3M5-trusted-redefined-twice-ok] KILLED by GE-sh-post-redefine-trusted
+ok [RV3M6-wrapper-trusted-only] KILLED by GE-sh-post-command-file-func
+ok [RV3M7-dash-c-func-ok] KILLED by GE-sh-post-dash-c-func
+ok [RV3M8-unset-file-func-ok] KILLED by GE-sh-post-unset-other-func
+NOT ok [GE-mut-r4-no-gate] mutation anchor found 0 times (expected 1) -- source drifted
+NOT ok [GE-mut-r4-universal-newline] mutation anchor found 0 times (expected 1) -- source drifted
+NOT ok [GE-mut-r4-any-shebang] mutation anchor found 0 times (expected 1) -- source drifted
+NOT ok [GE-mut-r4-shebang-prefix] mutation anchor found 0 times (expected 1) -- source drifted
+NOT ok [GE-mut-r4-comment-any-char] mutation anchor found 0 times (expected 1) -- source drifted
+NOT ok [GE-mut-r4-code-nonascii-ok] mutation anchor found 0 times (expected 1) -- source drifted
+NOT ok [GE-mut-r4-c0-ok] mutation anchor found 0 times (expected 1) -- source drifted
+NOT ok [GE-mut-r4-utf8-lenient] mutation anchor found 0 times (expected 1) -- source drifted
+SUMMARY pass=123 fail=59

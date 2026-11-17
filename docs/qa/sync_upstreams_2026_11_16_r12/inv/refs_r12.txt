@@ -1,0 +1,44 @@
+site read_head          rev-parse     line 797   exact  ['rev-parse', '--verify', '-q', 'HEAD^{commit}']
+site is_ancestor        merge-base    line 830   exact  ['merge-base', '--is-ancestor', obj(a), obj(b)]
+site count_range        rev-list      line 836   exact  ['rev-list', '--left-right', '--count', '%s...%s' % (obj(a), obj(b))]
+site commit_present     rev-parse     line 845   exact  ['rev-parse', '--verify', '-q', obj(sha)]
+site probe_child        rev-parse     line 1107  exact  ['rev-parse', '--show-toplevel']
+site head_gitlinks      ls-tree       line 1149  exact  ['ls-tree', '-r', '-z', 'HEAD']
+site tree_gitlinks      ls-tree       line 1155  exact  ['ls-tree', '-r', '-z', obj(target)]
+site inspect_local      rev-parse     line 1375  exact  ['rev-parse', '--absolute-git-dir', '--path-format=absolute', '--git-path', 'FETCH_HEAD', '--git-common-dir']
+site resolve_ref_exact  for-each-ref  line 1492  exact  ['for-each-ref', '--format=' + FER_EXACT_FORMAT, ref]
+site evaluate_pin       for-each-ref  line 1588  exact  ['for-each-ref', '--contains', obj(gitlink), '--format=%(refname)', 'refs/remotes']
+site write_git          merge         line 1913  exact  ['merge', '--ff-only', obj(target)]
+site write_git          checkout      line 1915  exact  ['checkout', '--quiet', '--detach', obj(target)]
+site ignored_clobbers   ls-tree       line 2012  exact  ['ls-tree', '-r', '-z', '--name-only', '--full-tree', obj(target)]
+site control_needle     rev-list      line 2168  exact  ['rev-list', '--count', 'HEAD']
+site control_needle     rev-list      line 2169  exact  ['rev-list', '--left-right', '--count', 'HEAD...HEAD']
+site main               rev-parse     line 2275  exact  ['rev-parse', '--show-toplevel']
+site main               rev-parse     line 2331  exact  ['rev-parse', '--path-format=absolute', '--git-common-dir']
+refuse refused   rev-parse --verify -q refs/remotes/origin/dev^{commit}
+refuse refused   rev-parse --verify -q 0123456789abcdef0123456789abcdef01234567
+refuse refused   merge --ff-only 0123456789abcdef0123456789abcdef01234567
+refuse refused   checkout --quiet --detach 0123456789abcdef0123456789abcdef01234567
+refuse refused   merge-base --is-ancestor 0123456789abcdef0123456789abcdef01234567 0123456789abcdef0123456789abcdef01234567
+refuse refused   rev-list --left-right --count origin/dev...HEAD
+refuse refused   ls-tree -r -z 0123456789abcdef0123456789abcdef01234567
+refuse refused   for-each-ref --contains 0123456789abcdef0123456789abcdef01234567 --format=%(refname) refs/remotes
+refuse refused   for-each-ref --format=%(refname)%00%(objecttype)%00%(objectname)%00%(*objecttype)%00%(*objectname) refs/remotes/*
+refuse refused   show-ref --verify refs/remotes/origin/dev
+accept accepted  rev-parse --verify -q 0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  merge --ff-only 0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  checkout --quiet --detach 0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  merge-base --is-ancestor 0123456789abcdef0123456789abcdef01234567^{commit} 0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  rev-list --left-right --count 0123456789abcdef0123456789abcdef01234567^{commit}...0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  ls-tree -r -z 0123456789abcdef0123456789abcdef01234567^{commit}
+accept accepted  for-each-ref --contains 0123456789abcdef0123456789abcdef01234567^{commit} --format=%(refname) refs/remotes
+accept accepted  for-each-ref --format=%(refname)%00%(objecttype)%00%(objectname)%00%(*objecttype)%00%(*objectname) refs/remotes/origin/dev
+env    1         GIT_NO_REPLACE_OBJECTS
+env    /dev/null GIT_GRAFT_FILE
+env    None      GIT_ALTERNATE_OBJECT_DIRECTORIES
+env    None      GIT_OBJECT_DIRECTORY
+env    None      GIT_SHALLOW_FILE
+env    None      GIT_REPLACE_REF_BASE
+env    None      GIT_NAMESPACE
+class-inventory-refs: sites 17 (exact 17, lookup 0); allow-list probes 18; env probes 7
+class-inventory-refs: PASS

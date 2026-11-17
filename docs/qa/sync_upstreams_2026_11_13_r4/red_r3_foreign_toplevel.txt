@@ -1,0 +1,25 @@
+<scratch>/syncfix4.Jiag/tmp/r3tree/scripts/sync/fixture_lib.sh: line 18: <scratch>/syncfix4.Jiag/tmp/r3tree/scripts/lib/safe_rm.sh: No such file or directory
+--- control (sane):
+rc=0
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/red_foreign_r3/helix-sync-test.npIsg0/out/r1/sync_report.json
+CANONICAL_SHA256=eed6604522e24fc9b507e8d75ec809667953214a449fb678db25c989c845e575
+RESULT: CURRENT exit=0
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/red_foreign_r3/helix-sync-test.npIsg0/work/root: 4 repositories, 4 initialised, 4 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 current         -
+vendor/t initialised=True result=current
+--- git itself, from inside vendor/t: <scratch>/syncfix4.Jiag/tmp/red_foreign_r3/helix-sync-test.npIsg0/work/root (rc=0)
+--- broken (empty .git directory):
+rc=0
+REPORT_JSON=<scratch>/syncfix4.Jiag/tmp/red_foreign_r3/helix-sync-test.npIsg0/out/r2/sync_report.json
+CANONICAL_SHA256=083af2609098c897ef56ff36a9cc4ccbaeabcf27de4885aca33865926d6dc6bd
+RESULT: CURRENT exit=0
+ERR:[sync-upstreams] root <scratch>/syncfix4.Jiag/tmp/red_foreign_r3/helix-sync-test.npIsg0/work/root: 4 repositories, 3 initialised, 3 remotes, mode check, jobs 4
+[sync-upstreams] .                                        current         -
+[sync-upstreams] libs/a                                   current         -
+[sync-upstreams] libs/a/inner                             current         -
+[sync-upstreams] vendor/t                                 not-initialised -
+vendor/t initialised=False pin={'gitlink': '710911f5da8f4d6ceba570074bca81de41674730', 'state': 'uninitialised'} result=not-initialised reasons=[] unresolved=None
+<scratch>/syncfix4.Jiag/tmp/r3tree/scripts/sync/fixture_lib.sh: line 51: safe_rm_rf: command not found

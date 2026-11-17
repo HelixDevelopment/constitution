@@ -1,0 +1,4 @@
+id	file	suites	rc	verdict
+CONTROL	-	lv,pr	lv:0(164s) pr:0(13s)	CONTROL-PASS
+V04-lander-always-merge	scripts/release/land_vehicle.sh	lv	lv:1(157s)	KILLED
+P08-pr-missing-lib-ok	scripts/release/pr_landing_check.sh	pr	pr:1(15s)	KILLED

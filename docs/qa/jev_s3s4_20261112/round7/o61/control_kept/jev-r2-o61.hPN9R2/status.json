@@ -1,0 +1,20 @@
+{
+  "gateway": {
+    "running": true
+  },
+  "profiles": [],
+  "registry": {
+    "services": [
+      {
+        "name": "svc-other-name",
+        "protocol": "http",
+        "healthy": true,
+        "url": "http://127.0.0.1:9",
+        "labels": {
+          "kind": "decide",
+          "profile": "decide-tiny"
+        }
+      }
+    ]
+  }
+}

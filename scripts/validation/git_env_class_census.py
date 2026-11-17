@@ -145,6 +145,7 @@ import re
 import subprocess
 import sys
 import tokenize
+import unicodedata
 
 TOOL = "git-env-class-census"
 REASONS = {
@@ -198,6 +199,66 @@ SH_CLEARS = re.compile(r"\bunset\b|(?:^|\s)-u\s+\S")
 # caller's SHELLOPTS=xtrace (scripts/fastcycle/tokens/dispatch_stamp.sh, test RV11-2: the scrub line must come after it)
 PREAMBLE = re.compile(r"""^(?:set(?:[ \t]+(?:[-+][A-Za-z]+|[a-z]+|--))+[ \t]*$|shopt(?:[ \t]+-[su])+(?:[ \t]+[a-z_]+)+[ \t]*$|umask[ \t]+[0-7]{3,4}[ \t]*$|\{ set [+-]o [a-z]+(?: [+-]o [a-z]+)*; \} 2>/dev/null$|export\s+[A-Za-z_]\w*=[^$`();&|<>]*$|[A-Za-z_]\w*=[^$`();&|<>]*$)""")
 FUNC_RE = re.compile(r"^(\s*)(?:function\s+)?([A-Za-z_][\w]*)\s*\(\)\s*(\{.*)?$")
+# CON-450 round 4 (review R3-1 / R3-2 / R3-5, section 11.4.276(E) structural): a member is judged on the text its
+# interpreter runs. Python's str.lstrip / strip / isspace and `\s` treat CR, VT, FF, FS..US, NEL, NBSP and the other
+# Unicode spaces as blank; bash treats only SPACE and TAB as blank and LF as the only line end, so `\r#;cmd` or
+# `<NBSP>#;cmd` was a comment to this census and a command to bash (measured: the scrub defeated, the census PASS).
+# The census therefore admits a CLOSED ALLOW-LIST and refuses the rest, fail-closed (READING_PROBLEM below):
+#   shell   every character: TAB, LF or printable ASCII, or a non-ASCII character of a Unicode category L M N P S that
+#           str.isspace() does not accept (CR, NUL..US but TAB / LF, DEL anywhere are refused);
+#           every line: the first character after its SPACE / TAB run is printable ASCII or such a character;
+#           line 1: a `#!` line is one of SH_SHEBANGS exactly (a file run directly runs its shebang's arguments first);
+#           the preamble (every line up to and including the first canonical-looking scrub line): a full-line comment
+#           may carry the characters above (no U+FFFD, the mark of a byte that is not UTF-8); any other line is TAB /
+#           printable ASCII only;
+#   python  no CR (the interpreter ends a line at a lone CR, measured: `# c\ry=2` runs y=2; this census numbers lines
+#           by LF);
+#   js      no CR, U+2028 or U+2029 (JavaScript line terminators).
+SH_SHEBANGS = ("#!/usr/bin/env bash", "#!/bin/bash", "#!/bin/sh", "#!/system/bin/sh")
+SH_COMMENT_LINE = re.compile(r"[ \t]*#")
+
+
+def _ok_char(ch, ascii_only=False):
+    o = ord(ch)
+    if ch == "\t" or 0x20 <= o <= 0x7e:
+        return True
+    return (not ascii_only and o >= 0x80 and ch != "\ufffd" and unicodedata.category(ch)[0] in "LMNPS"
+            and not ch.isspace())
+
+
+def reading_problem(lang, text):
+    """(line, reason) where the file leaves what this census models of its interpreter's reading, or None."""
+    if lang in ("py", "js"):
+        bad = "\r" if lang == "py" else "\r\u2028\u2029"
+        for no, l in enumerate(text.split("\n"), 1):
+            for ch in l:
+                if ch in bad:
+                    return no, ("U+%04X ends a line for the %s interpreter but not for this census (lines split on LF); "
+                                "not modelled, fail-closed (CON-450 r4)" % (ord(ch), lang))
+        return None
+    if lang != "sh":
+        return None
+    lines = text.split("\n")
+    canon_at = next((i for i, l in enumerate(lines, 1) if CANON_SH_ANY.match(l)), 0)
+    for no, l in enumerate(lines, 1):
+        if no == 1 and l.startswith("#!") and l not in SH_SHEBANGS:
+            return no, ("line 1 is a #! line outside the closed set (%s): a file run directly runs its shebang's "
+                        "arguments before line 2; not modelled, fail-closed (CON-450 r4)" % ", ".join(SH_SHEBANGS))
+        com = bool(SH_COMMENT_LINE.match(l))
+        pre = no <= canon_at
+        rest = l.lstrip(" \t")
+        for col, ch in enumerate(l, 1):
+            o = ord(ch)
+            if (ch != "\t" and o < 0x20) or o == 0x7f or (pre and not _ok_char(ch, ascii_only=not com)):
+                return no, ("column %d holds U+%04X (%s, %s)%s: bash and this census read it differently; not "
+                            "modelled, fail-closed (CON-450 r4)" % (col, o, unicodedata.name(ch, "unnamed"),
+                                                                    unicodedata.category(ch),
+                                                                    " in the preamble" if pre else ""))
+        if rest and not _ok_char(rest[0]) and rest[0] != "\ufffd":
+            return no, ("the first character after the blanks is U+%04X (%s, %s): blank to Python, a word to bash; not "
+                        "modelled, fail-closed (CON-450 r4)" % (ord(rest[0]), unicodedata.name(rest[0], "unnamed"),
+                                                                unicodedata.category(rest[0])))
+    return None
 # Round 4 (R4-1): the universe is every tracked file. A text file is data only when its extension is in this closed
 # list (or it has no extension, no shebang and no executable bit); any other extension is UNCLASSIFIED and the census
 # FAILs, so a new kind of file can never fall silently outside the census. Systemd units, templates and configs are
@@ -206,6 +267,36 @@ DATA_EXT = ("md", "txt", "json", "jsonl", "tsv", "yaml", "yml", "lock", "html", 
             "cfg", "ini", "svg", "png", "sum", "mod", "sql", "log", "out", "err", "diff", "patch", "template", "tmpl",
             "example", "list", "sha256", "config", "conf", "css", "roster", "mdy", "summary", "service", "timer",
             "precheck-evidence", "canon", "xml", "rst", "gif", "jpg", "jpeg", "ico", "pub", "asc", "bundle", "gz", "tar", "zip")
+# Jev round 12 (review of a1eeb0d7, R11-C): `.rc` and `.ls` are NOT data extensions. A blanket extension rule made every
+# non-executable `*.rc` / `*.ls` file data, so a file of that name holding git writes was no longer counted. A file with
+# one of these extensions is data only when it is not executable, lies under docs/qa/, and its WHOLE content has the
+# captured shape: `.rc` one exit status (an integer 0 to 255, optional newline); `.ls` an `ls -l` listing (a `total N`
+# line, then only listing lines). Any other `.rc` / `.ls` file stays UNCLASSIFIED and fails the run (closed world).
+# Jev round 13 (R12-B2): re.ASCII, so a digit is 0-9 and a space is an ASCII space (a Unicode digit such as U+0661 or a
+# Unicode space such as U+2003 never makes a line listing-shaped).
+LS_LINE = re.compile(r"^[-dlcbpsD][rwxsStT-]{9}[.+@]?\s+\d+\s+\S+\s+\S+\s+\d+\s+[A-Z][a-z]{2}\s+\d{1,2}\s+(?:\d{1,2}:\d{2}|\d{4})\s+\S.*$", re.ASCII)
+
+
+def shaped_data(path, ext, text, executable):
+    """True when an `.rc` / `.ls` file is a captured evidence record of the declared shape (see the note above)."""
+    if executable or ext not in ("rc", "ls") or not path.startswith("docs/qa/"):
+        return False
+    # round 12: a listing line may carry any file name (`\S.*$`), so a record that names git is never data by shape.
+    # Round 13 (R12-B2): the SAME definition the member detector uses (MENTION, case-insensitive, letter boundary only),
+    # so no text the detector counts as a git mention (GIT, Git, _git, 1git, gitx, ${G,,} after G=GIT) is data by shape.
+    if MENTION.search(text):
+        return False
+    if ext == "rc":
+        m = re.fullmatch(r"(\d{1,3})\n?", text, re.ASCII)
+        return bool(m) and int(m.group(1)) <= 255
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    if len(lines) < 1 or not re.fullmatch(r"total \d+", lines[0], re.ASCII):
+        return False
+    return all(LS_LINE.match(ln) for ln in lines[1:])
+
+
 SKIP_EXT = re.compile(r"\.(" + "|".join(re.escape(e) for e in DATA_EXT) + r")$")
 OTHER_CODE_EXT = (".fish", ".pl", ".pm", ".rb", ".lua", ".ps1", ".ts", ".tcl", ".awk", ".sed", ".exp", ".php")
 CODE_EXT = (".sh", ".bash", ".zsh", ".ksh", ".py", ".go", ".js", ".mjs", ".cjs", ".mk") + OTHER_CODE_EXT
@@ -271,7 +362,7 @@ def code_lines(lang, text):
     """List of the file's lines with comments (and python docstrings) blanked; same line numbering."""
     lines = text.split("\n")
     if lang == "sh":
-        return [strip_sh_comment(l) if not l.lstrip().startswith("#") else "" for l in lines]
+        return [strip_sh_comment(l) if not SH_COMMENT_LINE.match(l) else "" for l in lines]   # bash blanks only (r4)
     if lang in ("go", "js"):
         return ["" if l.lstrip().startswith("//") else l for l in lines]
     if lang != "py":
@@ -679,7 +770,7 @@ def py_top_scrub(text, canon):
 def sh_top_scrub(code_raw, code):
     """(line, words) of a canonical shell scrub at column 0 in the preamble, or None."""
     for i, raw in enumerate(code_raw, 1):
-        c = code[i - 1].strip()
+        c = code[i - 1].strip(" \t")
         if i == 1 and raw.startswith("#!"):
             continue
         m = CANON_SH.match(raw)
@@ -787,6 +878,9 @@ def judge(lang, text, canon):
     if mm is None:
         return None, 0, "", []
     mline = text[:mm.start()].count("\n") + 1
+    rp = reading_problem(lang, text)
+    if rp is not None:
+        return "UNSCRUBBED", rp[0], rp[1], []
     code = code_lines(lang, text)
     gv = git_vars(code) if lang == "sh" else set()
     wraps, funcs = (wrappers(code, canon, gv) if lang == "sh" else ({}, {}))
@@ -1018,6 +1112,33 @@ def needles(canon):
         ("sh guard, symbolic-ref delete write", "sh", "#!/bin/bash\ngit symbolic-ref -d HEAD\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
         ("sh guard, symbolic-ref long delete write", "sh", "#!/bin/bash\ngit symbolic-ref --delete HEAD\n", ("subject-follows-caller", "x", ""), "UNSCRUBBED"),
     ]
+    # CON-450 round 4 (review R3-1 / R3-2 / R3-5): the closed allow-list of the interpreter's reading. Each refused
+    # sample is a member bash runs differently from the census's old reading (the scrub defeated or a write hidden).
+    cd = "command declare -l _g\\e_v\n"
+    for nm, ch in (("CR", "\r"), ("VT", "\x0b"), ("FF", "\x0c"), ("FS", "\x1c"), ("GS", "\x1d"), ("RS", "\x1e"),
+                   ("US", "\x1f"), ("NEL", "\u0085"), ("NBSP", "\u00a0"), ("EMSP", "\u2003"), ("LSEP", "\u2028"),
+                   ("ZWSP", "\u200b"), ("RLO", "\u202e"), ("BOM", "\ufeff"), ("NUL-like DEL", "\x7f")):
+        cases.append(("sh %s comment before the canonical line" % nm, "sh", "#!/bin/bash\n" + ch + "#;" + cd + sh_scrub +
+                      "git init -q x\n", None, "UNSCRUBBED"))
+        cases.append(("sh %s inside a preamble comment" % nm, "sh", "#!/bin/bash\n# x" + ch + "y\n" + sh_scrub +
+                      "git init -q x\n", None, "UNSCRUBBED"))
+    cases += [
+        ("sh CRLF file", "sh", ("#!/bin/bash\n" + sh_scrub + "git init -q x\n").replace("\n", "\r\n"), None, "UNSCRUBBED"),
+        ("sh env -S shebang", "sh", "#!/usr/bin/env -S bash -c 'declare -l _g\\\\e_v; . \"$0\"'\n" + sh_scrub +
+         "git init -q x\n", None, "UNSCRUBBED"),
+        ("sh shebang with an argument", "sh", "#!/bin/bash -x\n" + sh_scrub + "git init -q x\n", None, "UNSCRUBBED"),
+        ("sh CR hides a write, text row", "sh", "#!/bin/sh\necho hi\n:\r#; git commit -qm x\n", ("no-git-execution", "x", ""), "UNSCRUBBED"),
+        ("sh NBSP-led line after the scrub", "sh", "#!/bin/bash\n" + sh_scrub + "\u00a0#; git init -q x\n", None, "UNSCRUBBED"),
+        ("sh non-UTF-8 byte in the preamble", "sh", "#!/bin/bash\n# x\ufffdy\n" + sh_scrub + "git init -q x\n", None, "UNSCRUBBED"),
+        ("sh em dash and Cyrillic in a preamble comment", "sh", "#!/bin/bash\n# a \u2014 \u043c \u00a7 b\n" + sh_scrub +
+         "git init -q x\n", None, "HERMETIC"),
+        ("sh NBSP inside a string after the scrub", "sh", "#!/bin/bash\n" + sh_scrub + "echo 'a\u00a0b'\ngit init -q x\n", None, "HERMETIC"),
+        ("sh no shebang, comment first", "sh", "# shellcheck shell=bash\n" + sh_scrub + "git init -q x\n", None, "HERMETIC"),
+        ("sh /bin/sh shebang", "sh", "#!/bin/sh\n" + sh_scrub + "git init -q x\n", None, "HERMETIC"),
+        ("py CR hides a write", "py", py_scrub.replace("import os as _ge_os\n", "import os as _ge_os  # c\rimport subprocess; subprocess.run(['git', 'init', 'x'])\n"), None, "UNSCRUBBED"),
+        ("js LSEP ends a comment", "js", "#!/usr/bin/env node\n// c\u2028execFileSync('git', ['init']);\n" + js_scrub, None, "UNSCRUBBED"),
+        ("js CR ends a comment", "js", "#!/usr/bin/env node\n// c\rexecFileSync('git', ['init']);\n" + js_scrub, None, "UNSCRUBBED"),
+    ]
     bad = []
     for name, lang, text, row, want in cases:
         st, line, detail, ws = judge(lang, text, canon)
@@ -1030,7 +1151,34 @@ def needles(canon):
                     ("GIT_DIR", True), ("digit", False), ("legitimate", False)):
         if bool(MENTION.search(s)) != want:
             bad.append("mention detector on %r: got %s" % (s, not want))
-    return bad, len(cases) + 7
+    # R11-C: the `.rc` / `.ls` shape rule (control needles: the captured shapes pass, a git write does not)
+    lsok = "total 8\ndrwxrwxr-x 2 u u 4096 Nov 13 18:38 .\ndrwx------ 8 u u 4096 Nov 13 18:38 ..\n"
+    shapes = (("docs/qa/a/x.rc", "rc", "0\n", False, True), ("docs/qa/a/x.rc", "rc", "255", False, True),
+              ("docs/qa/a/x.rc", "rc", "256\n", False, False), ("docs/qa/a/x.rc", "rc", "0\n", True, False),
+              ("tests/x.rc", "rc", "0\n", False, False),
+              ("docs/qa/a/x.rc", "rc", "GIT_DIR=/tmp/x git commit -q -m m\n", False, False),
+              ("docs/qa/a/x.rc", "rc", "0\ngit init -q d\n", False, False),
+              ("docs/qa/a/x.ls", "ls", lsok, False, True), ("docs/qa/a/x.ls", "ls", lsok, True, False),
+              ("docs/qa/a/x.ls", "ls", lsok + "git -C d commit -m x\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "GIT_DIR=/tmp/x git commit -q -m m\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "", False, False),
+              # round 12: a listing-shaped line that names git, and a header followed by a non-listing line
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x; git commit -q -m y\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 0\nrm -rf x\n", False, False),
+              # round 13 (R12-B2): the shape rule and the detector share one definition; digits and spaces are ASCII
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x; G=GIT; ${G,,} commit -q -m y\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 Git=1\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 x_git\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 gitx\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- 1 u u 1 Nov 13 18:38 digit\n", False, True),
+              ("docs/qa/a/x.rc", "rc", "\u0661\u0662\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total \u0668\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r--\u20031 u u 1 Nov 13 18:38 x\n", False, False),
+              ("docs/qa/a/x.ls", "ls", "total 8\n-rw-rw-r-- \u0661 u u 1 Nov 13 18:38 x\n", False, False))
+    for sp, se, st_, sx, want in shapes:
+        if shaped_data(sp, se, st_, sx) != want:
+            bad.append("shape rule on %s %r exec=%s: got %s" % (sp, st_[:40], sx, not want))
+    return bad, len(cases) + 7 + len(shapes)
 
 
 def git_env(canon):
@@ -1166,9 +1314,10 @@ def main(argv):
         ext = base.lstrip(".").rsplit(".", 1)[1] if "." in base.lstrip(".") else ""
         # a data extension wins over a shebang (evidence copies of scripts are stored as `*.sh.txt`), but never
         # over the executable bit: an executable file can be run as `./file` whatever its name
-        lang = None if (ext in DATA_EXT and not executable) else lang_of(f, text[:200], executable)
+        lang = None if ((ext in DATA_EXT and not executable) or shaped_data(f, ext, text, executable)) \
+            else lang_of(f, text[:200], executable)
         if lang is None:
-            if ext and ext not in DATA_EXT:
+            if ext and ext not in DATA_EXT and not shaped_data(f, ext, text, executable):
                 inv["unclassified"] += 1
                 problems.append("tracked file %s has the extension .%s, which is neither code nor in the closed data list "
                                 "(add it to DATA_EXT or a code language; the universe is closed-world)" % (f, ext))

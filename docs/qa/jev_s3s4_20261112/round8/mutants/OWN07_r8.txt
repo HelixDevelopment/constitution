@@ -1,0 +1,48 @@
+ok 1 - P91 CONTROL: A disposed decide-b and its start of decide-a is in flight when the observer runs
+ok 2 - P91 CONTROL: the observer runs when A's process is older than MARK_TTL (47 s > 43 s)
+ok 3 - P91 the starting mark carries the time it was SET (t0+46 s), not A's process start
+ok 4 - P91 the observer keeps the live starter's mark (its age is below MARK_TTL)
+ok 5 - P91 after the observer the set still carries the starting mark
+ok 6 - P91 a second observer does not release A's lease (no endpoint_gone)
+ok 7 - P91 A's start is kept: rc 0, decide-a placed, never stopped
+ok 8 - P91 decide-a runs at the end
+ok 9 - P92 CONTROL: A disposed decide-b and its start of decide-a is in flight when the observer runs
+ok 10 - P92 CONTROL: the observer runs when A's process is older than MARK_TTL (46 s > 43 s)
+ok 11 - P92 B is refused and starts nothing while A's start is in flight
+ok 12 - P92 B's refusal names endpoint_starting (§11.4.291(J)(3))
+ok 13 - P92 B does not stop decide-a while it is being started
+ok 14 - P92 A's start is kept and decide-a is the only unit that runs
+ok 15 - P93a A started decide-a and is paused at its record step (paused at flock call 7)
+ok 16 - P93a the starting mark and the lease carry the time they were written (after the 100 s capacity read)
+ok 17 - P93a a live starter's mark is kept at MARK_TTL of its own age (process age MARK_TTL + 100 s)
+ok 18 - P93a the observer clears no mark
+ok 19 - P93a started_at is the time the start was recorded
+ok 20 - P93a health.at and the record's evaluated_at are the time of the post-start observation
+ok 21 - P93b start_failed.at and stop_failed.at carry the time each was recorded
+ok 22 - P93c A is paused before its start-mark lock (paused at flock call 5)
+ok 23 - P93c the mark carries the time after the lock was taken
+ok 24 - P93d without JEV_TEST=1 JEV_NOW_FILE is ignored
+ok 25 - P93e an empty JEV_NOW_FILE: exit 2
+ok 26 - P93e the config error says so
+ok 27 - P94 A planned (ticket taken) and is paused before its start mark (paused at flock call 5)
+ok 28 - P94 C took its ticket after A's and read its answer (no start yet) (paused at flock call 3)
+ok 29 - P94 CONTROL: no start before C's answer; C's ticket (2) is the newest
+ok 30 - P94 A was killed after llmctl start rc 0, before its record (the instrument)
+ok 31 - P94 the unit runs; the set carries the dead starter's mark
+ok 32 - P94 C clears the mark at floor 2 (its own ticket) and does NOT mark the running set gone
+ok 33 - P94 no endpoint_gone
+ok 34 - P95 A planned a start of decide-a (decide-b holds a live lease) and is paused before its start mark (paused at flock call 5)
+ok 35 - P95 CONTROL: no stop yet; decide-b still holds hB's lease
+ok 36 - P95 the reap at the mark made the answer stale: A plans again
+ok 37 - P95 A then places decide-a
+ok 38 - P95 the owed stop of decide-b (seen by the new plan) runs before the start of decide-a
+ok 39 - P96 A started decide-a and is paused at its record step (the set carries its starting mark) (paused at flock call 7)
+ok 40 - P96 the release of the last lease stops nothing while decide-a is starting; the mark is kept
+ok 41 - P96 the starter sees the release when its start returns
+ok 42 - P96 the starter stops decide-a (one stop in all); no unit is left
+ok 43 - P97 CONTROL: a live marker (pid and start time match) keeps its mark
+FAIL - P97 a reused pid (start time differs) is a dead marker: the mark is cleared (expected [null starting] got [{
+  "at": 1700000000,
+  "pid": 3,
+  "pid_start": 1
+} null])

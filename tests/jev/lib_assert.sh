@@ -70,8 +70,19 @@ finish() {
   [ "$FAIL" -eq 0 ]
 }
 
-_JEV_FIXTURE_DIRS=()
-_jev_cleanup_fixtures() { local d; for d in "${_JEV_FIXTURE_DIRS[@]}"; do [ -n "$d" ] && [ -d "$d" ] && rm -rf -- "$d"; done; }
+_JEV_FIXTURE_DIRS=(); _JEV_FIXTURE_PIDS=()
+# jev_track_pid <pid> — a background fixture process (the jev_server.py stub) this test started; killed by the ONE EXIT trap.
+# Root cause of the orphan leak found in review 2026-11-12: a test installed `trap 'kill "$SRV"' EXIT` and a LATER
+# make_fixture_env re-installed `trap _jev_cleanup_fixtures EXIT`, replacing it, so the server outlived the test. Every
+# background fixture is now registered here and the single cleanup kills exactly the recorded pids (never a pattern match).
+jev_track_pid() { [ -n "${1:-}" ] && _JEV_FIXTURE_PIDS+=("$1"); }
+_jev_cleanup_fixtures() {
+  local p d
+  for p in "${_JEV_FIXTURE_PIDS[@]}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done
+  for p in "${_JEV_FIXTURE_PIDS[@]}"; do [ -n "$p" ] && wait "$p" 2>/dev/null; done
+  for d in "${_JEV_FIXTURE_DIRS[@]}"; do [ -n "$d" ] && [ -d "$d" ] && rm -rf -- "$d"; done
+  return 0
+}
 
 # make_fixture_env <name> — sandboxed HOME, stubs on PATH, deterministic clock.
 # Sets: T (tmp root), HOME, PATH, STUB_LOG, JEV_* dirs, JEV_NOW_EPOCH.
@@ -96,7 +107,7 @@ make_fixture_env() {
   export GIT_SSH_COMMAND=/bin/false   # no network, ever
   unset LLMCTL_STATUS_JSON LLMCTL_CAPACITY_JSON FIXTURE_ENDPOINTS LLMCTL_DIR CLAUDE_TOOLKIT_DIR LLMCTL_ENDPOINT LLMCTL_DECIDE_PORT LLMCTL_CACERT \
         LLMCTL_API_KEY TYPESAFE_API_KEY OPENROUTER_API_KEY JEV_API_KEY JEV_API_KEYS_FILE CMA_KEYS_FILE CMA_JEV_PINS_FILE JEV_BEFORE JEV_AFTER \
-        JEV_TEST JEV_REQUIRE_VALIDATED_CMD JEV_DECISION_PROFILES JEV_PINS_FILE JEV_BASE_URL JEV_DETECTION_FILE JEV_SKIP_VALIDATION JEV_DETECTION_MAX_AGE JEV_HOME JEV_STATUS_NO_VALIDATE TYPESAFE_BASE_URL CLAUDE_CONFIG_DIR   # CLAUDE_CONFIG_DIR: the operator's real alias dir must never be read (jev_mcp_files), HOME is already the sandbox
+        JEV_TEST JEV_REQUIRE_VALIDATED_CMD JEV_DECISION_PROFILES JEV_PINS_FILE JEV_BASE_URL JEV_DETECTION_FILE JEV_SKIP_VALIDATION JEV_DETECTION_MAX_AGE JEV_HOME JEV_STATUS_NO_VALIDATE JEV_NOW_FILE JEV_MONO_FILE JEV_TRACE_FILE TYPESAFE_BASE_URL CLAUDE_CONFIG_DIR   # CLAUDE_CONFIG_DIR: the operator's real alias dir must never be read (jev_mcp_files), HOME is already the sandbox
   export JEV_HOSTED_PROBE=0   # hermetic default: no hosted probe (tests that exercise probing set it to 1 and stub curl)
   mkdir -p "$CMA_PROVIDERS_DIR"
   mkdir -p "$JEV_STATE_DIR" "$JEV_EVIDENCE_DIR" "$JEV_CONFIG_DIR"
@@ -163,6 +174,7 @@ run_hook_host() {
   (cd "$HOST_P" && env CONST_DIR="$HOST_C" PROJECT_ROOT="$HOST_P" HOME="$HOST_P/home" \
      BOOTSTRAP_STUB_LOG="$HOST_P/bootstrap.log" JEV_STATE_DIR="$HOST_P/.jev-state" "$@" \
      bash "$HOST_C/scripts/post_update_hook.sh" </dev/null >"$HOST_P/hook.out" 2>&1)
+  # shellcheck disable=SC2034  # HOOK_RC is read by the suites that source this file (test_post_update_hook_trigger.sh and others)
   HOOK_RC=$?
 }
 

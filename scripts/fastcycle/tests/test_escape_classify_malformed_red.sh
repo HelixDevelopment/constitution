@@ -13,8 +13,13 @@
 # Usage : bash test_escape_classify_malformed_red.sh   exit 0 = all cases hold.
 set -u
 ROOT=$(cd "$(dirname "$0")/../../../.." && pwd)
-TOOL="$ROOT/constitution/scripts/fastcycle/closure/escape_classify.py"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+TOOL="$FC_CANON_ROOT/scripts/fastcycle/closure/escape_classify.py"
 CONFIG="$ROOT/config/fastcycle/fastcycle.yaml"
+# CON-093: every case passes the CONSUMER config; without it the tool stops at config load (exit 2) before it
+# reaches the malformed input, so no case can run on canon alone: honest SKIP naming that effective path.
+. "$(dirname "$0")/lib/consumer_required.sh"
+fc_require_consumer "$CONFIG"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 fail=0
 chk() { if [ "$2" = 1 ]; then echo "ok $1"; else echo "NOT ok $1"; fail=1; fi; }

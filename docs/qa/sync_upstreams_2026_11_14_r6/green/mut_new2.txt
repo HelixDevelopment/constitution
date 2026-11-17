@@ -1,0 +1,11 @@
+Q06  KILLED     by robustness:write_timeout   20.3s  RV5-1: an earlier run's marker is ignored at inspection
+Q09  SURVIVED   by -              21.9s  RV5-1: a marker over a clean tree is never cleared in --apply
+Q12  KILLED     by unit           13.4s  RV5-5: Ctrl-C at the prompt waits for Enter
+Q17  KILLED     by unit           10.7s  RV5-1: a write gets the short read grace before SIGKILL
+Q18  KILLED     by unit           11.0s  RV5-1: a marker that cannot be written does not stop the write
+Q19  KILLED     by unit           10.7s  RV5-1: the parent's 'add' of an advance-pin ended by its limit is not write-killed
+sync-mutations (all): mutants 6 killed 5 equivalent 0 survived 1 harness-errors 0
+survivors: Q09
+rc=1
+Q09  KILLED     by robustness:stale_marker,write_timeout   19.2s  RV5-1: a marker over a clean tree is never cleared in --apply
+sync-mutations (all): mutants 1 killed 1 equivalent 0 survived 0 harness-errors 0

@@ -1,0 +1,48 @@
+ok 1 - P91 CONTROL: A disposed decide-b and its start of decide-a is in flight when the observer runs
+ok 2 - P91 CONTROL: the observer runs when A's process is older than MARK_TTL (45 s > 43 s)
+FAIL - P91 the starting mark's at is [1794675801] (t0=1794675801): stamped from the process start, not when it was set
+FAIL - P91 the observer keeps the live starter's mark (its age is below MARK_TTL) (found [cleared the starting mark of decide-a] in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r8.ppJI/tmp/tmp.h6R2S4wqbe/o91a.err)
+FAIL - P91 after the observer the set still carries the starting mark (expected [0 true] got [0 false])
+FAIL - P91 a second observer does not release A's lease (no endpoint_gone) (found [endpoint_gone] in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r8.ppJI/tmp/tmp.h6R2S4wqbe/o91b.err)
+FAIL - P91 A's start is kept: rc 0, decide-a placed, never stopped (expected [0 decide-a 0] got [5  1])
+FAIL - P91 decide-a runs at the end (expected [decide-a ] got [])
+ok 3 - P92 CONTROL: A disposed decide-b and its start of decide-a is in flight when the observer runs
+ok 4 - P92 CONTROL: the observer runs when A's process is older than MARK_TTL (45 s > 43 s)
+FAIL - P92 B is refused and starts nothing while A's start is in flight (expected [5 0] got [0 1])
+FAIL - P92 B's refusal names endpoint_starting (§11.4.291(J)(3)) (no [endpoint_starting] in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r8.ppJI/tmp/tmp.3IEJ8INBTD/b92.err)
+FAIL - P92 B does not stop decide-a while it is being started (expected [0] got [1])
+FAIL - P92 A's start is kept and decide-a is the only unit that runs (expected [0 decide-a decide-a ] got [5  decide-c ])
+ok 5 - P93a A started decide-a and is paused at its record step (paused at flock call 7)
+FAIL - P93a the starting mark and the lease carry the time they were written (after the 100 s capacity read) (expected [1700000100 1700000100] got [1700000000 1700000000])
+FAIL - P93a a live starter's mark is kept at MARK_TTL of its own age (process age MARK_TTL + 100 s) (expected [true] got [false])
+FAIL - P93a the observer clears no mark (found [cleared the starting mark] in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r8.ppJI/tmp/tmp.d1y2HAbBxg/o93.err)
+FAIL - P93a started_at is the time the start was recorded (expected [0 1700000438] got [0 1700000000])
+FAIL - P93a health.at and the record's evaluated_at are the time of the post-start observation (expected [ok 1700000538 1700000538] got [ok 1700000000 1700000000])
+FAIL - P93b start_failed.at and stop_failed.at carry the time each was recorded (expected [5 1700000150 1700000175] got [5 1700000000 1700000000])
+ok 6 - P93c A is paused before its start-mark lock (paused at flock call 5)
+FAIL - P93c the mark carries the time after the lock was taken (expected [1700001100] got [1700000000])
+ok 7 - P93d without JEV_TEST=1 JEV_NOW_FILE is ignored
+FAIL - P93e an empty JEV_NOW_FILE: exit 2 (expected [2] got [0])
+FAIL - P93e the config error says so (no [the clock could not be read] in /home/milosvasic/.cache/claude-tmp/claude-1000/-home-milosvasic-Projects-constitution/74ce2b36-bc1b-48fc-b31c-c523fed7b15e/scratchpad/jev_r8.ppJI/tmp/tmp.jc5lI5Swmv/e93e)
+ok 8 - P94 A planned (ticket taken) and is paused before its start mark (paused at flock call 5)
+ok 9 - P94 C took its ticket after A's and read its answer (no start yet) (paused at flock call 3)
+ok 10 - P94 CONTROL: no start before C's answer; C's ticket (2) is the newest
+ok 11 - P94 A was killed after llmctl start rc 0, before its record (the instrument)
+ok 12 - P94 the unit runs; the set carries the dead starter's mark
+ok 13 - P94 C clears the mark at floor 2 (its own ticket) and does NOT mark the running set gone
+ok 14 - P94 no endpoint_gone
+ok 15 - P95 A planned a start of decide-a (decide-b holds a live lease) and is paused before its start mark (paused at flock call 5)
+ok 16 - P95 CONTROL: no stop yet; decide-b still holds hB's lease
+ok 17 - P95 the reap at the mark made the answer stale: A plans again
+ok 18 - P95 A then places decide-a
+ok 19 - P95 the owed stop of decide-b (seen by the new plan) runs before the start of decide-a
+ok 20 - P96 A started decide-a and is paused at its record step (the set carries its starting mark) (paused at flock call 7)
+ok 21 - P96 the release of the last lease stops nothing while decide-a is starting; the mark is kept
+ok 22 - P96 the starter sees the release when its start returns
+ok 23 - P96 the starter stops decide-a (one stop in all); no unit is left
+ok 24 - P97 CONTROL: a live marker (pid and start time match) keeps its mark
+ok 25 - P97 a reused pid (start time differs) is a dead marker: the mark is cleared
+ok 26 - P98 a pid-less lease is alive at its TTL (900 s)
+ok 27 - P98 it is reaped one second later
+ok 28 - P67 no llmctl call ran while the lease lock was held (across this file)
+# test_s4_round8.sh: pass=28 fail=19 skip=0

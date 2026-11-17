@@ -1,0 +1,8 @@
+#!/bin/bash
+# jobs_final.sh <job>: one job of the final run on snap2 (head d3e9c47c)
+R=/mnt/DATA1TB/claude-work/scratch/jev_r11.jB5s
+case "$1" in
+  head_*) k=${1#head_}; bash "$R/tools/runsuite.sh" "$R/snap2" "$k" "$R/runs/final_head_$k" ;;
+  red_r11) bash "$R/tools/runsuite.sh" "$R/snap2" r11 "$R/runs/final_red_r11_on_r10" "$R/tmp/place_r10.sh" ;;
+  mut_*) bash "$R/tools/runmut11b.sh" "$R/snap2" "${1#mut_}" ;;
+esac

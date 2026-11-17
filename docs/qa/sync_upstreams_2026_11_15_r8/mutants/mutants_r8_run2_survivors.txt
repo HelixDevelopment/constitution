@@ -1,0 +1,6 @@
+S08  KILLED     by unit           10.1s  RV6-1: a call refused by the allow-list counts as started
+RV7G KILLED     by chaos         436.3s  root run lock taken BLOCKING: a second run waits forever instead of exit 7
+T15  KILLED     by robustness:parent_lock,marker_pre   28.5s  RV7-1: a stage-pin blocked by its git dir does not mark the child's record failed
+T17  KILLED     by robustness:sibling_wipe,parent_lock   16.6s  RV7-1: begin_write's checks are skipped (only O_EXCL protects an unresolved git dir)
+sync-mutations (all): mutants 4 killed 4 equivalent 0 survived 0 harness-errors 0
+rc=0

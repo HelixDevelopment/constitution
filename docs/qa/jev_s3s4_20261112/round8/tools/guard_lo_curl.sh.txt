@@ -1,0 +1,11 @@
+#!/bin/sh
+# round-8 guard: curl is allowed only when every URL argument is loopback (127.0.0.1 / localhost / [::1]) or there is no
+# URL (--version); anything else is refused and logged, as the round-7 guard did ("curl (except loopback)").
+for a in "$@"; do
+  case "$a" in
+    http://127.0.0.1*|https://127.0.0.1*|http://localhost*|https://localhost*|http://\[::1\]*|https://\[::1\]*) ;;
+    *://*) echo "REFUSED curl $*" >> "${REVIEW_GUARD_LOG:-/dev/null}"; echo "guard: non-loopback curl refused" >&2; exit 126 ;;
+  esac
+done
+echo "ALLOWED-LOOPBACK curl $*" >> "${REVIEW_GUARD_LOG:-/dev/null}"
+exec /usr/bin/curl "$@"

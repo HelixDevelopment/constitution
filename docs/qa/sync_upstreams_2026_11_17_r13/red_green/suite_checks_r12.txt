@@ -1,0 +1,122 @@
+== symref
+  FAIL symref.branch.apply_no-fetch.not_moved  (head 84bf1f4991cc58ad11cb07f2b3826a6efe9637b5 x 84bf1f4991cc58ad11cb07f2b3826a6efe9637b5)
+  FAIL symref.branch.apply_no-fetch.never_the_target  ()
+  FAIL symref.branch.apply_no-fetch.exit_4  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL symref.branch.apply_no-fetch.reason_symbolic  ([])
+  FAIL symref.branch.apply_no-fetch.reason_no_upstream  ([])
+  ok   symref.branch.check_no-fetch.not_moved
+  ok   symref.branch.check_no-fetch.never_the_target
+  FAIL symref.branch.check_no-fetch.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL symref.branch.check_no-fetch.reason_symbolic  ([])
+  FAIL symref.branch.check_no-fetch.reason_no_upstream  ([])
+  ok   symref.branch.dry-run.not_moved
+  ok   symref.branch.dry-run.never_the_target
+  FAIL symref.branch.dry-run.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL symref.branch.dry-run.reason_symbolic  ([])
+  FAIL symref.branch.dry-run.reason_no_upstream  ([])
+  ok   symref.branch.apply.not_moved
+  ok   symref.branch.apply.never_the_target
+  ok   symref.branch.apply.exit_0_or_4
+  FAIL symref.tag.apply_no-fetch.not_moved  (head 84bf1f4991cc58ad11cb07f2b3826a6efe9637b5 x 84bf1f4991cc58ad11cb07f2b3826a6efe9637b5)
+  FAIL symref.tag.apply_no-fetch.never_the_target  ()
+  FAIL symref.tag.apply_no-fetch.exit_4  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL symref.tag.apply_no-fetch.reason_symbolic  ([])
+  FAIL symref.tag.apply_no-fetch.reason_no_upstream  ([])
+  ok   symref.tag.check_no-fetch.not_moved
+  ok   symref.tag.check_no-fetch.never_the_target
+  FAIL symref.tag.check_no-fetch.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL symref.tag.check_no-fetch.reason_symbolic  ([])
+  FAIL symref.tag.check_no-fetch.reason_no_upstream  ([])
+  ok   symref.tag.dry-run.not_moved
+  ok   symref.tag.dry-run.never_the_target
+  FAIL symref.tag.dry-run.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL symref.tag.dry-run.reason_symbolic  ([])
+  FAIL symref.tag.dry-run.reason_no_upstream  ([])
+  ok   symref.tag.apply.not_moved
+  ok   symref.tag.apply.never_the_target
+  ok   symref.tag.apply.exit_0_or_4
+  FAIL symref.other.apply_no-fetch.not_moved  (head 84bf1f4991cc58ad11cb07f2b3826a6efe9637b5 x 84bf1f4991cc58ad11cb07f2b3826a6efe9637b5)
+  FAIL symref.other.apply_no-fetch.never_the_target  ()
+  FAIL symref.other.apply_no-fetch.exit_4  (rc=0 [sync-upstreams] .                                        updated         -
+)
+  FAIL symref.other.apply_no-fetch.reason_symbolic  ([])
+  FAIL symref.other.apply_no-fetch.reason_no_upstream  ([])
+  ok   symref.other.check_no-fetch.not_moved
+  ok   symref.other.check_no-fetch.never_the_target
+  FAIL symref.other.check_no-fetch.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL symref.other.check_no-fetch.reason_symbolic  ([])
+  FAIL symref.other.check_no-fetch.reason_no_upstream  ([])
+  ok   symref.other.dry-run.not_moved
+  ok   symref.other.dry-run.never_the_target
+  FAIL symref.other.dry-run.exit_4  (rc=3 [sync-upstreams] .                                        behind          -
+)
+  FAIL symref.other.dry-run.reason_symbolic  ([])
+  FAIL symref.other.dry-run.reason_no_upstream  ([])
+  ok   symref.other.apply.not_moved
+  ok   symref.other.apply.never_the_target
+  ok   symref.other.apply.exit_0_or_4
+  ok   symref.golden_false.origin_head_is_symbolic
+  ok   symref.golden_false.golden_false_exit_0
+  ok   symref.golden_false.golden_false_moved
+== pin_symref
+  FAIL pin_symref.symbolic.exit_4  (rc=0 )
+  FAIL pin_symref.symbolic.pin_not_on_any_remote  ({'checkout': 'at-pin', 'gitlink': '37f9bdb8f54ec952c3cffeb715ab821fa9893ad8', 'state': 'at-main'})
+  FAIL pin_symref.symbolic.reason  ([])
+  ok   pin_symref.control.exit_4
+  ok   pin_symref.control.pin_not_on_any_remote
+  ok   pin_symref.control.reason
+== pathspec
+  ok   pathspec.bracket.a_staged_new
+  FAIL pathspec.bracket.b_not_staged  (b 823317e3b91bcd7d81109161e8857b7efde1fa60 pin c23192d7aaad490932c8a421ff37466fb13f9283 local 823317e3b91bcd7d81109161e8857b7efde1fa60)
+  ok   pathspec.bracket.exit_4
+  ok   pathspec.star.a_staged_new
+  FAIL pathspec.star.b_not_staged  (b 823317e3b91bcd7d81109161e8857b7efde1fa60 pin c23192d7aaad490932c8a421ff37466fb13f9283 local 823317e3b91bcd7d81109161e8857b7efde1fa60)
+  ok   pathspec.star.exit_4
+  FAIL pathspec.icase_wrapper.a_staged_new  (a ba9441639369040d2cfbadca47ea99f785eba2c5 want 5bc1779131806a1839ec634a89893ad994513fd7)
+  FAIL pathspec.icase_wrapper.b_not_staged  (b 823317e3b91bcd7d81109161e8857b7efde1fa60 pin c23192d7aaad490932c8a421ff37466fb13f9283 local 823317e3b91bcd7d81109161e8857b7efde1fa60)
+  ok   pathspec.icase_wrapper.exit_4
+  FAIL pathspec.icase_direct.a_staged_new  (a ba9441639369040d2cfbadca47ea99f785eba2c5 want 5bc1779131806a1839ec634a89893ad994513fd7)
+  FAIL pathspec.icase_direct.b_not_staged  (b 823317e3b91bcd7d81109161e8857b7efde1fa60 pin c23192d7aaad490932c8a421ff37466fb13f9283 local 823317e3b91bcd7d81109161e8857b7efde1fa60)
+  ok   pathspec.icase_direct.exit_4
+  ok   pathspec.golden_false.a_staged_new
+  ok   pathspec.golden_false.b_not_staged
+  ok   pathspec.golden_false.exit_4
+== head_file
+  FAIL head_file.check_no-fetch.exit_0  (rc=6 ['unresolved:rev-list:rc:128'] [sync-upstreams] .                                        blind           unresolved:rev-list:rc:128
+)
+  FAIL head_file.check_no-fetch.no_unresolved  (['unresolved:rev-list:rc:128'])
+  FAIL head_file.check.exit_0  (rc=6 ['unresolved:rev-list:rc:128'] [sync-upstreams] .                                        blind           unresolved:rev-list:rc:128
+)
+  FAIL head_file.check.no_unresolved  (['unresolved:rev-list:rc:128'])
+  FAIL head_file.apply.exit_0  (rc=6 ['unresolved:rev-list:rc:128'] [sync-upstreams] .                                        blind           unresolved:rev-list:rc:128
+)
+  FAIL head_file.apply.no_unresolved  (['unresolved:rev-list:rc:128'])
+== stage_verify
+  ok   stage_verify.race.fired
+  FAIL stage_verify.race.reason  ([])
+  FAIL stage_verify.race.why  ([{'error': '', 'op': 'advance-pin', 'rc': 0, 'staged_rc': 0, 'to': 'fd7c8736d03caedcb8dc14f4b40677744da21db1'}])
+  FAIL stage_verify.race.names_other  ([{'error': '', 'op': 'advance-pin', 'rc': 0, 'staged_rc': 0, 'to': 'fd7c8736d03caedcb8dc14f4b40677744da21db1'}])
+  FAIL stage_verify.race.nonzero  (rc=0)
+  FAIL stage_verify.race.not_applied  (APPLIED)
+  ok   stage_verify.race.user_file_still_staged
+  ok   stage_verify.control.exit_0
+  ok   stage_verify.control.no_reason
+  ok   stage_verify.control.staged_target
+== pre_index
+  ok   pre_index.hang.fired
+  FAIL pre_index.hang.why  ([{'error': '', 'op': 'advance-pin', 'rc': 0, 'staged_rc': 0, 'to': 'fd7c8736d03caedcb8dc14f4b40677744da21db1'}])
+  FAIL pre_index.hang.no_add_ran  ([{'error': '', 'op': 'advance-pin', 'rc': 0, 'staged_rc': 0, 'to': 'fd7c8736d03caedcb8dc14f4b40677744da21db1'}])
+  FAIL pre_index.hang.index_kept_old_pin  (fd7c8736d03caedcb8dc14f4b40677744da21db1)
+  FAIL pre_index.hang.nonzero  (rc=0)
+  FAIL pre_index.hang.not_applied  (APPLIED)
+  ok   pre_index.control.exit_0
+  ok   pre_index.control.staged_target
+sync-robustness: PASS 44 FAIL 58
+rc=1

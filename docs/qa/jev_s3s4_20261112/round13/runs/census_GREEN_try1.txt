@@ -1,0 +1,177 @@
+ok   C1: census of this tree PASS, universe 1888, 652 members
+ok   C1b: all 625 files the independent query finds are census members
+ok   C1c: scripts/gates/cm_rule_binds_to_seam.sh is HERMETIC
+ok   C1c: scripts/gates/cm_rule_binds_to_seam_mutation_test.sh is HERMETIC
+ok   C1c: scripts/gates/cm_gitlink_on_remote_mutation_test.sh is HERMETIC
+ok   C1c: scripts/gates/cm_helix_deps_ref_matches_gitlink_mutation_test.sh is HERMETIC
+ok   C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r8_stream_matrix.sh is HERMETIC
+ok   C1c: scripts/fastcycle/tests/test_fc_supervisor_v4r9_shutdown_windows.sh is HERMETIC
+ok   C1c: scripts/fastcycle/cycle/fc_supervisor.py is HERMETIC
+ok   C1c: scripts/codegraph/scope_enumerate.js is HERMETIC
+ok   C1c: install_upstreams.sh is HERMETIC
+ok   C1c: find_constitution.sh is HERMETIC
+ok   C1c: progressive/mutation_matrix.py is HERMETIC
+ok   C1c: progressive/validate_submodule.py is HERMETIC
+ok   C1c: scripts/multitrack/multitrack_device_lock.sh is HERMETIC
+ok   C1c: docs/qa/ownership_wave2/repro_p8.sh is HERMETIC
+ok   C1c: scripts/hooks/guard-branch-consistency.sh is EXEMPT subject-follows-caller (R4-7)
+ok   C1c: scripts/hooks/guard-track-branch-label.sh is EXEMPT subject-follows-caller (R4-7)
+ok   C1c: scripts/hooks/guard-work-track-binding.sh is EXEMPT subject-follows-caller (R4-7)
+ok   C1d: all 240 tracked code files with a git write (independent instrument, whole tree) are census members
+ok   C2a: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2b: census exit 0, 'PASS'
+ok   C2c: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2d: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2e: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2f: census exit 0, 'PASS'
+ok   C2g: census exit 0, 'exempt=2'
+ok   C2g2: census exit 1, 'row no-git-execution, but a git write is detected'
+ok   C2h: census exit 1, 'stale row'
+ok   C2i: census exit 1, 'malformed'
+ok   C2j: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2j2: census exit 1, 'discovery limit'
+ok   C2k: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2l: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2m: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2m2: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2n: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2o: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2o2: census exit 0, 'PASS'
+ok   C2p: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2p2: census exit 1, 'no sourced-library row'
+ok   C2p3: census exit 0, 'PASS'
+ok   C2q: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2r: census exit 0, 'PASS'
+ok   C2s: census exit 0, 'PASS'
+ok   C2s2: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2t: census exit 0, 'PASS'
+ok   C2u: census exit 1, 'no file-level scrub'
+ok   C2v: census exit 1, 'is not effective'
+ok   C2w: census exit 1, 'UNSCRUBBED scripts/y.py'
+ok   C2x: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2x2: census exit 1, 'row no-git-execution, but a git write is detected'
+ok   C2y: census exit 1, 'row sourced-library, but'
+ok   C2z: census exit 1, 'row no-git-execution, but a git write is detected'
+ok   C2aa: census exit 1, 'row no-git-execution, but a git write is detected'
+ok   C2ab: census exit 1, 'no row in the exemption list'
+ok   C2ac: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2ac2: census exit 0, 'PASS'
+ok   C2ad: census exit 0, 'PASS'
+ok   C2ad2: census exit 1, 'UNSCRUBBED scripts/z.js'
+ok   C2ae: census exit 0, 'PASS'
+ok   C2ae2: census exit 1, 'needs its own row'
+ok   C2ae3: census exit 1, 'prefix row'
+ok   C2af: census exit 0, 'PASS'
+ok   C2af2: census exit 1, 'no list-operating clear'
+ok   C2ah: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2ai: census exit 1, 'UNSCRUBBED scripts/z.js'
+ok   C2ai2: census exit 1, 'UNSCRUBBED scripts/z.js'
+ok   C2ag: census exit 0, 'members=1 '
+ok   C2r4a: census exit 1, 'UNSCRUBBED tool.sh'
+ok   C2r4a2: census exit 1, 'UNSCRUBBED docs/qa/repro.sh'
+ok   C2r4b: census exit 1, 'UNSCRUBBED bin/run'
+ok   C2r4b2: census exit 0, 'PASS'
+ok   C2r4c: census exit 1, 'unclassified'
+ok   C2r4c3: census exit 1, 'UNSCRUBBED tools/run.txt'
+ok   C2r4c2: census exit 0, 'PASS'
+ok   C2mrg1: census exit 0, 'PASS'
+ok   C2mrg1b: census exit 1, 'UNSCRUBBED tools/run.canon'
+ok   C2mrg2: census exit 0, 'PASS'
+ok   C2mrg3: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2r4d: census exit 1, '(R4-2)'
+ok   C2r4d2: census exit 0, 'PASS'
+ok   C2r4d3: census exit 1, '(R4-2)'
+ok   C2r4e: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2r4e3: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2r4e4: census exit 1, 'UNSCRUBBED scripts/x.sh'
+ok   C2r4e2: census exit 0, 'PASS'
+ok   C2r4f: census exit 1, 'row entry-function-scrub, but'
+ok   C2r4f2: census exit 1, 'row entry-function-scrub, but'
+ok   C2r4g: census exit 1, 'row entry-function-scrub, but'
+ok   C2r4g2: census exit 1, 'row entry-function-scrub, but'
+ok   C2r4h: census exit 0, 'PASS'
+ok   C2r4h2: census exit 1, 'row subject-follows-caller, but a git write is detected'
+ok   C2rc1: census exit 1, 'unclassified'
+ok   C2rc2: census exit 1, 'UNSCRUBBED scripts/evil_env.rc'
+ok   C2rc3: census exit 1, 'UNSCRUBBED scripts/evil_list.ls'
+ok   C2rc4: census exit 1, 'unclassified'
+ok   C2rc5: census exit 1, 'unclassified'
+ok   C2rc6: census exit 1, 'unclassified'
+ok   C2rc7: census exit 1, 'unclassified'
+ok   C2rc8: census exit 1, 'unclassified'
+ok   C2rc9: census exit 1, 'UNSCRUBBED docs/qa/r/gate.rc'
+ok   C2rc10: census exit 1, 'unclassified'
+ok   C2rc11: census exit 0, 'PASS'
+ok   C2rc12: census exit 0, 'PASS'
+ok   C2rc13: census exit 1, 'unclassified'
+ok   C2rc14: census exit 1, 'unclassified'
+ok   C2rc15: census exit 0, 'PASS'
+ok   C2rc16: census exit 1, 'unclassified'
+ok   C2rc17: census exit 1, 'unclassified'
+ok   C2rc18: census exit 1, 'unclassified'
+ok   C2rc19: census exit 1, 'unclassified'
+ok   C2rc20: census exit 1, 'unclassified'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys; sys.stdout.write(sys.argv[1].encode("ascii").decode("unicode_escape"))
+                                 ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+UnicodeEncodeError: 'ascii' codec can't encode characters in position 0-1: ordinal not in range(128)
+ok   C2rc21: census exit 1, 'unclassified'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import sys; sys.stdout.write(sys.argv[1].encode("ascii").decode("unicode_escape"))
+                                 ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+UnicodeEncodeError: 'ascii' codec can't encode character '\u2003' in position 19: ordinal not in range(128)
+ok   C2rc22: census exit 1, 'unclassified'
+ok   C2rc23: census exit 0, 'PASS'
+ok   C3: census exit 2, 'BLIND'
+ok   C3b: census exit 2, 'holds the discovery limit GIT_CEILING_DIRECTORIES'
+ok   B needle: a bare git commit under GIT_DIR changes the sentinel
+SKIP B1 cm_anchor_record_complete.sh: submodules/continuum is not checked out (the gate's engine)
+ok   B1_agent_label [none]: exit 0
+ok   B1_agent_label [none]: sentinel unchanged
+ok   B1_agent_label [both]: exit 0
+ok   B1_agent_label [both]: sentinel unchanged
+ok   B2: sourcing helix_code_home.sh keeps the caller's GIT_DIR
+ok   B2: hc__git answers its own cwd repository, not the caller's GIT_DIR
+ok   B2: sentinel unchanged
+ok   B2b: a direct hc__git call keeps the caller's GIT_DIR
+ok   B3_seam [git_dir]: exit 0
+ok   B3_seam [git_dir]: sentinel unchanged
+ok   B3_seam [both]: exit 0
+ok   B3_seam [both]: sentinel unchanged
+ok   B3_seam_mut [git_dir]: exit 0
+ok   B3_seam_mut [git_dir]: sentinel unchanged
+ok   B3_seam_mut [both]: exit 0
+ok   B3_seam_mut [both]: sentinel unchanged
+ok   B3_gitlink_mut [git_dir]: exit 1
+ok   B3_gitlink_mut [git_dir]: sentinel unchanged
+ok   B3_gitlink_mut [both]: exit 1
+ok   B3_gitlink_mut [both]: sentinel unchanged
+ok   B3_helixdeps_mut [git_dir]: exit 0
+ok   B3_helixdeps_mut [git_dir]: sentinel unchanged
+ok   B3_helixdeps_mut [both]: exit 0
+ok   B3_helixdeps_mut [both]: sentinel unchanged
+ok   B4_install_upstreams [none]: exit 0, 9 remotes in its own repository
+ok   B4_install_upstreams [none]: sentinel unchanged
+ok   B4_install_upstreams [git_dir]: exit 0, 9 remotes in its own repository
+ok   B4_install_upstreams [git_dir]: sentinel unchanged
+ok   B4_install_upstreams [both]: exit 0, 9 remotes in its own repository
+ok   B4_install_upstreams [both]: sentinel unchanged
+ok   B4_mutation_matrix [git_dir]: the sandbox got its own commit
+ok   B4_mutation_matrix [git_dir]: sentinel unchanged
+ok   B4_mutation_matrix [both]: the sandbox got its own commit
+ok   B4_mutation_matrix [both]: sentinel unchanged
+ok   B4_device_lock_help [git_dir]: exit 0
+ok   B4_device_lock_help [git_dir]: sentinel unchanged
+ok   B4_guard_label: under GIT_DIR the guard names the GIT_DIR repository's branch (subject follows the caller)
+ok   B4_guard_status needle: a plain git status rewrites a stale index
+ok   B4_guard_status: the binding guard left the caller's repository unchanged (no optional lock)
+ok   K0: CL_GIT_SCRUB_VARS is the 14 redirecting names (literal list in this test), no discovery limit
+ok   K1: installer honours the caller's GIT_CEILING_DIRECTORIES (refuses, exit 3, no plan for the enclosing repository)
+ok   K1: enclosing repository unchanged
+ok   K2: lib-mode sourcing keeps GIT_CEILING_DIRECTORIES and clears GIT_DIR (C=/x/ceil D=UNSET)
+ok   K3: cl_scrub_git_env keeps the ceiling and drops all 14 redirecting names
+ok   K4: every canonical scrub line keeps the ceiling and clears all 14 (K4 sh=416 py=72 distinct=5 bad=0)
+ok   K5: tests/install/lib.sh sandbox ceiling survives lib-mode sourcing of the installer
+[git-env-class] passed=165 failed=0 skipped=1

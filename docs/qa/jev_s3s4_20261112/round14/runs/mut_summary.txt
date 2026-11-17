@@ -1,0 +1,48 @@
+MUT M1_intent_resolved_regardless KILLED-by test_s4_round14 fails=19
+MUT M2_group_ignored KILLED-by test_s4_round14 fails=1
+MUT M3_child_reuse_ignored KILLED-by test_s4_round14 fails=1
+MUT M4_ungated_start KILLED-by test_s4_round14 fails=16
+MUT M5_child_judged_at_resolve_time KILLED-by test_s4_round14 fails=5
+MUT M6_intent_without_child KILLED-by test_s4_round14 fails=8
+MUT M7a_legacy_always_gone KILLED-by test_s4_round14 fails=1
+MUT M7b_legacy_never_gone KILLED-by test_s4_round14 fails=1
+MUT M8_no_went_check KILLED-by test_s4_round14 fails=2
+MUT M9_mark_without_gate KILLED-by test_s4_round14 fails=2
+MUT M10_gate_open_ignores_proc SURVIVED r14 r13 sw14
+MUT M11_no_child_start_is_gone KILLED-by test_s4_round14 fails=3
+MUT R01_arm_no_retry KILLED-by r13 fails=2
+MUT R02_markttl_no_recordwaits KILLED-by r8 fails=2
+MUT R03_adopt_after_own_start KILLED-by r10 fails=2
+MUT R04_adopt_degraded KILLED-by pl fails=3
+MUT R05_rc75_counts_after_arm KILLED-by r11 fails=3
+MUT R06_stopowed_for_rc75 KILLED-by r13 fails=1
+MUT R07_noset_rc75_released KILLED-by r11 fails=5
+MUT R08_owed_retry_fail_is_success KILLED-by r13 fails=2
+MUT V01_intent_reuse_blind KILLED-by test_s4_round14 fails=2
+MUT V02_degraded_intent_kept KILLED-by test_s4_round14 fails=2
+MUT V08_mark_intent_refusal_is_stale KILLED-by test_s4_round14 fails=3
+MUT V03_intent_state_always_unknown KILLED-by test_s4_round14 fails=16
+MUT V04_setexists_keeps_intent KILLED-by r13 fails=1
+MUT V05a_finish_leaves_empty_map KILLED-by test_s4_round14 fails=12
+MUT V05b_recover_leaves_empty_map KILLED-by test_s4_round14 fails=1
+MUT V06_intent_is_lease KILLED-by test_s4_round14 fails=18
+MUT V07_adopt_checks_other_profile KILLED-by test_s4_round14 fails=3
+MUT V14_finish_removes_only_on_rc0 KILLED-by test_s4_round14 fails=2
+MUT V10_recover_after_observe SURVIVED r14 r13 sw14
+MUT V15_adopt_skips_only_live_intent KILLED-by test_s4_round14 fails=3
+MUT V20_finish_drops_start_half SURVIVED r14 r13 sw14
+CMUT W22_mention_lookbehind_digit SURVIVED rc=0 fails=0 passes=125
+CMUT W23_mention_case_sensitive_both KILLED rc=1 fails=123 passes=2
+CMUT W24_ls_perm_any SURVIVED rc=0 fails=0 passes=125
+CMUT W25_rc_max_999 KILLED rc=1 fails=123 passes=2
+CMUT W26_no_trailing_pop KILLED rc=1 fails=123 passes=2
+CMUT W27_scope_no_slash KILLED rc=1 fails=1 passes=124
+CMUT W28_exec_ignored KILLED rc=1 fails=123 passes=2
+RESUME chain14 at W33 after the session interruption (W33 partial output discarded and re-run)
+CMUT W33_mention_ascii SURVIVED rc=0 fails=0 passes=125
+CMUT W35_shape_mention_first_4k KILLED rc=1 fails=1 passes=124
+CMUT W36_splitlines SURVIVED rc=0 fails=0 passes=125
+MUT RCTRL KILLED-by sweep_s4_round14 rc=124 (no FAIL line)
+CHAIN14 DONE
+RERUN RCTRL as RCTRL2 (identical copy of mut/RCTRL): RCTRL's sweep hit the 2400 s timeout under host load; the three heavy sweep parts run instead of the whole body
+MUT RCTRL2 SURVIVED r14 tests/jev/s4_round14_sweep_x_chaos_test.sh tests/jev/s4_round14_sweep_y_chaos_test.sh tests/jev/s4_round14_sweep_zd_chaos_test.sh

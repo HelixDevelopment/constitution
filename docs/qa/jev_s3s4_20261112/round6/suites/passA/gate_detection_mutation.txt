@@ -1,0 +1,19 @@
+[mutation:detection] GREEN on genuine fixture confirmed
+[mutation:detection] RED flip asserted: gate fails on fabricated record (probe replay + provenance exposure)
+[mutation:detection] RED flip asserted: stale record rejected by evidence-window clause
+[mutation:detection] RED flip C asserted: materialized secret field rejected (clause 3)
+[mutation:detection] RED flip D asserted: unreasoned empty detection rejected (clause 1)
+[mutation:detection] RED flip E_unavail_noreason asserted: requires a non-empty .reason
+[mutation:detection] RED flip F_true_nourl asserted: carry no .url
+[mutation:detection] RED flip G_null_nobasis asserted: unprobed (null) without reachable_basis
+[mutation:detection] RED flip H_instances_array asserted: decision_instances must be a non-negative number
+[mutation:detection] RED flip I_bad_source asserted: must be submodule|clone|explicit|unavailable
+[mutation:detection] RED flip J_reachable_string asserted: reachable not true|false|null
+[mutation:detection] GREEN control: reasoned 'unavailable' tool with empty path accepted
+[mutation:detection] NOTE control: unprobed count printed for null endpoints
+[mutation:detection] RED flip K asserted: fabricated reachable=true still caught by replay
+[mutation:detection] RED flip L asserted: reachable=true without probe mechanism rejected
+[mutation:detection] RED flip M asserted: unproven hosted endpoint with a real key rejected
+[mutation:detection] GREEN control: placeholder key does not demand a probe
+[mutation:detection] RED flip N asserted: empty record contradicting llmctl rejected
+[mutation:detection] PASS: cm_jev_detection.sh genuinely discriminates (GREEN genuine / RED mutated)

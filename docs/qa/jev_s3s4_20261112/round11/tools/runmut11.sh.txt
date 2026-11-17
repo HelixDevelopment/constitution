@@ -1,0 +1,17 @@
+#!/bin/bash
+# runmut9.sh <tree> <K>: run round-11 mutant K (mut/K/jev-place.sh, made by mkmut_r11.py from <tree>'s producer) suite by
+# suite (r11, r10, r9, r8, r7, r6, pl) against the FROZEN snapshot <tree>, stopping at the first suite that kills it.
+# Verdict line appended to mutruns/verdicts.tsv. A claim directory makes a re-run of the same K a no-op.
+set -u
+R=/mnt/DATA1TB/claude-work/scratch/jev_r11.jB5s
+T="${1:?tree}"; K="${2:?mutant}"
+P="$R/mut/$K/scripts/jev/jev-place.sh"; [ -f "$P" ] || { echo "no mutant $K" >&2; exit 2; }
+mkdir -p "$R/mutruns/claims"; mkdir "$R/mutruns/claims/$K" 2>/dev/null || exit 0
+for t in r11 r10 r9 r8 r7 r6 pl; do
+  bash "$R/tools/runsuite.sh" "$T" "$t" "$R/mutruns/${K}_$t" "$P"
+  line="$(awk -F'\t' -v k="${K}_$t" '$1==k' "$R/runs/results.tsv" | tail -1)"   # exact key: K may hold regex characters (+)
+  case "$line" in *"rc=0"*"fails=0"*) v=survived ;; *) v=killed ;; esac
+  first="$(grep -m1 '^FAIL\|^not ok' "$R/mutruns/${K}_$t.txt" | cut -c1-200)"
+  printf '%s\t%s\t%s\t%s\n' "$K" "$t" "$v" "$first" >> "$R/mutruns/verdicts.tsv"
+  [ "$v" = killed ] && break
+done

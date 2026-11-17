@@ -1,0 +1,2 @@
+[mutation:pr-delivery] PASS: 367 RED/BLIND cases and 10 GREEN cases (1 control + 9 golden-FALSE) behaved as required — cm_pr_delivery_anchor_wired.sh genuinely discriminates
+rc=0

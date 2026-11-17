@@ -1,0 +1,12 @@
+plain              262144 bytes  best 0.0062 s  out 262144 bytes
+at-heavy           262144 bytes  best 0.0097 s  out 262144 bytes
+url-heavy          262144 bytes  best 0.0001 s  out 12 bytes
+colon-slash        262144 bytes  best 0.0097 s  out 262144 bytes
+ats-no-scheme      262144 bytes  best 0.0368 s  out 262144 bytes
+scheme-then-ats    262152 bytes  best 0.0001 s  out 8 bytes
+plain             1048576 bytes  best 0.0271 s  out 1048576 bytes
+at-heavy          1048576 bytes  best 0.0442 s  out 1048576 bytes
+url-heavy         1048576 bytes  best 0.0005 s  out 12 bytes
+colon-slash       1048576 bytes  best 0.0459 s  out 1048576 bytes
+ats-no-scheme     1048576 bytes  best 0.1184 s  out 1048576 bytes
+scheme-then-ats   1048584 bytes  best 0.0006 s  out 8 bytes

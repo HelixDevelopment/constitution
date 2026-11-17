@@ -1,0 +1,10 @@
+#!/bin/bash
+# o61loop.sh <W> <snap> <n>: run test_review_fixes_r2.sh n times, hermetic, one after the other; one summary line each.
+W="$1"; S="$2"; N="$3"; O="$W/o61/loop"; mkdir -p "$O"; : > "$O/summary.tsv"
+for i in $(seq 1 "$N"); do
+  st=$(date +%s); rc=0
+  "$W/hrun.sh" "$S" "$O/g_$i.log" bash tests/jev/test_review_fixes_r2.sh > "$O/run_$i.txt" 2>&1 || rc=$?
+  printf '%s\trc=%s\t%ss\t%s\tP2=%s\tkept=%s\tload=%s\n' "$i" "$rc" "$(( $(date +%s)-st ))" "$(tail -n1 "$O/run_$i.txt")" \
+    "$(grep -c '^ok.*P2 and bootstrap' "$O/run_$i.txt")" "$(grep -c 'O6-1 evidence kept' "$O/run_$i.txt")" "$(cut -d' ' -f1 /proc/loadavg)" >> "$O/summary.tsv"
+done
+: > "$O/done"

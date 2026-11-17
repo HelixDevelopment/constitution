@@ -174,7 +174,8 @@ fi
 
 repo_root() { cd "$(dirname "$0")/../../../.." && pwd; }
 ROOT=$(repo_root)
-FC="$ROOT/constitution/scripts/fastcycle"
+FC_CANON_ROOT=$(cd "$(dirname "$0")/../../.." && pwd)  # CON-097: canon resolved from this test's own location (three levels up), never as <consumer root>/constitution
+FC="$FC_CANON_ROOT/scripts/fastcycle"
 CYCLE_REPORT="$FC/cycle/cycle_report.py"
 DB="$ROOT/docs/workable_items.db"
 
@@ -934,7 +935,7 @@ fi
 
 echo
 echo "=== check 11 (S12-remediation follow-up round, F7): CLOSURE_EVENT_TO_STATUS (Python) stays in sync with closeStatusMap (Go, crud.go) ==="
-GO_CRUD="$ROOT/constitution/scripts/workable-items/cmd/workable-items/crud.go"
+GO_CRUD="$FC_CANON_ROOT/scripts/workable-items/cmd/workable-items/crud.go"
 if [ ! -f "$GO_CRUD" ]; then
   echo "NOT ok check 11 (F7): $GO_CRUD not found -- cannot cross-check"
   failx

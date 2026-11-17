@@ -1,0 +1,2 @@
+CM-SYNC-UPSTREAMS-FF-ONLY: PASS — imports and module attributes on the allow-list, no dynamic access; one spawn point (proc_run_git: argv from git_argv(check_git_args(args))) and one guarded signal point (proc_kill_group); 29 git call sites (plus the g_out forwarder) with literal allow-listed argv and bounded answer statuses, equal to the 29-row call-site oracle; 25 accepted shapes carry the exact safe argv (each safe key once); git_env scrubs 27 injectors; 15 redaction shapes + 4 secret paths; 56/56 forbidden shapes refused; control needle 25/25 accepted
+rc=0
