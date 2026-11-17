@@ -5126,6 +5126,8 @@ What: review F8 (design): since CON-425 the script lists every replace ref and s
 
 What: review minor m2. tests/release/test_land_vehicle.sh drift cases D1-D8 cover the main paths of publish step 6b, but four branches have no case: D9 a check that exceeds the 900 s timeout, D10 a check that exits 2 (BLIND) must refuse publish, D11 main moved while the checks ran, D12 drift_checks.tsv present and complete in the evidence dir. Reviewer mutants R01, R02, R03 and R07 survive the suite (mutant record in the review evidence rmut.out). Scope: tests/release/test_land_vehicle.sh (and land_vehicle.sh only if a case exposes a defect). Reproduction: not applicable (test instrumentation). Acceptance: D9-D12 added, each RED on a mutant that removes the branch, R01/R02/R03/R07 killed. Source: independent review of the drift-seam vehicle (bundle fixF5 head 0b336ac0, landed on main as merge 6c743898), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/revF5.ILonzX/ev/ outside the repository (SHA256SUMS sha256 b402c26fd0ceb49a22a8bc7aa897782354792908f44fffc1691d7870da7eb31e), gate-logic class (section 11.4.289). Fix in a vehicle (PROVISIONAL, not landed, not verified): D9-D14b added to tests/release/test_land_vehicle.sh (drift-only suite pass=30 fail=0), the check list and runner moved to scripts/release/lib/landing_drift_checks.sh; reviewer mutants R01/R02/R03/R07 survive on base 1dfbb4d1 (docs/qa/pr_path_drift_2026_11_16/mutants/base_mutants.tsv) and are killed on the fix as L01-L04 (docs/qa/pr_path_drift_2026_11_16/mutants/mutants.tsv: 21 of 22 non-control mutants killed, V02 recorded equivalent-or-stricter). Evidence docs/qa/pr_path_drift_2026_11_16/README.md.
 
+Link (section 11.4.214, open original, link only; 2026-11-17): review F6 (nit, process-doc): this item is Type Task and its text still says 'Reproduction: not applicable (test instrumentation)' while its reproduction state is now reproduced-host-fixture (surface host-only). Defensible under section 11.4.294(E), since its closure claims a defect removed (surviving mutants killed); reconcile the description text with the state fields. The reviewer notes CON-443's forge symptom was not exercised live, so neither item may reach VERIFIED-DONE on this evidence. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/REVIEW.md (outside the repository; sha256 cc212d7e5c4920d907f7033a82c1d0a85af31a8f94740ae50daa6346dbd57d51; directory SHA256SUMS sha256 04dc8138780b45e24389c116741af9ac551eed651bb97e685d16728029d7ee78, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the CON-443/CON-444 vehicle head f27f64c5, landed on main by merge 22de662c. Follow-up per section 11.4.276(G.2); not re-run by the lander.
+
 ## CON-445 — codegraph test suite: a T4 SKIP is invisible in the SUMMARY line and an unexpected SKIP exits 0 (lib_test t_finish has no skip count)
 
 **Status:** Queued
@@ -5843,4 +5845,49 @@ Source: the v73.4 PROVISIONAL cut rehearsal of 2026-11-16 (REHEARSAL_REPORT.md s
 Acceptance (test-first, section 11.4.224): RED tests on the unfixed tools, then GREEN; paired mutants killed; a checker refuses every Ready-for-testing or In-testing item without a complete verification line, run on the real database; the six items carry complete lines written through the engine. Follow-ups of the same rehearsal: D1 (CON-379), D6 (CON-381, CON-382), D7, D8 and D11 (filed separately).
 
 Related: CON-513 (D5, D9), CON-517 (D3, D4), CON-516 (D10 is a neighbour), CON-379 (D1), CON-381 and CON-382 (D6).
+
+## CON-522 — CON-443 review F1: mutant V02 (LDC_REF=HEAD in the lander) is not equivalent; add case D11b (HEAD detached at the same commit, then main moved) and correct the V02 note and the drift-check-head-repoint follow-up text
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F1 (minor, test-instrumentation). The author recorded V02 (LDC_REF=HEAD in scripts/release/land_vehicle.sh) as equivalent-or-stricter; the reviewer killed it with a direct ldc_run harness (/mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/v02_kill.log): a check that runs git checkout --detach <same commit> and then moves refs/heads/main gives FAIL ('landing candidate moved') on the original and PASS on the mutant. Harmless for what is pushed (publish pushes local_main read before the checks), but tests/release/test_land_vehicle.sh does not kill V02, because D11 moves main while HEAD is symbolic so both refs move. Scope: tests/release/test_land_vehicle.sh (new case D11b), docs/qa/pr_path_drift_2026_11_16/mutants notes and followups.md (the CON-PENDING-drift-check-head-repoint text describes the opposite scenario). Acceptance: D11b RED against the V02 mutant and GREEN on the original; the note and the follow-up text corrected. Related: CON-444. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/REVIEW.md (outside the repository; sha256 cc212d7e5c4920d907f7033a82c1d0a85af31a8f94740ae50daa6346dbd57d51; directory SHA256SUMS sha256 04dc8138780b45e24389c116741af9ac551eed651bb97e685d16728029d7ee78, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the CON-443/CON-444 vehicle head f27f64c5, landed on main by merge 22de662c. Follow-up per section 11.4.276(G.2); not re-run by the lander.
+
+## CON-523 — CON-443 review F2: drift checks run from the candidate tree, so a pull request that rewrites its own check passes while stale; state the limit and consider running the base tree's copy
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** AI
+
+What: review F2 (minor, process-doc; the caller may grade it a security surface under section 11.4.276(G.2)). scripts/release/pr_landing_check.sh (and the lander) run each drift check from the candidate tree, so a pull request that changes a check can pass while stale: reviewer bypass B5 (/mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/bypass.log) replaced the badge check by a symlink to a no-op script plus a stale marker and got RESULT: PASS. The Limits section of docs/qa/pr_path_drift_2026_11_16/README.md does not state it. Acceptance: the limit stated in the tool's documentation; then either run the base tree's copy of each DRIFT_CHECKS script as well (both must pass), or flag any pull request that touches a DRIFT_CHECKS script for explicit reviewer attention; a RED case of the B5 shape first. Related: CON-443. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/REVIEW.md (outside the repository; sha256 cc212d7e5c4920d907f7033a82c1d0a85af31a8f94740ae50daa6346dbd57d51; directory SHA256SUMS sha256 04dc8138780b45e24389c116741af9ac551eed651bb97e685d16728029d7ee78, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the CON-443/CON-444 vehicle head f27f64c5, landed on main by merge 22de662c. Follow-up per section 11.4.276(G.2); not re-run by the lander.
+
+## CON-524 — CON-443 review F3: pr_landing_check.sh builds the merge candidate under the caller's git config (system, global, GIT_CONFIG_COUNT, GIT_CONFIG_PARAMETERS); merge.renames=false turns a clean merge into a refusal
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Low
+**Created-By:** AI
+
+What: review F3 (minor, source-defect). The merge candidate (git merge-tree --write-tree plus commit-tree) is built with the caller's system and global git config and GIT_CONFIG_COUNT/GIT_CONFIG_PARAMETERS, none scrubbed or pinned. Reviewer case B12b (/mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/bypass.log): merge.renames=false via the environment turns a clean rename/edit merge (tree 782e285e, equal to a real git merge) into a refusal. Observed direction is safe (refusal); a config that gives a clean but different tree is UNCONFIRMED. Acceptance: run merge-tree and commit-tree with GIT_CONFIG_NOSYSTEM=1 and GIT_CONFIG_GLOBAL=/dev/null and with GIT_CONFIG_COUNT/GIT_CONFIG_PARAMETERS unset (or pin the merge keys), RED case B12b first; fold into the forge merge-engine parity follow-up. Related: CON-443, CON-410 (GIT_CONFIG_* outside the git-env class), CON-438 (same class in history_secret_scan.sh). Source: independent review /mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/REVIEW.md (outside the repository; sha256 cc212d7e5c4920d907f7033a82c1d0a85af31a8f94740ae50daa6346dbd57d51; directory SHA256SUMS sha256 04dc8138780b45e24389c116741af9ac551eed651bb97e685d16728029d7ee78, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the CON-443/CON-444 vehicle head f27f64c5, landed on main by merge 22de662c. Follow-up per section 11.4.276(G.2); not re-run by the lander.
+
+## CON-525 — CON-443 review F4: reviewer mutants RM02, RM03, RM04 and RM12 survive the pr_landing_check.sh suite (merge-tree error mapped to FAIL, no cleanup trap, annotated-tag base not peeled, hooksPath dropped)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F4 (minor, test-instrumentation). Surviving reviewer mutants of tests/release/test_pr_landing_check.sh (/mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/rmut.log, *.pr.log): RM02 a merge-tree error mapped to FAIL instead of BLIND (unrelated histories give BLIND rc 2 in bypass B2, no test asserts it); RM03 no cleanup trap (13 temporary clones were left in TMPDIR during the mutant run, removed by the reviewer with safe_rm_rf); RM04 an annotated-tag --base not peeled to a commit (fails safe as BLIND, no test); RM12 core.hooksPath=/dev/null dropped from the private-clone git wrapper (a global hooksPath hook would run; bypass B9 shows the original suppresses it, no test). RM08 (--ignore-submodules=all) was argued equivalent. Acceptance: one RED case per survivor (BLIND rc 2 on unrelated histories, no temporary clone left after the run, annotated-tag base accepted, a global hooksPath hook not run), each mutant then killed. Related: CON-443. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/REVIEW.md (outside the repository; sha256 cc212d7e5c4920d907f7033a82c1d0a85af31a8f94740ae50daa6346dbd57d51; directory SHA256SUMS sha256 04dc8138780b45e24389c116741af9ac551eed651bb97e685d16728029d7ee78, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the CON-443/CON-444 vehicle head f27f64c5, landed on main by merge 22de662c. Follow-up per section 11.4.276(G.2); not re-run by the lander.
+
+## CON-526 — test_land_vehicle.sh case R5-N3b prints a run-varying count (78 vs 77) inside its PASS text, so a line-hash determinism check differs with identical verdicts (CON-443 review F7)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** AI
+
+What: review F7 (nit, test-instrumentation, pre-existing, not introduced by the CON-443 vehicle). In the reviewer's determinism runs (/mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/det.log) tests/release/test_land_vehicle.sh gave pass=360 fail=0 twice with an identical verdict set, but the line hash differed because case R5-N3b embeds a count that varies between runs (78 vs 77) in its PASS line. Acceptance: the PASS text carries no run-varying value (move the count to a separate diagnostic line or assert a bound), so two runs give identical PASS/FAIL/RESULT lines; two-run evidence. Source: independent review /mnt/DATA1TB/claude-work/scratch/rev443.6DcUhl/review/REVIEW.md (outside the repository; sha256 cc212d7e5c4920d907f7033a82c1d0a85af31a8f94740ae50daa6346dbd57d51; directory SHA256SUMS sha256 04dc8138780b45e24389c116741af9ac551eed651bb97e685d16728029d7ee78, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the CON-443/CON-444 vehicle head f27f64c5, landed on main by merge 22de662c. Follow-up per section 11.4.276(G.2); not re-run by the lander.
 
