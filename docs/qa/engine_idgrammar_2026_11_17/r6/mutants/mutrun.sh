@@ -13,7 +13,7 @@ for id in "$@"; do
   case "$id" in
     NOOP) echo "APPLIED NOOP identity" >"$OUT/$id.apply" ;;
     RV*) python3 -I "$MUT/rev_mutants.py" "$W/cmd/workable-items" "$id" >"$OUT/$id.apply" 2>&1 ;;
-    *) python3 -I "$MUT/own_mutants.py" "$W/cmd/workable-items" "$id" >"$OUT/$id.apply" 2>&1 ;;
+    *) python3 -I "$MUT/own_mutants.py.txt" "$W/cmd/workable-items" "$id" >"$OUT/$id.apply" 2>&1 ;;
   esac
   if grep -q NOT-APPLIED "$OUT/$id.apply"; then echo "$id NOT-APPLIED" >>"$OUT/table.tsv"; ${SAFE_RM:-true}; continue; fi
   if [ "$PAT" = ALL ]; then RUN=(); else RUN=(-run "$PAT"); fi

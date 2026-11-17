@@ -28,6 +28,8 @@
 
 The brief asked for survivors to die; that is NOT achieved in this round.
 
+The mutant definitions are kept as `mutants/own_mutants.py.txt` and `rev_mutants.py.txt` (renamed from `.py` so the full-suite census does not take them for tests; run them as `python3 -I`).
+
 ## 4. Class sweep
 
 `tools/fencesweep.py`, `class/fencesweep_r6.json`: the fence tracker of the sweep is independent of the Go code (control needle: a synthetic fenced heading counts 1; negative control unfenced 0). The real `docs/Issues.md` and `docs/Fixed.md` hold 0 fenced item-shaped lines, so the class is 0 on the real tracker. Engine injection: a fenced heading plus Status line injected into the first item of a copy: 501 items before and after, 0 phantom items.
