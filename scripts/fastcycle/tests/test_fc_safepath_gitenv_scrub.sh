@@ -30,6 +30,15 @@
 #             of the file, a wrapper running a file function, a redefinition, a trap that defines a function, and the
 #             second-layer blockers (the RVM1 / RVM2 targets); golden-false post rows (GE-sh-gf-*) stay accepted.
 # [RVM1-*, RVM2-*] the reviewer's surviving round-2 mutants, adopted verbatim.
+# [GE-r4-*]   CON-450 round 4 (review R3-1 / R3-2, section 11.4.276(E) structural): the census reads the file the way bash
+#             does (bytes, LF only, strict UTF-8) and admits a CLOSED allow-list of characters; a lone CR, CRLF, VT,
+#             FF, FS..US, DEL, NUL, NEL, NBSP and the other Unicode spaces, line / paragraph separators, bidi and
+#             zero-width characters, non-UTF-8 bytes and non-ASCII text on a code line are refused in a leading,
+#             comment, blank or code position, and line 1 may only be a #! line of the closed set. The B01 / B08 / B10 /
+#             B12 / B13 rows are the reviewer's round-3 escapes. GE-r4-gf-* are golden-false controls.
+# [RV3M*]     the reviewer's round-3 census mutants (rev_con402r3 tools/mk_rvm.py), adopted verbatim; RV3M1 / RV3M4 /
+#             RV3M6 / RV3M7 each have a behaviour row of their own (GE-sh-pre-code-then-comment,
+#             GE-sh-post-helper-defined-twice, GE-sh-post-command-file-func, GE-sh-post-dash-c-func).
 # [GE-mut-*]  paired mutants of the census itself (each must make at least one row above fail).
 #
 # Env: FC_CENSUS_UNDER_TEST / FC_SUP_UNDER_TEST / FC_BR_UNDER_TEST -- the files under test.
@@ -51,7 +60,7 @@ python3 - "$CENSUS" "$SUP" "$BR" "${WORK:?}" <<'PY'
 import os, re, subprocess, sys
 census, sup, br, work = sys.argv[1:5]
 SUP_SRC = open(sup, encoding="utf-8").read()
-BR_SRC = open(br, encoding="utf-8").read()
+BR_SRC = open(br, encoding="utf-8", newline="").read()   # CON-450 r4: the bytes bash reads (no CR translation)
 CEN_SRC = open(census, encoding="utf-8").read()
 fails = 0
 passes = 0
@@ -84,7 +93,10 @@ def run(cen, sup_text=None, br_text=None, tag="x"):
     s = os.path.join(work, tag + ".py")
     b = os.path.join(work, tag + ".sh")
     open(s, "w", encoding="utf-8").write(SUP_SRC if sup_text is None else sup_text)
-    open(b, "w", encoding="utf-8").write(BR_SRC if br_text is None else br_text)
+    if isinstance(br_text, bytes):          # CON-450 round 4: rows that need exact bytes (a non-UTF-8 byte)
+        open(b, "wb").write(br_text)
+    else:                                   # newline="": a CR in a row is written as it is (never translated)
+        open(b, "w", encoding="utf-8", newline="").write(BR_SRC if br_text is None else br_text)
     p = subprocess.run([sys.executable, cen, "--sup", s, "--br", b], capture_output=True, text=True)
     return p.returncode, p.stdout + p.stderr
 
@@ -157,6 +169,47 @@ SH_INSERT = {
     "GE-sh-pre-trap-err-declare-l": ("trap 'declare -l " + G_BS + "' ERR\nfalse", False, WT, True),
     "GE-sh-pre-set-option": ("set -o posix", False, WT, True),
     "GE-sh-pre-gf-comments": ("# a comment line\n\n   # an indented comment line", False, LINE, False),
+    # review R3-3 (RV3M1): code, then a comment line, then the canonical line -- not only the adjacent line is checked
+    "GE-sh-pre-code-then-comment": ("command declare -l " + G_BS + "\n# a comment line", False, WT, True),
+}
+GATE = "_sh_read_as_bash"
+CDL = "command declare -l " + G_BS
+# CON-450 round 4 (review R3-1 / R3-2 / R3-7): text before the canonical line that bash reads as CODE and the old census
+# read as blank or comment, and the shebang class. id: (text, True = refused by the read-as-bash gate / False =
+# golden-false, must be accepted). The reviewer's escapes B01, B08, B10, B12 are the first four rows.
+SH_GATE_PRE = {
+    "GE-r4-pre-cr-B01": ("\r#;" + CDL, True),
+    "GE-r4-pre-cr-debug-trap-B08": ("\r#;trap '[[ ${wt_path-} == /proved ]] && wt_path=/' DEBUG", True),
+    "GE-r4-pre-cr-declare-i-B10": ("\r#;command declare -i " + G_BS, True),
+    "GE-r4-pre-cr-shadow-unset-B12": ("\r#;unset(){ :; }", True),
+}
+for _nm, _ch in (("vt", "\x0b"), ("ff", "\x0c"), ("fs", "\x1c"), ("gs", "\x1d"), ("rs", "\x1e"), ("us", "\x1f"),
+                 ("del", "\x7f"), ("nul", "\x00"), ("nel", "\u0085"), ("nbsp", "\u00a0"), ("emsp", "\u2003"),
+                 ("idsp", "\u3000"), ("lsep", "\u2028"), ("psep", "\u2029"), ("zwsp", "\u200b"), ("rlo", "\u202e"),
+                 ("lri", "\u2066"), ("bom", "\ufeff")):
+    SH_GATE_PRE["GE-r4-pre-%s-lead" % _nm] = (_ch + "#;" + CDL, True)          # leading position
+    SH_GATE_PRE["GE-r4-pre-%s-comment" % _nm] = ("# x" + _ch + "y", True)       # inside a full-line comment
+SH_GATE_PRE.update({
+    "GE-r4-pre-ff-blank": ("\x0c", True),                                       # a blank-looking line
+    "GE-r4-pre-tab-ff-blank": ("\t\x0c\t", True),
+    "GE-r4-gf-unicode-comment": ("# a \u2014 \u043c \u00a7 b", False),          # golden-false: letters, punctuation
+    "GE-r4-gf-tab-comment": ("\t# a TAB-led comment", False),
+    "GE-r4-gf-blank-blanks": (" \t ", False),
+})
+# whole-file and after-the-line rows: id: (function BR_SRC -> new file text or bytes, True / False as above)
+SH_GATE_FILE = {
+    "GE-r4-crlf-file": (lambda t: t.replace("\n", "\r\n"), True),
+    "GE-r4-cr-hidden-op-after": (lambda t: t.replace(LINE, LINE + '\n:\r#;mkdir -p -- "${RV_UNPROVED:?}/x"'), True),
+    "GE-r4-cr-trailing-canonical": (lambda t: t.replace(LINE, LINE + "\r"), True),
+    "GE-r4-nonascii-code-after": (lambda t: t.replace(LINE, LINE + "\n: '\u00e9'"), True),
+    "GE-r4-nbsp-code-after": (lambda t: t.replace(LINE, LINE + "\n:\u00a0x"), True),
+    "GE-r4-invalid-utf8": (lambda t: t.replace(LINE, "# \udcff\n" + LINE).encode("utf-8", "surrogateescape"), True),
+    "GE-r4-shebang-env-S-B13": (lambda t: "\n".join(["#!/usr/bin/env -S bash -c 'declare -l _g\\\\e_v; . \"$0\"'"] +
+                                                    t.split("\n")[1:]), True),
+    "GE-r4-shebang-argument": (lambda t: "\n".join(["#!/bin/bash -O extdebug"] + t.split("\n")[1:]), True),
+    "GE-r4-shebang-space": (lambda t: "\n".join(["#! /bin/bash"] + t.split("\n")[1:]), True),
+    "GE-r4-gf-shebang-env-bash": (lambda t: "\n".join(["#!/usr/bin/env bash"] + t.split("\n")[1:]), False),
+    "GE-r4-gf-no-shebang": (lambda t: "\n".join(["# no shebang line"] + t.split("\n")[1:]), False),
 }
 # CON-450 round 3: text inserted AFTER the canonical line (the preamble rule cannot fire there), so each row pins one
 # rule on its own. id: (text, True = "NOT desugared" / a str = refused with that text / False = golden-false)
@@ -193,6 +246,10 @@ SH_AFTER = {
     "GE-sh-gf-unset-v": ("unset -v _fc_safe", False),
     "GE-sh-gf-unset-f-undefined": ("unset -f _rv_no_such_function", False),
     "GE-sh-gf-scoped-helper": ("_rvo() {\n_rvi() { :; }\n_rvi\nunset -f _rvi\n}", False),
+    # review R3-3: behaviour rows for the reviewer's round-3 mutants RV3M4, RV3M6, RV3M7 (adopted below)
+    "GE-sh-post-helper-defined-twice": ("_rvo() {\n_rvi() { :; }\n_rvi() { :; }\n_rvi\nunset -f _rvi\n}\n_rvo", "of this file"),
+    "GE-sh-post-command-file-func": ("command run_gate_once probe", "not the function of this file"),
+    "GE-sh-post-dash-c-func": ("\"$BASH\" -c '_rvz() { :; }; _rvz'", "a function defined inside a -c program"),
 }
 
 
@@ -252,6 +309,22 @@ def cases(cen):
             needle = "NOT desugared" if want is True else want
             return rc == 1 and needle in o, "rc=%d refusal-reason-present=%s" % (rc, needle in o)
         out.append((k, ta))
+
+    for k, (text, want) in SH_GATE_PRE.items():
+        def tg(k=k, text=text, want=want):
+            rc, o = run(cen, br_text=sh_variant(text + "\n" + LINE), tag=k)
+            if want is False:
+                return rc == 0, "rc=%d (golden-false: must be accepted)" % rc
+            return rc == 1 and GATE in o, "rc=%d gate-reason-present=%s" % (rc, GATE in o)
+        out.append((k, tg))
+    for k, (fn, want) in SH_GATE_FILE.items():
+        def tf(k=k, fn=fn, want=want):
+            rc, o = run(cen, br_text=fn(BR_SRC), tag=k)
+            if want is False:
+                return rc == 0, "rc=%d (golden-false: must be accepted) %s" % (
+                    rc, " | ".join(l for l in o.splitlines() if l.startswith("VIOLATION"))[:200])
+            return rc == 1 and GATE in o, "rc=%d gate-reason-present=%s" % (rc, GATE in o)
+        out.append((k, tf))
 
     def heredoc():   # a canonical line inside a here-document body is TEXT: no EXEMPT row, the census still passes
         hd = BR_SRC.rstrip("\n") + "\n: <<'FAKE_HD_END'\n" + LINE + "\nFAKE_HD_END\n"
@@ -345,6 +418,39 @@ MUTANTS.update({
                                "                    if False:\n                        add(cm, \"trap\""),
     "GE-mut-dup-trusted-ok": ("        if len(funcs.get(nm, [])) > 1:", "        if False:"),
 })
+MUTANTS.update({
+    # CON-450 round 4 (review R3-3): the reviewer's round-3 mutants, VERBATIM (rev_con402r3 tools/mk_rvm.py)
+    "RV3M1-preamble-adjacent-only": ("        for k in range(1, no):\n            raw = raw_lines[k - 1]\n",
+                                     "        for k in range(max(1, no - 1), no):\n            raw = raw_lines[k - 1]\n"),
+    "RV3M2-preamble-admits-set": ("            if (k == 1 and raw.startswith(\"#!\")) or not raw.strip() or raw.lstrip().startswith(\"#\"):",
+                                  "            if (k == 1 and raw.startswith(\"#!\")) or not raw.strip() or raw.lstrip().startswith((\"#\", \"set \", \"shopt \")):"),
+    "RV3M3-scoped-helper-no-loop-check": ("        return not [k for k in range(a, uline + 1)\n",
+                                          "        return True or not [k for k in range(a, uline + 1)\n"),
+    "RV3M4-scoped-helper-multi-def": ("        if len(funcs.get(nm, [])) != 1 or len(ext) != 1:\n            return False\n",
+                                      "        if len(ext) < 1:\n            return False\n"),
+    "RV3M5-trusted-redefined-twice-ok": ("        if len(funcs.get(nm, [])) > 1:", "        if len(funcs.get(nm, [])) > 2:"),
+    "RV3M6-wrapper-trusted-only": ("            if rest and rest[0] in funcs:", "            if rest and rest[0] in SH_TRUSTED_FUNCS:"),
+    "RV3M7-dash-c-func-ok": ("            if sub.funcs:\n                add(cm, '\"$BASH\" -c', \"VIOLATION\"",
+                             "            if False:\n                add(cm, '\"$BASH\" -c', \"VIOLATION\""),
+    "RV3M8-unset-file-func-ok": ("                    if fn_capable and lit in funcs and not scoped_helper(lit, cm[\"line\"]):",
+                                 "                    if fn_capable and lit in funcs and False:"),
+    # CON-450 round 4 (review R3-1 / R3-2): paired mutants of the read-as-bash gate
+    "GE-mut-r4-no-gate": ("    if gate:                                              # fail-closed: nothing of the file is censused",
+                          "    if False:                                              # fail-closed: nothing of the file is censused"),
+    "GE-mut-r4-universal-newline": ('        text = data.decode("utf-8")\n',
+                                    '        text = data.decode("utf-8").replace("\\r\\n", "\\n").replace("\\r", "\\n")\n'),
+    "GE-mut-r4-any-shebang": ("        if no == 1 and raw.startswith(\"#!\") and raw not in SH_SHEBANGS:",
+                              "        if False:"),
+    "GE-mut-r4-shebang-prefix": ("        if no == 1 and raw.startswith(\"#!\") and raw not in SH_SHEBANGS:",
+                                 "        if no == 1 and raw.startswith(\"#!\") and not raw.startswith(SH_SHEBANGS):"),
+    "GE-mut-r4-comment-any-char": ('    return comment_line and o >= 0x80 and unicodedata.category(ch)[0] in "LMNPS" and not ch.isspace()',
+                                   '    return comment_line and o >= 0x80'),
+    "GE-mut-r4-code-nonascii-ok": ('    return comment_line and o >= 0x80 and unicodedata.category(ch)[0] in "LMNPS" and not ch.isspace()',
+                                   '    return o >= 0x80 and unicodedata.category(ch)[0] in "LMNPS" and not ch.isspace()'),
+    "GE-mut-r4-c0-ok": ('    if ch == "\\t" or 0x20 <= o <= 0x7e:\n        return True\n    return comment_line',
+                        '    if ch == "\\t" or o < 0x7f:\n        return True\n    return comment_line'),
+    "GE-mut-r4-utf8-lenient": ('        text = data.decode("utf-8")\n', '        text = data.decode("utf-8", "replace")\n'),
+})
 KILLERS = {   # rows tried first (time only; any broken row kills)
     "GE-mut-blockers-ignored": ("GE-sh-attr-declare-l",), "GE-mut-no-sole-use": ("GE-sh-post-sole-readonly",),
     "GE-mut-no-attr-rule": ("GE-sh-attr-backslash",), "GE-mut-attr-name-exact": ("GE-sh-attr-backslash",),
@@ -359,6 +465,16 @@ KILLERS = {   # rows tried first (time only; any broken row kills)
     "GE-mut-wrapper-func-ok": ("GE-sh-post-command-func",), "GE-mut-trap-funcdef-ok": ("GE-sh-post-trap-defines-func",),
     "GE-mut-dup-trusted-ok": ("GE-sh-post-redefine-trusted",), "GE-mut-RM2-trailing-anything": ("GE-sh-trailing-code",),
     "GE-mut-RM3-any-expr-first": ("GE-py-expr-first",), "GE-mut-RM6-any-receiver": ("GE-py-os-receiver",),
+    "RV3M1-preamble-adjacent-only": ("GE-sh-pre-code-then-comment",), "RV3M2-preamble-admits-set": ("GE-sh-pre-set-option",),
+    "RV3M3-scoped-helper-no-loop-check": ("GE-sh-post-helper-loop",),
+    "RV3M4-scoped-helper-multi-def": ("GE-sh-post-helper-defined-twice",),
+    "RV3M5-trusted-redefined-twice-ok": ("GE-sh-post-redefine-trusted",),
+    "RV3M6-wrapper-trusted-only": ("GE-sh-post-command-file-func",), "RV3M7-dash-c-func-ok": ("GE-sh-post-dash-c-func",),
+    "RV3M8-unset-file-func-ok": ("GE-sh-post-unset-other-func",),
+    "GE-mut-r4-no-gate": ("GE-r4-pre-cr-B01",), "GE-mut-r4-universal-newline": ("GE-r4-pre-cr-B01",),
+    "GE-mut-r4-any-shebang": ("GE-r4-shebang-env-S-B13",), "GE-mut-r4-shebang-prefix": ("GE-r4-shebang-argument",),
+    "GE-mut-r4-comment-any-char": ("GE-r4-pre-nbsp-comment",), "GE-mut-r4-code-nonascii-ok": ("GE-r4-nonascii-code-after",),
+    "GE-mut-r4-c0-ok": ("GE-r4-pre-ff-blank",), "GE-mut-r4-utf8-lenient": ("GE-r4-invalid-utf8",),
 }
 for name, (old, new) in MUTANTS.items():
     n = CEN_SRC.count(old)

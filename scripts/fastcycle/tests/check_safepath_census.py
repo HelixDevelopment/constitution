@@ -103,6 +103,7 @@ import ast
 import os
 import re
 import sys
+import unicodedata
 
 SH_TAGS = {"msg", "param", "devnull"}
 # function parameters that carry a path, with the reason every caller passes a proved one (checked by name)
@@ -908,6 +909,11 @@ def _git_env_scrub_sh_blockers(raw_lines, ge_lines, cmds):
     attribute, no unset. (1) and (2) are kept as a second, independent layer (a declaration AFTER the line). What
     runs before the FILE (BASH_ENV, a sourcing parent, an exported function) is outside every file-scope census
     (docs/qa/con402_fallout_r3/followups.md FU-1).
+    CON-450 round 4 (review R3-1 / R3-2): (0) is only true when "blank" and "comment" mean what they mean to bash.
+    sh_census therefore runs _sh_read_as_bash first: the file is read as bytes split on LF, every character outside a
+    closed allow-list (CR, VT, FF, FS..US, NEL, NBSP and the other Unicode spaces, bidi / zero-width) is refused, and
+    line 1 may only be one of SH_SHEBANGS. On what passes that gate, raw.strip() and raw.lstrip() remove SPACE and TAB
+    only, so the test below sees the lines bash sees.
     Returns [(line, reason)]; empty when the desugar holds."""
     out = []
     ge = set(ge_lines)
@@ -938,8 +944,63 @@ def _git_env_scrub_sh_blockers(raw_lines, ge_lines, cmds):
     return out
 
 
+# CON-450 round 4 (review R3-1 / R3-2 / R3-7, section 11.4.276(E) structural -- the class "text that bash runs and the
+# census reads as something else" escaped rounds 1 to 3 one spelling at a time). The census now READS THE FILE THE WAY
+# BASH DOES and admits only a CLOSED ALLOW-LIST of characters, so that every character Python treats as a line break or
+# as blank is one that bash treats the same way:
+#   * bytes, never Python's universal-newline text mode (open(path) turned a lone CR into a line break; bash does
+#     not, so `\r#;command declare -l _ge_v` ran in bash while the census saw a blank line and a comment);
+#   * strict UTF-8; lines split on LF only (bash's only line terminator);
+#   * every character of a CODE line is TAB or printable ASCII (0x20-0x7e); a FULL-LINE comment (only blanks and TABs
+#     before its `#`) may also carry non-ASCII letters, marks, numbers, punctuation and symbols (Unicode categories
+#     L M N P S, none of which str.isspace() accepts). Everything else -- CR (lone or CRLF), NUL, VT, FF, the C0
+#     separators FS GS RS US, DEL, NEL U+0085, NBSP and every other Unicode space, line / paragraph separators, bidi
+#     and zero-width format characters (category Cf), surrogates, private use, unassigned -- is REFUSED wherever it
+#     stands (a leading, comment, blank or code position), fail-closed, with its line and code point;
+#   * a line-1 `#!` line must be one of SH_SHEBANGS exactly: a file run directly (./file) runs its shebang's arguments
+#     before line 2 (`#!/usr/bin/env -S bash -c '...; . "$0"'`).
+# Inside the allow-list Python's str.strip / lstrip / split and the `\s` class remove only SPACE and TAB, exactly
+# bash's blanks, so the line, blank and comment decisions below mean what bash means.
+SH_SHEBANGS = ("#!/bin/bash", "#!/usr/bin/env bash")
+_SH_COMMENT_LINE = re.compile(r"[ \t]*#")
+
+
+def _sh_char_ok(ch, comment_line):
+    o = ord(ch)
+    if ch == "\t" or 0x20 <= o <= 0x7e:
+        return True
+    return comment_line and o >= 0x80 and unicodedata.category(ch)[0] in "LMNPS" and not ch.isspace()
+
+
+def _sh_read_as_bash(path):
+    """(text, [(line, reason)]) -- the file as bash reads it, and every place it leaves the census's modelled set"""
+    data = open(path, "rb").read()
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        return None, [(data[:e.start].count(b"\n") + 1, "the file is not valid UTF-8 (byte 0x%02x): outside the census's "
+                       "modelled character set (fail-closed, _sh_read_as_bash)" % data[e.start])]
+    probs = []
+    for no, raw in enumerate(text.split("\n"), 1):
+        if no == 1 and raw.startswith("#!") and raw not in SH_SHEBANGS:
+            probs.append((no, "line 1 is a #! line outside the closed set %s: run directly, its arguments run before "
+                              "the file's first line (fail-closed, _sh_read_as_bash)" % " / ".join(SH_SHEBANGS)))
+            continue
+        com = bool(_SH_COMMENT_LINE.match(raw))
+        for col, ch in enumerate(raw, 1):
+            if not _sh_char_ok(ch, com):
+                probs.append((no, "column %d holds U+%04X (%s, category %s), outside the census's modelled character set "
+                                  "(bash and Python split or strip it differently; fail-closed, _sh_read_as_bash)"
+                              % (col, ord(ch), unicodedata.name(ch, "unnamed"), unicodedata.category(ch))))
+                break
+    return text, probs
+
+
 def sh_census(path):
-    raw_lines = open(path).read().split("\n")
+    text, gate = _sh_read_as_bash(path)
+    if gate:                                              # fail-closed: nothing of the file is censused
+        return [(os.path.basename(path), no, "<top>", "<file text>", "VIOLATION", why) for no, why in gate], set()
+    raw_lines = text.split("\n")
     lines, ge_lines = _git_env_scrub_sh(raw_lines)
     cmds, funcs, extents = sh_commands(lines)
     ge_blockers = _git_env_scrub_sh_blockers(raw_lines, ge_lines, cmds) if ge_lines else []
@@ -2164,7 +2225,7 @@ def self_test(sup, br):
     """every needle must be flagged ON ITS OWN LINE, every control must not -- each against the files under test"""
     import tempfile as _tf
     out, bad = [], 0
-    src_py, src_sh = open(sup).read(), open(br).read()
+    src_py, src_sh = open(sup).read(), open(br, encoding="utf-8", newline="").read()   # CON-450 r4: bash's bytes
     d = _tf.mkdtemp(prefix="census_self.")
     try:
         cases = [("py", x, True, True) for x in SELF_PY_MODULE] + [("py", x, False, True) for x in SELF_PY] + \
@@ -2187,7 +2248,7 @@ def self_test(sup, br):
             else:
                 body = '_needle() {\n  local u="$1"\n  %s\n}\n' % text
                 path = os.path.join(d, "br.sh")
-                open(path, "w").write(src_sh + "\n" + body)
+                open(path, "w", encoding="utf-8", newline="").write(src_sh + "\n" + body)
                 first = src_sh.count("\n") + 2
                 rows, _ = sh_census(path)
                 at = first + 2
