@@ -150,6 +150,9 @@ func splitKeepNewlines(s string) []string {
 // parseIssues decomposes Issues.md into items + segments.
 func parseIssues(content string) ([]item, []segment) {
 	lines := splitKeepNewlines(content)
+	// CON-456 round 6: a `## ` line inside a fenced code block is quoted text,
+	// never an item heading and never the end of an item's block.
+	fenced := fencedMask(lines)
 	var items []item
 	var segs []segment
 	seq := 0
@@ -170,8 +173,11 @@ func parseIssues(content string) ([]item, []segment) {
 	for i < len(lines) {
 		trimmed := strings.TrimRight(lines[i], "\n")
 
-		canonical := issueHeadingRe.FindStringSubmatch(trimmed)
-		atmShaped := canonical == nil && isATMCandidateHeading(trimmed)
+		var canonical []string
+		if !fenced[i] {
+			canonical = issueHeadingRe.FindStringSubmatch(trimmed)
+		}
+		atmShaped := !fenced[i] && canonical == nil && isATMCandidateHeading(trimmed)
 
 		if canonical == nil && !atmShaped {
 			rawBuf.WriteString(lines[i])
@@ -188,7 +194,7 @@ func parseIssues(content string) ([]item, []segment) {
 		i++
 		for i < len(lines) {
 			lt := strings.TrimRight(lines[i], "\n")
-			if strings.HasPrefix(lt, "## ") {
+			if !fenced[i] && strings.HasPrefix(lt, "## ") {
 				break
 			}
 			block.WriteString(lines[i])
@@ -777,6 +783,8 @@ var fixedTitleIDRe = regexp.MustCompile(`^(` + canonicalIDPattern + `)(?: \([^)]
 // + raw segments reassemble the source exactly.
 func parseFixed(content string) ([]item, []segment) {
 	lines := splitKeepNewlines(content)
+	// CON-456 round 6: see parseIssues (fenced `## ` lines are quoted text).
+	fenced := fencedMask(lines)
 	var items []item
 	var segs []segment
 	seq := 0
@@ -801,8 +809,11 @@ func parseFixed(content string) ([]item, []segment) {
 	for i < len(lines) {
 		trimmed := strings.TrimRight(lines[i], "\n")
 
-		canonical := issueHeadingRe.FindStringSubmatch(trimmed)
-		atmShaped := canonical == nil && isATMCandidateHeading(trimmed)
+		var canonical []string
+		if !fenced[i] {
+			canonical = issueHeadingRe.FindStringSubmatch(trimmed)
+		}
+		atmShaped := !fenced[i] && canonical == nil && isATMCandidateHeading(trimmed)
 
 		if canonical == nil && !atmShaped {
 			rawBuf.WriteString(lines[i])
@@ -818,7 +829,7 @@ func parseFixed(content string) ([]item, []segment) {
 		i++
 		for i < len(lines) {
 			lt := strings.TrimRight(lines[i], "\n")
-			if strings.HasPrefix(lt, "## ") {
+			if !fenced[i] && strings.HasPrefix(lt, "## ") {
 				break
 			}
 			block.WriteString(lines[i])
@@ -876,9 +887,14 @@ func emitLegacyTable(raw string, items *[]item, segs *[]segment, seq *int, seenI
 		buf.Reset()
 	}
 
-	for _, ln := range splitKeepNewlines(raw) {
+	rawLines := splitKeepNewlines(raw)
+	rawFenced := fencedMask(rawLines) // CON-456 round 6: a quoted row is text
+	for li, ln := range rawLines {
 		trimmed := strings.TrimRight(ln, "\n")
-		m := fixedRowRe.FindStringSubmatch(trimmed)
+		var m []string
+		if !rawFenced[li] {
+			m = fixedRowRe.FindStringSubmatch(trimmed)
+		}
 		if m == nil {
 			buf.WriteString(ln)
 			continue
