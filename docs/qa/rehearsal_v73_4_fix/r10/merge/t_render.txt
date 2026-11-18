@@ -1,0 +1,162 @@
+PASS exit 0
+PASS manual value
+PASS fact value
+PASS empty fact rendered as none
+PASS states block, ids listed
+PASS UNSET/UNSET not in states block
+PASS refs block
+PASS multi-line manual
+PASS leading comment dropped
+PASS no placeholder left
+PASS missing manual refused
+PASS TODO value refused
+PASS unused manual block refused
+PASS missing fact refused
+PASS retest verdict accepted: PASS-FULL
+PASS retest verdict accepted: FAIL
+PASS retest verdict accepted: NOT
+PASS retest value without a leading verdict token refused: passed
+PASS retest value without a leading verdict token refused: all green
+PASS retest value without a leading verdict token refused: PASS-FULLY done
+PASS retest value without a leading verdict token refused: pass-full
+PASS retest value without a leading verdict token refused: has never run
+PASS retest value without a leading verdict token refused: FAILED
+PASS retest value without a leading verdict token refused: the retest: PASS-FULL
+PASS B-M1 the runner's main() prints these RESULT words with these exit codes (ast; control: 14 pairs)
+PASS B-M1 the runner's RETEST_RESULTS table is the oracle table
+PASS B-M1 runner verdict PASS-FULL rendered as retest
+PASS B-M1 runner verdict FAIL rendered as fail
+PASS B-M1 runner verdict MANIFEST-MISMATCH rendered as gap-not-run
+PASS B-M1 runner verdict PARTIAL-NOT-RUN rendered as gap
+PASS B-M1 runner verdict PARTIAL-DEFAULT-SET rendered as gap
+PASS B-M1 runner verdict PARTIAL-SKIPS rendered as gap
+PASS B-M1 runner verdict PASS-FULL-WITH-KNOWN rendered as gap
+PASS B-M1 runner verdict PARTIAL-TOPOLOGY rendered as gap
+PASS B-M1 runner verdict REFUSED-TOPOLOGY rendered as gap-not-run
+PASS B-M1 runner verdict PARTIAL-DIRTY-TREE rendered as gap
+PASS B-M1 runner verdict PARTIAL-EXCLUSIONS-UNACCEPTED rendered as gap
+PASS B-M1 PASS-FULL carries no gap note
+PASS B-M1 FAIL carries no gap note
+PASS B-M1 MANIFEST-MISMATCH never rendered bare
+PASS B-M1 PARTIAL-NOT-RUN never rendered bare
+PASS B-M1 PARTIAL-DEFAULT-SET never rendered bare
+PASS B-M1 PARTIAL-SKIPS never rendered bare
+PASS B-M1 PASS-FULL-WITH-KNOWN never rendered bare
+PASS B-M1 PARTIAL-TOPOLOGY never rendered bare
+PASS B-M1 REFUSED-TOPOLOGY never rendered bare
+PASS B-M1 PARTIAL-DIRTY-TREE never rendered bare
+PASS B-M1 PARTIAL-EXCLUSIONS-UNACCEPTED never rendered bare
+PASS B-M1 not a run verdict refused: MANIFEST-OK
+PASS B-M1 not a run verdict refused: partial-skips
+PASS B-M1 not a run verdict refused: PARTIAL
+PASS B-M1 not a run verdict refused: PASS-FULL-WITH
+PASS B-M1 not a run verdict refused: PARTIAL-TOPOLOGYX
+PASS B-M1 not a run verdict refused: REFUSED
+PASS B-M1 not a run verdict refused: PASS-FULL-WITH-KNOWNS
+PASS B-M1 the refusal lists the runner's words and NOT RUN
+PASS B-M1 a malformed runner table is refused (exit 3)
+PASS B-M1 an absent runner is refused (exit 3)
+PASS B-M1 control: the same isolated copy renders with the real runner beside it
+PASS retest_statement missing from the manual file: refused
+PASS a template without retest_statement renders
+PASS usage exit 2
+PASS CON-231 every status/severity key rendered: exit 0
+PASS CON-231 a status/severity value the template does not render is refused
+PASS B-M4 placeholder refused without --draft: cut_date=DRAFTok
+PASS B-M4 the same value renders with --draft, marker right after the heading: cut_date
+PASS B-M4 placeholder refused without --draft: cut_date=UNCONFIRMED-CUT-DATE (not cut yet)ok
+PASS B-M4 the same value renders with --draft, marker right after the heading: cut_date
+PASS B-M4 placeholder refused without --draft: cut_date=2026-11-31ok
+PASS B-M4 the same value renders with --draft, marker right after the heading: cut_date
+PASS B-M4 placeholder refused without --draft: cut_date=16.11.2026ok
+PASS B-M4 the same value renders with --draft, marker right after the heading: cut_date
+PASS B-M4 placeholder refused without --draft: cut_date=2026-11-16 (draft)ok
+PASS B-M4 the same value renders with --draft, marker right after the heading: cut_date
+PASS B-M4 placeholder refused without --draft: block=2026-11-16`<CON-NNN>`
+PASS B-M4 the same value renders with --draft, marker right after the heading: block
+PASS B-M4 placeholder refused without --draft: block=2026-11-16expires `<recorded date + 30 days>`
+PASS B-M4 the same value renders with --draft, marker right after the heading: block
+PASS B-M4 placeholder refused without --draft: block=2026-11-16`<paste the summary line>`
+PASS B-M4 the same value renders with --draft, marker right after the heading: block
+PASS B-M4 placeholder refused without --draft: block=2026-11-16push to <all 10 remotes>
+PASS B-M4 the same value renders with --draft, marker right after the heading: block
+PASS B-M4 placeholder refused without --draft: block=2026-11-16see <...>
+PASS B-M4 the same value renders with --draft, marker right after the heading: block
+PASS B-M4 placeholder refused without --draft: block=2026-11-16this is DRAFT text
+PASS B-M4 the same value renders with --draft, marker right after the heading: block
+PASS B-M4 control: real values render, no marker
+PASS B-M4 --draft still refuses TODO
+PASS B-M4 --draft still refuses a missing value
+PASS B-M4 --draft without a heading: marker first
+PASS B-M4 unknown option is a usage error
+PASS B-M4 --draft with two files is a usage error
+PASS B-M4 tag_and_release.sh knows the draft marker
+PASS D5 a DRAFT manual value is refused without --draft
+PASS D5 a DRAFT retest_statement is refused without --draft
+PASS D5 --draft renders a DRAFT value: exit 0
+PASS D5 a draft rendering carries the fixed marker line (B-M4 form, after the heading)
+PASS D5 --draft keeps the DRAFT value
+PASS D5 --draft says so on stderr
+PASS D5 a normal rendering has no draft marker
+PASS D5 not the word DRAFT, accepted: DRAFTED by the conductor
+PASS D5 not the word DRAFT, accepted: a draft column
+PASS D5 not the word DRAFT, accepted: redraft
+PASS M4 a DRAFT marker is refused: DRAFT_1 of the list
+PASS M4 a DRAFT marker is refused: see DRAFT2
+PASS M4 a DRAFT marker is refused: v-DRAFT-3
+PASS M4 a DRAFT marker is refused: (DRAFT)
+PASS M4 a DRAFT marker is refused: ＤＲＡＦＴ list
+PASS M4 a DRAFT marker is refused: DR​AFT list
+PASS M4 a TODO/TBD marker glued to a digit or underscore is refused: TODO_1 the list
+PASS M4 a TODO/TBD marker glued to a digit or underscore is refused: TBD2
+PASS M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: MY_TODO the list
+PASS M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: see 2DRAFT list
+PASS M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: DRАFT list
+PASS M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: ТBD later
+PASS M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: ТОDО list
+PASS M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: DRΑFT list
+PASS M4 r3 a marker after _ or a digit, or in look-alike letters, is refused: D̈RAFT list
+PASS M4 r3 golden FALSE, accepted: Пlan notes
+PASS M4 r3 golden FALSE, accepted: λόγος list
+PASS M4 r3 golden FALSE, accepted: ДRAFT is not D
+PASS M4 r3 the two look-alike maps are equal
+PASS mutant X8 killed (real refuses rc 3, mutant accepts: MY_TODO the list)
+PASS mutant X9 killed (real refuses rc 3, mutant accepts: see 2DRAFT list)
+PASS mutant R1-no-confusables killed (real refuses rc 3, mutant accepts: DRАFT list)
+PASS mutant R2-no-mark-strip killed (real refuses rc 3, mutant accepts: D̈RAFT list)
+PASS mutant R3-cyrillic-T-dropped killed (real refuses rc 3, mutant accepts: ТBD later)
+PASS mutant R4-greek-A-dropped killed (real refuses rc 3, mutant accepts: DRΑFT list)
+PASS M4 golden FALSE, accepted: DRAFTS of the plan
+PASS M4 golden FALSE, accepted: REDRAFT done
+PASS M4 golden FALSE, accepted: Draft notes
+PASS M4 golden FALSE, accepted: draft_1 lower case
+PASS M4 golden FALSE, accepted: TODOS done
+PASS M4 golden FALSE, accepted: XTBD
+PASS D5 --draft with two files: usage exit 2
+PASS D5 --draft only as the first argument: usage exit 2
+PASS D5 an unknown option: usage exit 2
+PASS D5 --draft still refuses TODO
+PASS D9 cut_date bare date accepted: 2026-11-16
+PASS D9 cut_date bare date accepted: 2028-02-29
+PASS D9 cut_date not a bare date refused (without --draft; B-M4 lets --draft render it): 2026-11-16 (DRAFT)
+PASS D9 cut_date not a bare date refused (without --draft; B-M4 lets --draft render it): 16 Nov 2026
+PASS D9 cut_date not a bare date refused (without --draft; B-M4 lets --draft render it): 2026-13-01
+PASS D9 cut_date not a bare date refused (without --draft; B-M4 lets --draft render it): 2026-02-30
+PASS D9 cut_date not a bare date refused (without --draft; B-M4 lets --draft render it): 2027-02-29
+PASS D9 cut_date not a bare date refused (without --draft; B-M4 lets --draft render it):  2026-11-16x
+PASS D9 cut_date not a bare date refused (without --draft; B-M4 lets --draft render it): 2026-11-6
+PASS D9 cut_date not a bare date refused (without --draft; B-M4 lets --draft render it): 20261116
+PASS D9 cut_date not a bare date refused (without --draft; B-M4 lets --draft render it): 2026-W46-1
+PASS template has no unconditional never-run sentence
+PASS template takes the retest sentence from MANUAL:retest_statement
+PASS template does not say (L7) rides open or is relaxed
+PASS template states an open (L7) blocks every class
+PASS template calls the decision an override, not a conforming waiver
+PASS shipped template: 33 fact keys named (control: more than 10)
+PASS shipped template renders from synthetic facts
+PASS D9 the refs line is rendered exactly (positive needle)
+PASS D9 no '.' after the last ref name
+PASS D9 the heading carries the bare cut date
+SKIP shipped template renders from real facts: RRE_FACTS is not set to a facts file (run derive_release_facts.sh and set RRE_FACTS=<file> to run it)
+RESULT: pass=159 fail=0
+rc=0

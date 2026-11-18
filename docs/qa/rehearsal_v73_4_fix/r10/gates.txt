@@ -1,0 +1,23 @@
+# gates on d9d52c3d (merge of 4531233a onto ebd8818c), 2026-11-17T17:41:23Z
+## verify-manifest
+MANIFEST: excluded set differs from the accepted lock /mnt/DATA1TB/claude-work/scratch/fix10_con521_1794924276/mergetest/config/full_suite_excluded.lock (added ['tests/release/pvl_grid.py'], removed [], note changed []); review and run --verify-manifest --accept-excluded-change <reviewer>
+census: go/entry=5 js/excluded=5 py/entry=12 py/excluded=35 py/fixture=19 py/member=36 runall/entry=9 sh/entry=390 sh/excluded=29 sh/fixture=115 sh/member=324 total=979
+RESULT: MANIFEST-MISMATCH (1 problem(s); nothing was run)
+rc=3
+## git-env census
+git-env-class-census: inventory: tracked=7252 accounted=7252 universe=1914 (go=184 js=12 other=2 py=275 sh=1441) gitlink=27 symlink=1 binary=24 data=5286 unclassified=0 absent=0 members=670 non_members=1244
+git-env-class-census: FAIL - UNSCRUBBED scripts/validation/check_provisional_verification_lines.py (line 143): mentions git (first at line 143) and has no file-level scrub and no row in the exemption list (add the canonical line, or a justified row)
+git-env-class-census: FAIL - members=670 hermetic=510 exempt=159 unscrubbed=1
+rc=1
+## ratchet
+CM-GATE-LEDGER-RATCHET: corpus read (corpus = Constitution.md + its status-summary archive docs/amendment-log/status-summary-constitution.md)
+LEDGER: unimplemented=394 baseline=394 fails=0
+✅ CM-GATE-LEDGER-RATCHET: PASS — every named CM-* gate is implemented-or-deferred within the checked-in monotone-decrease baseline; no uncited vanished name
+rc=0
+## index fresh
+check: no drift
+CM-CONSTITUTION-INDEX-FRESH: PASS -- the index and groups match a fresh generation from Constitution.md
+rc=0
+## git-env census on b540a77c (merge test after the docstring fix)
+git-env-class-census: PASS - members=669 hermetic=510 exempt=159 unscrubbed=0
+rc=0

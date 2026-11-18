@@ -1,0 +1,16 @@
+BOUND backslash      len=65520 1.59s ACCEPT
+BOUND backticks      len=65516 2.10s ACCEPT
+BOUND bang_brackets  len=65517 1.69s ACCEPT
+BOUND brace          len=65517 1.96s ACCEPT
+BOUND brackets       len=65518 1.68s ACCEPT
+BOUND brackets_closed len=65518 1.72s ACCEPT
+BOUND caret          len=65520 1.58s ACCEPT
+BOUND dollar         len=65516 1.58s ACCEPT
+BOUND emph_mix       len=65520 2.30s ACCEPT
+BOUND entity         len=65518 1.52s ACCEPT
+BOUND link_open      len=65516 2.34s ACCEPT
+BOUND paren          len=65520 1.44s ACCEPT
+BOUND pipes          len=65519 1.53s ACCEPT
+BOUND quote_lines    len=65517 1.67s ACCEPT
+BOUND all_at_once    len=11668 0.00s the body is not read: it holds 262 of '[', more than 64 (a reader's time grows with such a count); break it up
+WORST 2.34s per body (5 readers in turn); per-reader timeout PANDOC_TIMEOUT=30s

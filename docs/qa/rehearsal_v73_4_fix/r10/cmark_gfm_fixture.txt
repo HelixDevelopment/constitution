@@ -1,0 +1,3 @@
+NEEDLE an unclosed fence is listed, a closed one is not
+DOC Fixed segments=2 cmark-gfm_open=0 
+DOC Issues segments=11 cmark-gfm_open=5 CON-901(Ready for testing) CON-903(Queued) CON-905(Queued) CON-911(Ready for testing) raw(100)

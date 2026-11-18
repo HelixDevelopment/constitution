@@ -991,6 +991,7 @@ tests/release/pvl_linemodel.py	py	member	default	-	tests/release/test_provisiona
 tests/release/pvl_mutate.py	py	member	heavy	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_oracle.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_property.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
+tests/release/pvl_r10.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_refreader.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_reviewer.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh
 tests/release/pvl_timing.py	py	member	default	-	tests/release/test_provisional_verification_lines.sh	auto: invoked by tests/release/test_provisional_verification_lines.sh

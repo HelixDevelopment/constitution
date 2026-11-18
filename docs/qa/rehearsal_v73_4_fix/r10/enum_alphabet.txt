@@ -1,0 +1,37 @@
+NEEDLES e accepted, U+00E9 refused, U+039D refused
+CODEPOINTS read=1112064 accepted=100 accepted_outside_ascii_and_extra=0 accepted_by_reference_outside=0
+ACCEPTED non-ASCII: U+00A7 U+00B7 U+2014 U+2192
+ACCEPTED ASCII controls: U+0009 U+000A
+REFUSED reason=bidi category=Cf count=12
+REFUSED reason=char category=Cc count=62
+REFUSED reason=char category=Cf count=158
+REFUSED reason=char category=Cn count=819533
+REFUSED reason=char category=Co count=137468
+REFUSED reason=char category=Ll count=2232
+REFUSED reason=char category=Lm count=404
+REFUSED reason=char category=Lo count=136477
+REFUSED reason=char category=Lt count=31
+REFUSED reason=char category=Lu count=1832
+REFUSED reason=char category=Mc count=468
+REFUSED reason=char category=Me count=13
+REFUSED reason=char category=Mn count=2020
+REFUSED reason=char category=Nd count=750
+REFUSED reason=char category=Nl count=236
+REFUSED reason=char category=No count=915
+REFUSED reason=char category=Pc count=9
+REFUSED reason=char category=Pd count=25
+REFUSED reason=char category=Pe count=74
+REFUSED reason=char category=Pf count=10
+REFUSED reason=char category=Pi count=12
+REFUSED reason=char category=Po count=623
+REFUSED reason=char category=Ps count=76
+REFUSED reason=char category=Sc count=62
+REFUSED reason=char category=Sk count=123
+REFUSED reason=char category=Sm count=943
+REFUSED reason=char category=So count=7376
+REFUSED reason=char category=Zl count=1
+REFUSED reason=char category=Zp count=1
+REFUSED reason=char category=Zs count=16
+REFUSED reason=line-end category=Cc count=1
+REFUSED reason=raw-html category=Sm count=1
+CONFUSABLES of an ASCII letter, digit or colon: 1329, accepted 0
