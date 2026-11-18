@@ -4681,7 +4681,7 @@ Lander follow-up (2026-11-17, link only, relprep checklist B6): the retest state
 
 ## CON-382 — v73.4 waiver: record the section 11.4.271 waiver (authoriser, expiry, source) and fix the draft wording 'relaxes (L7)'
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (filing subagent)
@@ -4689,6 +4689,8 @@ Lander follow-up (2026-11-17, link only, relprep checklist B6): the retest state
 What: the waiver for the v73.4 cut is not recorded, and waiver_v734.draft.md still says it relaxes (L7), which a waiver cannot do. Scope: the v73.4 waiver record. Reproduction: not applicable. Acceptance: a recorded waiver with rostered authoriser, unelapsed expiry and tracked item; the wording corrected. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89; related to CON-229 and CON-230.
 
 Lander follow-up (2026-11-17, link only, relprep step 1.4): the waiver record docs/operator_decisions/2026-11-17_waiver_v73.4.md is still not committed.
+
+Release cut (2026-11-18): the waiver W-v73.4-01 is recorded at docs/operator_decisions/2026-11-18_waiver_v73.4.md (authoriser i@mvasic.ru, rostered; expiry 2026-12-18; tracked item CON-381; the record says the release overrides the (L1), (L6), (L7) conditions of section 11.4.230(F.3)(2) on an operator decision and does not waive them, so the 'relaxes (L7)' wording is not used). Committed on the release pull request ahead of the release commit; PROVISIONAL (section 11.4.290) until that pull request is merged and the tag reads back.
 
 ## CON-383 — v73.4: the release template amendment conflicts with fix227 and is neither landed nor reviewed
 
