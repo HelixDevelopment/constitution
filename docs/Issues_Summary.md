@@ -13,9 +13,9 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | Feature | Queued | 1 |
 | Task | In progress | 23 |
 | Task | Operator-blocked | 2 |
-| Task | Queued | 338 |
+| Task | Queued | 339 |
 | Task | Ready for testing | 24 |
-| **TOTAL** | | **551** |
+| **TOTAL** | | **552** |
 
 ## Items
 
@@ -572,3 +572,4 @@ Open workable items (current_location = Issues), regenerated from the SQLite sin
 | CON-596 | Task | Queued | Low | pvl_inventory.py floors are counts on Unicode 16.0.0 and change with the interpreter's Unicode version; one redirect in test_tag_and_release.sh is in the wrong order. PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings). | UNSET | UNSET |
 | CON-597 | Task | Queued | Medium | PR #20 merged PROVISIONAL after a NO-GO in review round 14; the findings are not in the tracker (content UNCONFIRMED: read them from the review record and file each). PROVISIONAL. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings). | UNSET | UNSET |
 | CON-598 | Task | Queued | Low | At the PR #18 landing CON-266, CON-267 and CON-268 had severity Low and no Severity body line; the export added the line and diff reported 18-byte body differences. repair-bodies fixed the three. Decide whether the exporter or the body is canonical and make add/update keep them consistent; regression test. PROVISIONAL, gate-logic. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings). | UNSET | UNSET |
+| CON-599 | Task | Queued | Medium | What: at the v73.4 cut (2026-11-18, release branch base cbbb9de4) bash scripts/gates/cm_zero_findings_monotone_ratchet.sh exits 1 with reason=RATCHET_SNAPSHOT_MISSING (docs/findings/zero_findings_ratchet.tsv, section 11.4.261(C) brownfield ceiling) and bash scripts/gates/cm_escape_ratchet.sh exits 2 with 'ledger not readable: docs/requests/discovery_channel.jsonl' (section 11.4.238). Neither file has ever been tracked (git log --all on both paths is empty). Scope: the two data files, and whether either gate is on a release seam. Reproduction: run the two commands on a fresh clone of main. Acceptance: the brownfield snapshot is recorded by operator decision (section 11.4.66, section 11.4.224(E) adoption fence) and the discovery-channel ledger is created, or the gates are recorded as not applicable with a reason; the gates exit 0 on main. Not fixed in v73.4; listed among its known gaps. Source: v73.4 release cut agent, scratch clone /mnt/DATA1TB/claude-work/scratch/cut_v73_4_015812 (outside the repository). | UNSET | UNSET |
