@@ -396,6 +396,8 @@ Verification job scheduled on 2026-11-16 (operator decision of 2026-11-16, secti
 
 **Verification:** provisional (section 11.4.290) -- job: bash tests/gates/test_gate_env_census_jq_regions.sh; bash tests/gates/test_gate_env_census_closure.sh; bash scripts/gates/cm_gate_env_reads_allowlisted.sh; bash scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh -- checks: tests/gates/test_gate_env_census_jq_regions.sh fail=0; tests/gates/test_gate_env_census_closure.sh fail=0; scripts/gates/cm_gate_env_reads_allowlisted.sh fail=0 verdict=PASS; scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh fail=0 -- layer: host-only plus gate-logic -- target: host, repo checkout -- artifact: main -- due: 2026-11-30
 
+Lander follow-up (2026-11-17, link only, PR #23 review M1): the new check line says fail=0, but the script exits rc 3 with 5 known failures; the check should record rc=3 known-failure=5.
+
 ## CON-016 — env census F-EC2: surviving mutants E1 (yq|gojq) and E5 ($'...' owner) (implemented, PROVISIONAL-DONE)
 
 **Status:** Ready for testing
@@ -429,6 +431,8 @@ Superseded verification wording (replaced on 2026-11-16, it names no scheduled j
 Verification job scheduled on 2026-11-16 (operator decision of 2026-11-16, section 11.4.290(1)): the line below runs the census test and the allowlist mutation test the item's own line named. No scheduler registry exists in this repository, so this line and its due date are the schedule; that any automation runs it on that date is UNCONFIRMED.
 
 **Verification:** provisional (section 11.4.290) -- job: bash tests/gates/test_gate_env_census_jq_regions.sh; bash scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh -- checks: tests/gates/test_gate_env_census_jq_regions.sh fail=0; scripts/gates/cm_gate_env_reads_allowlisted_mutation_test.sh fail=0 -- layer: host-only plus gate-logic -- target: host, repo checkout -- artifact: main -- due: 2026-11-30
+
+Lander follow-up (2026-11-17, link only, PR #23 review M1): the new check line says fail=0, but the script exits rc 3 with 5 known failures; the check should record rc=3 known-failure=5.
 
 ## CON-017 — codegraph resync F-CG2: surviving mutants A, B, C of the resync tests
 
@@ -1079,6 +1083,8 @@ Description restored 2026-11-12 by the tracker-intake vehicle (umbrella CON-540)
 Relayed operator decision, 2026-11-12 about 23:30 CET (record docs/operator_decisions/2026-11-12_relayed_decisions.md, decision 2): let the third full screen finish, then rerun all three screens on one calendar day (the current run crosses midnight); restore this description through the engine (done by the tracker-intake vehicle, see above). Not executed by the record. The docs/qa/con046_review/ paths cited above are files of the con046 vehicle (head 7bdffcf6); they are not on main 02c10935 and resolve only after that vehicle lands.
 
 Foreign ids (con046 vehicle namespace, written before each re-mint; on this tracker these numbers are other items or do not exist): CON-083, CON-108, CON-109, CON-146, CON-147, CON-194, CON-195, CON-280, CON-281
+
+Lander follow-up (2026-11-17, link only, PR #22 review r14): R14-W1/T1/U1 a look-alike of the producer is waived through white space and combining marks; a reviewer mutant survives; the Unicode database is not pinned. The R14-C1 reviewer patch (quoted symbolic-ref writes) was applied at the landing (merge d6b1b5d7); the SYMREF_READ mutants that remove |--no-recurse or turn the first \s+ into \s* still survive (new item).
 
 ## CON-049 — CON-043 FU-1 (NF1): adopt reviewer mutants N1-N4 as killing mut() cases in test_oracle_frozen_exclusions.sh
 
@@ -4671,6 +4677,8 @@ What: the release survey notes that the retest owed before promotion (sections 1
 
 Link (section 11.4.214, open original, link only; 2026-11-17, release prep): this is the v73.4 retest item the release entry cites as retest_item_id and the waiver's tracked item (GAPS.md and CUT_DAY_CHECKLIST.md step 3 said NOT TRACKED; no new item minted). The retest is the section 11.4.40 default tier (scripts/run_full_suite.sh) and then scripts/run_full_suite.sh --include-heavy --allow-topology-gaps on the cut fingerprint, followed by the section 11.4.185 confirmation; the verdict word comes from the runner's exit code (see the renderer vocabulary item filed the same day). Source: v73.4 release-prep draft /mnt/DATA1TB/claude-work/scratch/relprep.GRc4vl/draft (outside the repository; SHA256SUMS sha256 c3096ff57234aff26af53012e320278e71d978077aab97cd5bbcba5f5c27f709, all entries verified OK by the lander 2026-11-17), read at main 60177435.
 
+Lander follow-up (2026-11-17, link only, relprep checklist B6): the retest statement says PARTIAL-TOPOLOGY, but the runner RESULT is FAIL (40 unexplained; default tier, allow-topology-gaps, base ebd8818c); the statement must say FAIL.
+
 ## CON-382 — v73.4 waiver: record the section 11.4.271 waiver (authoriser, expiry, source) and fix the draft wording 'relaxes (L7)'
 
 **Status:** Queued
@@ -4679,6 +4687,8 @@ Link (section 11.4.214, open original, link only; 2026-11-17, release prep): thi
 **Created-By:** Claude Opus 5.5 (filing subagent)
 
 What: the waiver for the v73.4 cut is not recorded, and waiver_v734.draft.md still says it relaxes (L7), which a waiver cannot do. Scope: the v73.4 waiver record. Reproduction: not applicable. Acceptance: a recorded waiver with rostered authoriser, unelapsed expiry and tracked item; the wording corrected. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89; related to CON-229 and CON-230.
+
+Lander follow-up (2026-11-17, link only, relprep step 1.4): the waiver record docs/operator_decisions/2026-11-17_waiver_v73.4.md is still not committed.
 
 ## CON-383 — v73.4: the release template amendment conflicts with fix227 and is neither landed nor reviewed
 
@@ -4770,6 +4780,8 @@ What: while extracting the scanner, the round-2 reviewer evaluated a sed range o
 What: an unchanged sync db-to-md followed by sync md-to-db of the base tracker replaced description with different text on 38 rows (for example CON-030, CON-246) and set severity from Low to NULL on 3 rows (CON-266, CON-267, CON-268). Scope: workable-items engine sync db-to-md / sync md-to-db; pre-existing, measured by the engine created_at round-1 reviewer on the base bd0036bd binary and on the vehicle binary with the same result. Reproduction: UNREPRODUCED in this repository's evidence: the register records the reviewer's column census as reproduced-host-fixture, but that census file is not in the repository, so no state above UNREPRODUCED is set (section 11.4.294(C)). Reproduce first on a copy of docs/workable_items.db (section 11.4.292). Acceptance: a round trip of an unchanged database leaves every column of every row unchanged except last_modified, with a column census as the oracle and a regression test. Source: docs/qa/engine_created_at_2026_11_13/round2/follow_up_register.md sha256 a0ef367d9884055cf81dc6e0d1a5c6184b46bc64f971ffa4b89ce8e35edb9754. Register CON-PENDING-MDRT-DATALOSS. Parent CON-313; related to register D-02 (filed as CON-396).
 
 Link (section 11.4.214, open original, link only; 2026-11-16): the fc097 review re-measured the lossy md-to-db round trip on a scratch DB: description rewritten on 190 rows, parent_atm_id on 17, severity on 3, last_modified on 407, while 'workable-items diff' reports DB and Markdown in sync (the vehicle author measured 182 / 17 / 3 / 399 earlier the same day). Source: independent review /mnt/DATA1TB/claude-work/scratch/rev097.GcJx93/ev/findings.md (evidence SHA256SUMS sha256 bf9b3ffb7aaa1f44c6c4a409dc901da89bae3c72c009f6c7cfb3402aad08b5b4) of vehicle head d5d25e3f, landed on main as merge f090d082.
+
+Lander follow-up (2026-11-17, link only, same defect class): two vehicles carried a tracker DB that had been through sync md-to-db over the whole file: the CON-456 r6 vehicle (289 descriptions re-derived, 17 parent_atm_id values dropped, lines lost in CON-263 and CON-456) and the CON-402 fallout round-5 vehicle (501 rows differ from its base: descriptions cut to the title, 17 parent ids dropped). Neither re-parse was replayed at the landing; only the intended field changes were replayed through the engine. The remedy class is CON-495 (an append-body command). Evidence: docs/qa/engine_idgrammar_2026_11_17/landing_main_68af5edb/README.md, docs/qa/con402_fallout_r5/landing_main_e5db4a1c/README.md.
 
 ## CON-392 — Decide the 226 tracker rows whose created_at is later than their first item_history event (restore with restore-created-at, or record why not)
 
@@ -4942,6 +4954,8 @@ What: Go code under scripts/workable-items runs git reads (git -C dir rev-parse 
 **Created-By:** Claude Opus 5.5 (lander subagent)
 
 What: after the git-env scrub of the release scripts, the reviewer killed a 41-mutant sample (41/41) but about 206 mutants have no verdict on the merged tree. Scope: tests/release/test_release_tooling_mutations.sh on the CON-402 landed head. Acceptance: before the next release tag (section 11.4.40) run the full 383-mutant suite (about 8 h, or add sharding) on the landed head and record the verdict per mutant; every survivor filed. Class: test-instrumentation, important. Review F-R5-7 (F10). Source: docs/qa/gitenv_class_r4_2026_11_15/landing/review_gitenv_r4.md (original sha256 664796e26a87a1707ec83ee6af4c22d6274ade5a1e2b776f57a956a17b03b1f3, section 7). Parent CON-402.
+
+Lander follow-up (2026-11-17, link only, relprep checklist B7/B9): the CON-409 run was 289 mutants plus a control (282 killed, 7 equivalent, 120 owed), not 290; the notes need the corrected figures. Codeberg is not in LANDER_REMOTES of scripts/release/land_vehicle.sh: the script requires the remotes file to declare exactly the LANDER_REMOTES names (default nine) and its tests and guide state nine, so adding it is a contract change, not done at the landing.
 
 ## CON-410 — git-env class scope note: GIT_CONFIG_COUNT/KEY/VALUE and GIT_CONFIG_PARAMETERS stay outside the 14-name class; core.hooksPath injection not measured
 
@@ -5161,6 +5175,8 @@ What: class_census.md of CON-423: scripts/fastcycle/tests/test_review_record_gat
 
 What: review item I1 (relayed): credentials.sh matches variable names with [A-Z][A-Z0-9_] ranges and [[:space:]] classes in [[ =~ ]] without LC_ALL=C, so in some locales a range matches more characters than A-Z. Scope: scripts/forge/lib/credentials.sh (lines 71, 80, 135 at 38c80398), tests/forge/test_forge_credentials.sh. Reproduction: UNREPRODUCED; RED under a locale where [A-Z] matches lowercase. Acceptance: matching runs under LC_ALL=C (local to the functions), RED then GREEN, paired mutant.
 
+Lander follow-up (2026-11-17, link only, PR #17 r3 I1): the token shape check in scripts/forge/lib/credentials.sh still lacks LC_ALL=C and accepts accented letters.
+
 ## CON-434 — tests/release/test_tag_and_release.sh C49: a /proc stderr race makes the case output nondeterministic (review)
 
 **Status:** Queued
@@ -5324,6 +5340,8 @@ What: audit F1 (regression). Commit 3281d92e (CON-402) inserted 'import os as _g
 
 Commit map (section 11.4.214, link only; 2026-11-17): 88935fd4 (round 1, labelled CON-402) belongs to this item. Round 4 of the fallout vehicle also fixes review finding R3-5 under this item: scripts/validation/git_env_class_census.py had the same reading defect as R3-1 (Python universal newlines and Python whitespace instead of bash's), pre-existing since CON-402. The conductor ordered it fixed here, together with R3-1 as the review asked, so no separate item is minted: the root cause, the class and the fix are this item's. Both censuses now read shell files as bash does (bytes, LF only, SPACE and TAB only) and refuse, fail-closed, every byte or construct outside a closed allow-list, plus any line 1 outside a closed shebang set. Round 5 (review of round 4, R4-1..R4-4; PROVISIONAL, gate-logic): the census reads a file as its interpreter does: a Python coding cookie other than utf-8, a NUL, a continuation-led comment line and an unquoted heredoc body with a command substitution are refused or kept as code; a differential test (tests/test_git_env_census_differential.sh) compares the census with bash and Python. Reviewer mutants GM1, GM3, GM4 die. See docs/qa/con402_fallout_r5/README.md.
 
+Lander follow-up (2026-11-17, link only): the round-5 fallout fix (differential test against bash and Python, R4-1..R4-4, reviewer mutants GM1 GM3 GM4) is merged with main PROVISIONAL; the git_env_class_census.py conflict with main's R11-C shape rule was resolved as a union by the lander (both needle sets kept; the NUL rule keeps round 5's non-code-or-native-binary condition). The union is not independently reviewed. Round-5 note: subclauses_red failed under nohup-ignored signals and passes with default dispositions (open).
+
 ## CON-451 — CON-402 made two guard-viability mutants blind: test_repo_verify_red.sh round-5 env strip and test_custody_sweep_r8_regression.sh R8-I2 (audit F2/F3)
 
 **Status:** Queued
@@ -5355,6 +5373,8 @@ What: audit F9. The full-suite runner gives each unit a fresh HOME under TMPDIR 
 
 What: gitleaks detect reads history through git log -p, and git honours diff attributes: a path marked -diff is shown as a binary change, so gitleaks never sees its added lines. Measured live with the real gitleaks 8.30.1 and git 2.53.0 on the CON-435-fixed scripts/gitleaks/gitleaks_run_scan.sh (docs/qa/gitleaks_replace_2026_11_16/probes/attributes_probe_result.txt): control repository with no attributes exit 1 with 2 leaks; the same repository with the caller's GIT_CONFIG_GLOBAL naming a core.attributesFile that sets *.env -diff exit 0 PASS 0 leaks; a repository whose own committed .gitattributes holds *.env -diff, with a secret .env committed after it, exit 0 PASS 0 leaks. The committed case comes from the scanned history itself, so GIT_CONFIG_GLOBAL=/dev/null and GIT_CONFIG_NOSYSTEM=1 (the CON-438 fix idea) do not cover it. Related: CON-438 (same class in scripts/security/history_secret_scan.sh, UNCONFIRMED there for the committed case; its scanner runs on a bare mirror), CON-435, CON-425. Scope: scripts/gitleaks/gitleaks_run_scan.sh and its tests; check history_secret_scan.sh too. Fix idea (UNCONFIRMED): pass a log option that forces text diffs (for example --log-opts with --text) or neutralise attributes, and confirm with the real binary. Reproduction: reproduced-live on the host by the probe above; the probe repositories are outside the repository. Acceptance: RED with the real gitleaks on both attribute cases, GREEN with the secret found, positive and negative controls, paired mutant that drops the fix killed. Source: CON-435 fixer run 2026-11-16, evidence docs/qa/gitleaks_replace_2026_11_16/. Re-minted at landing from the placeholder CON-PENDINGcon435 (section 11.4.214). Fix (PROVISIONAL, landed by the CON-438 class work, evidence docs/qa/gitleaks_attributes_2026_11_16/): both scanners append -m --text --no-textconv last to every log-opts, export GIT_GRAFT_FILE=/dev/null/no-grafts and GIT_SHALLOW_FILE=/dev/null to gitleaks, and run a git pre-flight whose non-zero exit or any stderr gives INCONCLUSIVE exit 3; gitleaks_run_scan.sh runs a control-needle self-check (-diff, textconv and merge-only needles plus a negative) and exits 3 on a miss; history_secret_scan.sh adds attr and textconv needles (a miss is BLIND exit 3) and refuses a shallow mirror with exit 3. Measured with the real gitleaks 8.30.1 and git 2.53.0: RED 8 of 27 cases before, GREEN 27 of 27 after (three identical runs); 24 paired mutants, 24 killed with the gate-logic fake, 15 killed with the real binary (9 fake-only). Scope: the attribute and textconv shapes of CON-438 are covered; other global or system git config keys are not neutralised, so CON-438 stays open. The shapes of CON-454, CON-455, CON-457 and CON-459 are covered by this fix; those items are left open for their reviewer. Limits: /etc/gitattributes untested; binaries are now scanned as text (longer runs); -m can duplicate findings on merges; a shallow clone now exits 3 (exit 3 is new for gitleaks_run_scan.sh).
 
+Lander follow-up (2026-11-17, link only, PR #19 review r1): F1 the needles live in a separate repository, so scanned-repository config (color.ui=always and similar) can hide a secret while the needles pass; F2 the default --diff-filter drops T, so a secret reached through a type change (symlink-to-file, gitlink-to-file) is not scanned; F7-F10 the fake scanner splits log-opts on any white space, the trailer cites CON-438 for a CON-453 fix, tracker text, and the gitleaksignore fingerprint change note.
+
 ## CON-454 — gitleaks_run_scan.sh: gitleaks detect reads history without -m, so a secret added only in a merge commit (evil merge) is missed (CON-435 review F1)
 
 **Status:** Queued
@@ -5383,6 +5403,8 @@ What: review F2 (important, pre-existing). A scanned repository can carry .git/i
 **Investigation:** root-cause-found-with-evidence — root-cause `renderer canonicalIDRe [A-Z]{3,}- disagreed with the parser's [A-Z]{3}- and non-canonical ids fell to the legacy dot heading that reads at most one hyphen part; decisive toggle: with one shared grammar the GREEN sweep keeps or refuses every shape (diff 0), with the old regexes 21 shapes are lost; round 2: every writer and sync md-to-db judged a part of the item (its id) instead of the whole text sync db-to-md writes for it, and md-to-db wrote one document per transaction; decisive toggle: the class sweep of 489 cases gives 171 violation verdicts on the round-1 engine and none on round 2 (331 RT_OK, 158 REFUSED with the database unchanged)` — evidence `docs/qa/engine_idgrammar_2026_11_17/class_green_r2_table.tsv` — updated 2026-11-17T03:18:55Z — by `AI`
 
 What: review F3 (important, engine source defect). workable-items add --id accepts an id such as CON-PENDING-x2, but the heading parser (parse.go, ^## [A-Z]{3}-[0-9A-Za-z]+) does not match a second hyphen, so a db to Markdown to db round trip silently drops the item. The CON-435 fixer worked around it with the one-hyphen placeholder CON-PENDINGcon435. Either add refuses an id the parser cannot read back, or the parser accepts what add writes. Related: the 2026-10-08 key-grammar owed engine work recorded in the section 11.4.54 / 11.4.248 EXTENSION (add does not enforce a key grammar), CON-391 (round-trip rewrite, different defect). Scope: scripts/workable-items (add, parse.go) and its tests. Reproduction: UNREPRODUCED here (review finding; the fixer's commit message records the drop). Acceptance: RED round trip with a two-hyphen id, GREEN after the fix, paired mutant killed. Source: independent review of the CON-435 vehicle (bundle 55b225f1, landed on main as merge 2ad83e18), verdict GO-with-follow-ups, evidence /mnt/DATA1TB/claude-work/scratch/rev_con435/ev/ outside the repository (SHA256SUMS sha256 56a680cb7d13c540ba086175cf1eac8470a27b98651993ca2420de26b38c04f8), gate-logic class for the fake scanner, host-only live for the real gitleaks (section 11.4.289).
+
+Lander follow-up (2026-11-17, link only): the r6 engine (head 41f7fa0a) landed PROVISIONAL in PR #18 (merge dfa9c494) without an independent review of the r6 fence-aware fixes. Owed: an independent review of the fencedMask / own-lines fix; kill or classify the mutant survivors N8 N9 N15 N19 N20 against the full package; re-author the NOCOMPILE mutants RV3 RV8 N11 N12; sh -n on the anchor-wired gates; the r5 census findings (2 unscrubbed evidence scripts, survivors RV4 RV6 RV9 RV10); the unblock paths (update --status, reopen, move) that leave the operator_block_details row; the description edit that can lose a block detail line. Probe on a copy of the real tracker at the landing: block CON-015 3916->3981 bytes, block CON-016 2778->2843, update --description CON-023 1914->1914 (no body loss seen; gate-logic, host-only). Also at the landing: the r6 export renders a **Severity:** line from the column, so three bodies without it (CON-266..268) made diff fail until repair-bodies rewrote them. Evidence: docs/qa/engine_idgrammar_2026_11_17/landing_main_68af5edb/.
 
 ## CON-457 — CON-435 tests: the fake gitleaks scanner ignores --log-opts, so mutant RM6 survives the fake-scanner suite (CON-435 review F4)
 
@@ -5896,6 +5918,8 @@ What: the CHANGELOG entry 'Unreleased - 2026-11-07 - ATM-1809 follow-ups of audi
 
 What: docs/release/helixconstitution-v73.4_entry.template.md line 66 (at 60177435) says 'no tracked file of this repository declares pull-request delivery (no config/delivery.conf ...), so section 11.4.288 applies as written and the release commit lands on main by a direct fast-forward push'. Since merge 83d3808a config/delivery.conf is tracked and line 49 reads mode=pr. A rendered v73.4 entry would state a false fact. Scope: that template paragraph (the draft /mnt/DATA1TB/claude-work/scratch/relprep.GRc4vl/draft/template_patched.md carries a proposed replacement). Reproduction: grep -n 'mode=' config/delivery.conf; sed -n 66p of the template (read by the lander). Acceptance: the paragraph states the declared mode and how this release commit actually lands, answered against rehearsal open question Q-6 (operator), reviewed. Related: CON-383 (template amendment), CON-496 (the declaration). Source: v73.4 release-prep draft /mnt/DATA1TB/claude-work/scratch/relprep.GRc4vl/draft (outside the repository; SHA256SUMS sha256 c3096ff57234aff26af53012e320278e71d978077aab97cd5bbcba5f5c27f709, all entries verified OK by the lander 2026-11-17), read at main 60177435.
 
+Lander follow-up (2026-11-17, link only): release-prep PR #16 merged with r2 GO-with-follow-ups plus N4 important and r3 pending; the N4 and r3 findings are not in the tracker (content UNCONFIRMED, to be read from the review records). The round-3 fix (fact-output integrity, calendar dates, reviewer mutants) is merged with main PROVISIONAL; its netgate pin was regenerated with pin-regen on the merged release scripts, so the merged bytes are pinned by the tool, not re-reviewed.
+
 ## CON-513 — render_release_entry.py accepts DRAFT and placeholder text in manual keys (cut_date not checked as YYYY-MM-DD) and exits 0 (rehearsal B-M4)
 
 **Status:** Ready for testing
@@ -5912,6 +5936,8 @@ Link (section 11.4.214, open original, link only; 2026-11-17): the rehearsal-fix
 Implementation (landing 2026-11-17): landed by merge e1dab6f8 (main), merge of the release-machinery stack prefix 85f4e880 onto ebd8818c; the stack commits carry the placeholder trailers CON-PENDING-relmach-bm1 (=CON-514), CON-PENDING-relmach-bm4 (=CON-513) and CON-PENDING-relmach-bm2 (=CON-515), mapped here because history is not rewritten (section 11.4.113; review N7). B-M3 (CON-516) is not in this landing. Commit: 87923dc6 (B-M4). Review: GO-with-follow-ups, Source: independent review /mnt/DATA1TB/claude-work/scratch/rev_relmach_safe.CFVOB2/REVIEW.md (outside the repository; sha256 32480bf84cf64d245c75f800d7d4f2b34c0c450d66a5bb8caee0de4bf9982522; directory SHA256SUMS sha256 32fbefc36b0bf9675f83c9ffc93b45e5d4f75d1626907c6ff3eb4956ebf6f956, verified by the lander 2026-11-17), verdict GO-with-follow-ups of the release-machinery safe subset (B-M1 87d61ba4, B-M4 87923dc6, B-M2 85f4e880), landed on main by merge e1dab6f8. Follow-up per section 11.4.276(G.2); evidence class gate-logic (section 11.4.289); not re-run by the lander. Follow-ups: CON-527, CON-528, CON-532, CON-535.
 
 **Verification:** provisional (section 11.4.290) -- job: re-run tests/release/test_render_release_entry.sh (expect 100 passed, 0 failed), tests/release/test_publish_gitea.sh (238/0), tests/release/test_tag_and_release.sh (459/0) and tests/release/test_channel_census.sh (100/0) on main after landing -- checks: the RED cases of the slice stay GREEN and the paired mutants stay killed -- layer: gate-logic (host-only; class floor not met for a runtime claim) -- target: host, repo checkout -- artifact: main at merge e1dab6f8 -- due: next full-suite run.
+
+Lander follow-up (2026-11-17, link only): the renderer marker fold (P1) is still not applied to split or hidden markers: T/B/D, T0D0 and a small-capital TBD render with rc 0.
 
 ## CON-514 — render_release_entry.py retest verdict vocabulary (PASS-FULL, PARTIAL-TOPOLOGY, FAIL, NOT RUN) differs from run_full_suite.sh's, so a true result can only be written as a wrong word (rehearsal B-M1)
 
@@ -5983,6 +6009,8 @@ What: the sync-all-upstreams vehicle (operator order 2026-11-12: recursive fetch
 
 Foreign ids (provisional ids of an unlanded vehicle, named before this landing; not the items that hold these numbers after it): CON-425
 
+Lander follow-up (2026-11-17, link only): round 14 (RV13-1..6) landed PROVISIONAL in PR #25 (merge 0d9bfff6). Open: RV13-1 stage-pin on a case-insensitive index can overwrite another submodule's entry and the old value is not recorded; RV13-2 the stage-pin failure test checks only a non-zero exit (reviewer mutant RV13F survives); config --get/--get-regexp take any key, decide the placeholders CON-PENDINGsync1/2; RV13-3..8 test gaps (symbolic refs to tags and remote refs, conflict entries, rev-list shape) and wording. At the landing tests/sync/test_faults.sh timed out at 900 s under host load with no verdict (INCONCLUSIVE, owed); the other eleven sync suites passed (gate-logic, host-only).
+
 ## CON-520 — Per-unit timeout budget for slow codegraph tests: test_codegraph_mcp_preflight.sh and test_unit_safe.sh hit the runner's 300 s per-unit limit under host load 40-56
 
 **Status:** Queued
@@ -6011,6 +6039,8 @@ Source: the v73.4 PROVISIONAL cut rehearsal of 2026-11-16 (REHEARSAL_REPORT.md s
 Acceptance (test-first, section 11.4.224): RED tests on the unfixed tools, then GREEN; paired mutants killed; a checker refuses every Ready-for-testing or In-testing item without a complete verification line, run on the real database; the six items carry complete lines written through the engine. Follow-ups of the same rehearsal: D1 (CON-379), D6 (CON-381, CON-382), D7, D8 and D11 (filed separately).
 
 Related: CON-513 (D5, D9), CON-517 (D3, D4), CON-516 (D10 is a neighbour), CON-379 (D1), CON-381 and CON-382 (D6).
+
+Lander follow-up (2026-11-17, link only): PR #17 landed PROVISIONAL (merge 03e6645e) and the round-10 checker commits are merged with main separately. Open: D9 (a date also with --draft) is not enforced, the landing kept B-M4; DR2 was dropped and the C56 controls changed at the merge; the full release mutation run was stopped and is owed; the manifest generator classified the reviewed pvl helper rows as unreviewed/excluded (the vehicle's rows were restored by hand from ea667a9d; why the generator did so is not investigated); r9 F1 look-alike Verification labels (Greek nu, long s, NEL, U+1D07); r9 F2/F3 bodies are checked one at a time although readers render the concatenated Issues.md; F6-F8 declared limits (DOCX/PDF export not read, '**Verification** job:' accepted); P2, P3, P5 stated limits; check tokens such as fail=0 are expected outcomes, not grepped text (PR #23 M2). The checker on main after PR #23 reported items=503 provisional=30 ok=16 fail=14 (raw-HTML angle tokens in bodies), so 14 provisional lines do not pass the checker on main.
 
 ## CON-522 — CON-443 review F1: mutant V02 (LDC_REF=HEAD in the lander) is not equivalent; add case D11b (HEAD detached at the same commit, then main moved) and correct the V02 note and the drift-check-head-repoint follow-up text
 
@@ -7160,4 +7190,130 @@ every one of the strings is rewritten through the engine with a placeholder (for
 Parent / links: round-5 review of the tracker-intake vehicle (owed item 5); umbrella CON-540 (tracker intake umbrella)
 Duplicate check (section 11.4.214): DISTINCT; no open item names identity strings in the tracker database. Method: every open item searched for the words identity, home path and user name.
 Origin: tracker-intake vehicle 2026-11-12, filed in its round 6 on 2026-11-14 (sections 11.4.202, 11.4.210, 11.4.148, 11.4.197, 11.4.214); intake only, not a fix. Ids minted here on base 02c10935 are re-minted by the lander if they collide (section 11.4.214).
+
+## CON-585 — Secret scanners skip a tag that points straight at a blob or tree (PR #19 review F3)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** High
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+A lightweight or annotated tag that points directly at a blob or tree is skipped by git log --all in both gitleaks_run_scan.sh and history_secret_scan.sh, so a secret stored that way is not scanned. Acceptance: a fixture with such a tag holding a needle is found by both scanners; paired mutant. PROVISIONAL finding, gate-logic. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-586 — gitleaks_run_scan.sh: forced log options after the caller's -- and white space in --log-opts give a false PASS (PR #19 review F4)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** High
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+The forced -m --text --no-textconv options are appended after the caller's --, where git reads them as pathspecs, so --log-opts containing -- disables them; white space in log-opts is split. Apply the reviewer patch, refuse a non-single-token log-opts. PROVISIONAL finding, gate-logic. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-587 — gitleaks pre-flight refuses a clean repository on git's rename-limit warning (PR #19 review F5)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+The pre-flight refuses any git stderr, including the rename-limit warning, so a repository with one commit renaming many files cannot be scanned (false refusal, section 11.4.201(1)). PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-588 — gitleaks scan tests: kill the six surviving round-1 reviewer mutants (PR #19 review F6)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Six round-1 reviewer mutants survive (pre-flight stderr, argument derivation, negative needle and others). Add checks that kill each, or record each as equivalent with a reason. PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-589 — gitleaks self-check ignores GITLEAKS_CONFIG and may fall back silently when the config file is missing (PR #19 review item 7)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+The self-check runs gitleaks without --config, but gitleaks reads the GITLEAKS_CONFIG environment variable, so an inherited value changes the rules of the self-check; whether a missing file falls back silently is UNCONFIRMED. PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-590 — secret_canon.hits() misses credential keys with an unlisted tail word (PR #21 review finding 1)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** High
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Keys such as SECRET_KEY_BASE are not matched because the tail word is not in TAIL_OK. Invert the rule to a deny-list of meta tails. PROVISIONAL finding, gate-logic. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-591 — Secret readers miss an unquoted IDENTIFIED BY value, heredoc values and leet or rot13 key names (PR #21 review finding 2)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** High
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Both readers miss these shapes, or the limits are not declared. Close the shapes or declare them as honest limits with tests. PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-592 — git-env census: add a --no-recurse symbolic-ref read needle and kill the SYMREF_READ survivors (PR #22 review item 3)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+Mutants that remove |--no-recurse or turn the first \s+ into \s* in SYMREF_READ survive; no needle reads symbolic-ref --no-recurse. The reviewer patch R14-C1 was applied at the landing. PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-593 — Issues.md export: CON-112 and CON-113 text '</dev/null)' breaks the pandoc render (PR #17 r10 README)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+pandoc reads the text as raw HTML, so the exported document is wrong (DOC-FAIL). Escape or code-quote the text through the engine. PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-594 — Operator decision: Ready-for-testing items that state no scheduled verification job (PR #17 r3 follow-up F1)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+28 Ready-for-testing items say 'no scheduler entry exists', contrary to section 11.4.290(C) (the job is scheduled at marking or the item stays In progress). Operator choice: schedule the jobs or demote the items. PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-595 — tag_and_release.sh aborts when two remotes name one repository, and the vasic-digital release leg has no flag (relprep checklist B2/B3/B4)
+
+**Status:** Queued
+**Type:** Bug
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+With origin=gitflic and a gitflic remote naming the same repository the cut aborts; the vasic-digital release leg cannot be selected. PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-596 — Release tests: pin the Unicode version for the pvl floors; fix the redirect order at test_tag_and_release.sh:706 (PR #17 r4 P4/P6)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+pvl_inventory.py floors are counts on Unicode 16.0.0 and change with the interpreter's Unicode version; one redirect in test_tag_and_release.sh is in the wrong order. PROVISIONAL finding. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-597 — Jev decision-layer vehicle: register the round-14 NO-GO findings (PR #20 merged PROVISIONAL at fe8aad96)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+PR #20 merged PROVISIONAL after a NO-GO in review round 14; the findings are not in the tracker (content UNCONFIRMED: read them from the review record and file each). PROVISIONAL. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-598 — workable-items r6 export renders **Severity:** from the column, so a body without the line fails diff until repair-bodies
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Low
+**Created-By:** Claude Opus 5.5 (lander subagent)
+
+At the PR #18 landing CON-266, CON-267 and CON-268 had severity Low and no Severity body line; the export added the line and diff reported 18-byte body differences. repair-bodies fixed the three. Decide whether the exporter or the body is canonical and make add/update keep them consistent; regression test. PROVISIONAL, gate-logic. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
 
