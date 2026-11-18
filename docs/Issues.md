@@ -4659,14 +4659,14 @@ Link (section 11.4.214, open original, link only; 2026-11-17, release prep): doc
 
 ## CON-380 — v73.4 wrap-up: CHANGELOG first heading and release record for the cut (tag_and_release preflight requires the heading)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (filing subagent)
 
 What: the first CHANGELOG heading must become the v73.4 heading at the cut, keeping older Unreleased entries; the release record and regenerated tracker docs follow. Scope: CHANGELOG.md, docs/release. Reproduction: not applicable. Acceptance: heading and release record match the cut facts. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89.
 
-## CON-381 — v73.4: the section 11.4.40 full-suite retest is not registered in the tracker
+## CON-381 — v73.4: the section 11.4.40 --include-heavy retest and section 11.4.185 confirmation of the v73.4 candidate are owed (retest not yet run on the cut)
 
 **Status:** Queued
 **Type:** Task
