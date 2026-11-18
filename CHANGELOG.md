@@ -105,6 +105,7 @@ helixconstitution-v73.5 opens in the same write. Carried into it under their own
 3. A §11.4.260 production-readiness tracker exists and no (L7) entry is open.
 4. The §11.4.288 refs above are landed or retired.
 5. The tag name (v73.5 or v74) is an operator choice; the FINAL heading carries no `PROVISIONAL`.
+
 ## Unreleased — 2026-11-17 — workable-items engine: one fence-aware definition of an item's own lines; fenced headings and table rows mint no item (CON-456, round 6)
 
 **Status of this entry: UNRELEASED; PROVISIONAL (§11.4.290), not VERIFIED-DONE; evidence class gate-logic and host-only; not independently reviewed after round 6 (§11.4.142).**
