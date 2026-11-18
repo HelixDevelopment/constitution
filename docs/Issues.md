@@ -4679,6 +4679,8 @@ Link (section 11.4.214, open original, link only; 2026-11-17, release prep): thi
 
 Lander follow-up (2026-11-17, link only, relprep checklist B6): the retest statement says PARTIAL-TOPOLOGY, but the runner RESULT is FAIL (40 unexplained; default tier, allow-topology-gaps, base ebd8818c); the statement must say FAIL.
 
+Release cut (2026-11-18): the 'has no item' wording above describes the state before this item was filed; this item is the owed retest. The v73.4 entry and the waiver record docs/operator_decisions/2026-11-18_waiver_v73.4.md cite it as the owed work; the recorded run (default tier, --allow-topology-gaps, base ebd8818c) is FAIL and was not re-run on the cut, so the retest of the v73.4 candidate is NOT RUN.
+
 ## CON-382 — v73.4 waiver: record the section 11.4.271 waiver (authoriser, expiry, source) and fix the draft wording 'relaxes (L7)'
 
 **Status:** In progress
@@ -4690,7 +4692,9 @@ What: the waiver for the v73.4 cut is not recorded, and waiver_v734.draft.md sti
 
 Lander follow-up (2026-11-17, link only, relprep step 1.4): the waiver record docs/operator_decisions/2026-11-17_waiver_v73.4.md is still not committed.
 
-Release cut (2026-11-18): the waiver W-v73.4-01 is recorded at docs/operator_decisions/2026-11-18_waiver_v73.4.md (authoriser i@mvasic.ru, rostered; expiry 2026-12-18; tracked item CON-381; the record says the release overrides the (L1), (L6), (L7) conditions of section 11.4.230(F.3)(2) on an operator decision and does not waive them, so the 'relaxes (L7)' wording is not used). Committed on the release pull request ahead of the release commit; PROVISIONAL (section 11.4.290) until that pull request is merged and the tag reads back.
+Release cut (2026-11-18): the waiver W-v73.4-01 is recorded at docs/operator_decisions/2026-11-18_waiver_v73.4.md (authoriser i@mvasic.ru, rostered; expiry 2026-12-18; tracked item CON-381 (the owed retest and confirmation of the v73.4 candidate); the record says the release overrides the (L1), (L6), (L7) conditions of section 11.4.230(F.3)(2) on an operator decision and does not waive them, so the 'relaxes (L7)' wording is not used). Committed on the release pull request ahead of the release commit; PROVISIONAL (section 11.4.290) until that pull request is merged and the tag reads back.
+
+Review round 2 of the release pull request (2026-11-18): the record now cites the source of its terms (docs/operator_decisions/2026-11-11_relayed_decisions.md, decision 4, Release v73.4) and states that no agent-roster QA ran for this cut.
 
 ## CON-383 — v73.4: the release template amendment conflicts with fix227 and is neither landed nor reviewed
 
@@ -7325,5 +7329,16 @@ At the PR #18 landing CON-266, CON-267 and CON-268 had severity Low and no Sever
 **Type:** Task
 **Severity:** Medium
 
-What: at the v73.4 cut (2026-11-18, release branch base cbbb9de4) bash scripts/gates/cm_zero_findings_monotone_ratchet.sh exits 1 with reason=RATCHET_SNAPSHOT_MISSING (docs/findings/zero_findings_ratchet.tsv, section 11.4.261(C) brownfield ceiling) and bash scripts/gates/cm_escape_ratchet.sh exits 2 with 'ledger not readable: docs/requests/discovery_channel.jsonl' (section 11.4.238). Neither file has ever been tracked (git log --all on both paths is empty). Scope: the two data files, and whether either gate is on a release seam. Reproduction: run the two commands on a fresh clone of main. Acceptance: the brownfield snapshot is recorded by operator decision (section 11.4.66, section 11.4.224(E) adoption fence) and the discovery-channel ledger is created, or the gates are recorded as not applicable with a reason; the gates exit 0 on main. Not fixed in v73.4; listed among its known gaps. Source: v73.4 release cut agent, scratch clone /mnt/DATA1TB/claude-work/scratch/cut_v73_4_015812 (outside the repository).
+**What:** at the v73.4 cut (2026-11-18) bash scripts/gates/cm_zero_findings_monotone_ratchet.sh exits 1 with reason=RATCHET_SNAPSHOT_MISSING (docs/findings/zero_findings_ratchet.tsv, the section 11.4.261(C) brownfield ceiling) and bash scripts/gates/cm_escape_ratchet.sh exits 2 with "ledger not readable: docs/requests/discovery_channel.jsonl" (section 11.4.238). Neither file has ever been tracked (git log --all on both paths is empty).
+
+**Affected scope / file-scope manifest:**
+docs/findings/zero_findings_ratchet.tsv, docs/requests/discovery_channel.jsonl, scripts/gates/cm_zero_findings_monotone_ratchet.sh, scripts/gates/cm_escape_ratchet.sh
+
+**Reproduction / context:**
+Run the two commands on a fresh clone of main; found by the v73.4 release cut agent in a scratch clone outside the repository.
+
+**Acceptance criteria:**
+The brownfield snapshot is recorded by operator decision (section 11.4.66, section 11.4.224(E) adoption fence) and the discovery-channel ledger is created, or the gates are recorded as not applicable with a reason; both gates exit 0 on main. Not fixed in v73.4; listed among its known gaps.
+
+Parent / links: none
 

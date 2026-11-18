@@ -38,16 +38,16 @@ MTPY
 chk(){ if ! mt "$1" "$2" "$3"; then bad "$1 could not be applied"; elif t "$W/$1.md" "$C"; then bad "$1 ($4) is caught"; else ok "$1 ($4) is caught: $(grep '^FAIL' "$W/out" | tr '\n' '|')"; fi; }
 chk T1 '(a PROVISIONAL declaration of 2026-11-16, decision `OPD-2026-11-16-PR-DELIVERY`: its own header says no delivery tool reads it yet and nothing is ENFORCED, §11.4.297(G))' '(ENFORCED and verified)' "reviewer T1: status claimed ENFORCED and verified"
 chk T2 '`config/delivery.conf` is tracked on `main` and declares `mode=pr`' 'this repository declares no pull-request delivery; `mode=pr` is a draft' "reviewer T2: declaration denied in other words"
-chk M5 "this release's own landing follows" "this release's own landing (decision 8 of the 2026-11-11 relayed decisions kept delivery direct) follows" "the superseded decision 8 cited again"
+chk M5 "the operator's relayed answer of 2026-11-16" "the operator's relayed answer of 2026-11-16 (decision 8 of the 2026-11-11 relayed decisions kept delivery direct)" "the superseded decision 8 cited again"
 chk M6 'decision `OPD-2026-11-16-PR-DELIVERY`: ' '' "the declaration's decision id dropped"
-chk M7 'and pull-request mode applies after the release.' 'and pull-request mode applies after the release; whether that is right is the operator'"'"'s open question.' "the answered question called open"
-chk M8 'with no pull requests,' 'with no pull requests (verified),' "the paragraph claims verified"
+chk M7 'merged with merge commits. The release commit' 'merged with merge commits; whether that is right is the operator'"'"'s open question. The release commit' "the answered question called open"
+chk M8 'with no pull requests;' 'with no pull requests (verified);' "the paragraph claims verified"
 # round 3 (review of f4c6e8ab, N2): the reviewer's TX mutants. The test read keywords, so a wording that keeps the
 # words but reverses or inflates the statement passed; the test now pins the exact sentences and the record's cells.
 chk TX1 '(a PROVISIONAL declaration of' '(a binding declaration of' "reviewer TX1: the declaration loses its PROVISIONAL status"
 chk TX4 ', PROVISIONAL, wording UNCONFIRMED)' ', PROVISIONAL)' "reviewer TX4: the UNCONFIRMED wording label dropped"
-chk TX5 'and pull-request mode applies after the release.' 'and pull-request mode applies to the release commit itself.' "reviewer TX5: pull-request mode applied to the release commit"
-chk TX6 'the rest of this release queue lands by fast-forward push with no pull requests' 'the release lands through a pull request; fast-forward with no pull requests was rejected' "reviewer TX6: the landing statement reversed"
+chk TX5 'The release commit itself lands on `main` through its own pull request, merged with a merge commit' 'The release commit itself is pushed fast-forward to `main` with no pull request' "TX5 (v73.4 cut): the release commit said to bypass its pull request"
+chk TX6 'and then through pull requests #14 to #29 merged with merge commits' 'and then by squash merges of pull requests #14 to #29' "TX6 (v73.4 cut): the landing statement reversed (squash instead of merge commits)"
 chk TX7 ', PROVISIONAL, wording UNCONFIRMED)' ', PROVISIONAL, wording UNCONFIRMED, operator-confirmed)' "reviewer TX7: the record called operator-confirmed"
 # record mutants: a copy of the cited record under a temporary root (RTD_ROOT), edited with an exact replace
 REC=docs/operator_decisions/2026-11-16_release_landing.md
