@@ -186,8 +186,8 @@ PYCALL_RE = re.compile(r"subprocess\.|os\.system\(|os\.popen\(|Popen\(|check_out
 PYW_RE = re.compile(r"""\b\w*git\w*\((?:[^,()"'\n]+,\s*)?\[?\s*["'](?:""" + WRITE + r""")["']""")
 PY_DEF = re.compile(r"^(\s*)def\s+([A-Za-z_]\w*)\s*\(")
 GO_RE = re.compile(r"""exec\.Command(?:Context)?\([^)]*"git"\s*,\s*(?:"[^"\n]*"\s*,\s*|[\w.*]+\s*,\s*)*"(?:""" + WRITE + r""")\"""")
-CANON_SH = re.compile(r"""^for _ge_v in ([A-Z_ ]+); do unset "\$_ge_v"; done; unset _ge_v(?:\s+#.*)?$""")
-CANON_SH_ANY = re.compile(r"""^\s*for _ge_v in ([A-Z_ ]+); do unset "\$_ge_v"; done; unset _ge_v(?:\s+#.*)?$""")
+CANON_SH = re.compile(r"""^for _ge_v in ([A-Z_ ]+); do unset "\$_ge_v"; done; unset _ge_v(?:[ \t]+#.*)?$""")
+CANON_SH_ANY = re.compile(r"""^[ \t]*for _ge_v in ([A-Z_ ]+); do unset "\$_ge_v"; done; unset _ge_v(?:[ \t]+#.*)?$""")
 CANON_JS = re.compile(r"""^for \(const _ge_v of "([A-Z_ ]+)"\.split\(" "\)\) delete process\.env\[_ge_v\];(?:\s*//.*)?$""")
 JS_PREAMBLE = re.compile(r"""^(?:\s*//.*|\s*/\*.*\*/\s*|\s*['"]use strict['"];?\s*)$""")
 LIBCALL = re.compile(r"(?:^|[\s;&|(])cl_scrub_git_env\b")
@@ -226,8 +226,77 @@ def _ok_char(ch, ascii_only=False):
             and not ch.isspace())
 
 
+BINARY_MAGIC = (b"\x7fELF", b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"MZ\x90\x00", b"MZ\x00\x00")
+PY_COOKIE = re.compile(r"^[ \t\f]*#.*?coding[:=][ \t]*([-\w.]+)")
+PY_COOKIE_OK = ("utf-8", "utf8", "ascii", "us-ascii")
+
+
+def hidden_mention_problem(lang, text):
+    """(line, reason) for the two reading classes that can hide even the word `git` from this census, so they are
+    judged BEFORE the member test (CON-450 round 5, review R4-1 / R4-3): a NUL byte (bash drops it, so `g<NUL>it add`
+    runs git; Python refuses such a source) and a Python coding cookie other than utf-8 / ascii in line 1 or 2 (the
+    interpreter decodes the file with it, this census with UTF-8: `# coding: utf-7` hides statements and the word)."""
+    if lang not in ("sh", "py", "js"):
+        return None
+    if "\0" in text:
+        no = text[:text.index("\0")].count("\n") + 1
+        return no, "a NUL byte: bash ignores it, so the file runs as another text than this census reads; not modelled, fail-closed (CON-450 r5)"
+    if lang == "py":
+        for no, l in enumerate(text.split("\n", 2)[:2], 1):
+            m = PY_COOKIE.match(l)
+            if m and m.group(1).lower().replace("_", "-") not in PY_COOKIE_OK:
+                return no, ("a Python coding cookie `%s` in line %d: the interpreter decodes the file with it, this census with "
+                            "UTF-8; only utf-8 / ascii are modelled, fail-closed (CON-450 r5)" % (m.group(1), no))
+    return None
+
+
+def sh_continued(lines):
+    """[bool] per line: True when the line continues the previous one (that line's code part ends in an odd run of
+    backslashes, so bash removes backslash-newline and joins them). Such a line is not a comment line even when it
+    starts with `#`: after the join the `#` is in the middle of a word unless a blank precedes it (CON-450 r5, R4-4)."""
+    return [x[1] for x in _sh_logical(lines)]
+
+
+def _sh_logical(lines):
+    """[(code part, continued)] per physical line: comments blanked as bash decides them. A comment line (blanks, then
+    `#`) outside a continuation is blank; a continued line is decided on the JOINED text, so `echo x\\` + `#; cmd`
+    keeps `#; cmd` as code while `echo x \\` + `#; cmd` (a blank before the `#`) is a comment. The body of a heredoc
+    is data to the shell that reads it but bash runs the substitutions of an unquoted one and has no comments there,
+    so a body line is never blanked as a comment (it stays text for the write detector)."""
+    out = []
+    acc = None
+    pending = []
+    for l in lines:
+        if pending:
+            word, dash = pending[0]
+            out.append((l, False))
+            if (l.lstrip("\t") if dash else l) == word:
+                pending.pop(0)
+            continue
+        if acc is None:
+            if SH_COMMENT_LINE.match(l):
+                out.append(("", False))
+                continue
+            s = strip_sh_comment(l)
+            cont = False
+        else:
+            s = strip_sh_comment(acc + l)[len(acc):]
+            cont = True
+        out.append((s, cont))
+        if (len(s) - len(s.rstrip("\\"))) % 2 == 1:
+            acc = ((acc or "") + s)[:-1]
+        else:
+            acc = None
+            for m in HEREDOC_RE.finditer(s):
+                pending.append((m.group(3), m.group(1) == "-"))
+    return out
+
+
 def reading_problem(lang, text):
     """(line, reason) where the file leaves what this census models of its interpreter's reading, or None."""
+    hm = hidden_mention_problem(lang, text)
+    if hm is not None:
+        return hm
     if lang in ("py", "js"):
         bad = "\r" if lang == "py" else "\r\u2028\u2029"
         for no, l in enumerate(text.split("\n"), 1):
@@ -240,11 +309,12 @@ def reading_problem(lang, text):
         return None
     lines = text.split("\n")
     canon_at = next((i for i, l in enumerate(lines, 1) if CANON_SH_ANY.match(l)), 0)
+    conts = sh_continued(lines)
     for no, l in enumerate(lines, 1):
         if no == 1 and l.startswith("#!") and l not in SH_SHEBANGS:
             return no, ("line 1 is a #! line outside the closed set (%s): a file run directly runs its shebang's "
                         "arguments before line 2; not modelled, fail-closed (CON-450 r4)" % ", ".join(SH_SHEBANGS))
-        com = bool(SH_COMMENT_LINE.match(l))
+        com = bool(SH_COMMENT_LINE.match(l)) and not conts[no - 1]
         pre = no <= canon_at
         rest = l.lstrip(" \t")
         for col, ch in enumerate(l, 1):
@@ -362,7 +432,7 @@ def code_lines(lang, text):
     """List of the file's lines with comments (and python docstrings) blanked; same line numbering."""
     lines = text.split("\n")
     if lang == "sh":
-        return [strip_sh_comment(l) if not SH_COMMENT_LINE.match(l) else "" for l in lines]   # bash blanks only (r4)
+        return [c for c, _k in _sh_logical(lines)]   # bash's blanks only (r4); continuation- and heredoc-aware (r5)
     if lang in ("go", "js"):
         return ["" if l.lstrip().startswith("//") else l for l in lines]
     if lang != "py":
@@ -874,6 +944,9 @@ def judge(lang, text, canon):
        WRAPPER   no file-level scrub, every detected write goes through a scrubbed wrapper (needs a
                  sourced-library row or the canonical line)."""
     raw = text.split("\n")
+    hm = hidden_mention_problem(lang, text)
+    if hm is not None:
+        return "UNSCRUBBED", hm[0], hm[1], []
     mm = MENTION.search(text)
     if mm is None:
         return None, 0, "", []
@@ -1143,7 +1216,45 @@ def needles(canon):
         ("js LSEP ends a comment", "js", "#!/usr/bin/env node\n// c\u2028execFileSync('git', ['init']);\n" + js_scrub, None, "UNSCRUBBED"),
         ("js CR ends a comment", "js", "#!/usr/bin/env node\n// c\rexecFileSync('git', ['init']);\n" + js_scrub, None, "UNSCRUBBED"),
     ]
+    # CON-450 round 5 (review R4-1 / R4-3 / R4-4 and the reviewer's GM1 / GM3 / GM4 mutants): each sample is a member that
+    # the interpreter runs differently from what the round-4 census read, or the needle a surviving mutant lacked.
+    pad = "# pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad pad\n"
+    hide_py = '# x +AAo-import subprocess+AAo-subprocess.run(["git","add","-A"])\n'
+    cases += [
+        ("sh NUL inside the word git", "sh", "#!/bin/bash\n" + pad + "g\x00it add -A\n", None, "UNSCRUBBED"),
+        ("sh NUL after a scrub", "sh", "#!/bin/bash\n" + sh_scrub + "echo x\x00\ngit init -q x\n", None, "UNSCRUBBED"),
+        ("sh NUL, no git word at all", "sh", "#!/bin/bash\necho hi\x00\n", None, "UNSCRUBBED"),
+        ("py NUL", "py", py_scrub + 'import subprocess\nsubprocess.run(["git", "init", d])\n# n\x00\n', None, "UNSCRUBBED"),
+        ("py utf-7 cookie hides a write", "py", "# -*- coding: utf-7 -*-\n" + hide_py + py_scrub, None, "UNSCRUBBED"),
+        ("py utf-7 cookie on line 2", "py", "#!/usr/bin/env python3\n# vim: set fileencoding=utf-7 :\n" + hide_py + py_scrub, None, "UNSCRUBBED"),
+        ("py utf-7 cookie hides even the word git", "py", "# coding: utf-7\nimport subprocess\nsubprocess.run(['+AGc-+AGk-+AHQ-'.encode().decode('utf-7'), 'add'])\n", None, "UNSCRUBBED"),
+        ("py latin-1 cookie", "py", "# -*- coding: latin-1 -*-\n" + py_scrub + 'import subprocess\nsubprocess.run(["git", "init", d])\n', None, "UNSCRUBBED"),
+        ("py utf-8 cookie, scrubbed", "py", "# -*- coding: utf-8 -*-\n" + py_scrub + 'import subprocess\nsubprocess.run(["git", "init", d])\n', None, "HERMETIC"),
+        ("py utf8 cookie on line 2, scrubbed", "py", "#!/usr/bin/env python3\n# coding=UTF8\n" + py_scrub + 'import subprocess\nsubprocess.run(["git", "init", d])\n', None, "HERMETIC"),
+        ("py cookie on line 3 is ignored by python", "py", "#!/usr/bin/env python3\n#\n# coding: utf-7\n" + py_scrub + 'import subprocess\nsubprocess.run(["git", "init", d])\n', None, "HERMETIC"),
+        ("sh continuation then # line hides a write, text row", "sh", "#!/bin/sh\necho x\\\n#; git commit -qm x\n", ("no-git-execution", "x", ""), "UNSCRUBBED"),
+        ("sh two continuations then # line, text row", "sh", "#!/bin/sh\necho x\\\n#\\\n#; git commit -qm x\n", ("no-git-execution", "x", ""), "UNSCRUBBED"),
+        ("sh blank + continuation then # is a comment, text row", "sh", "#!/bin/sh\necho x \\\n#; git commit -qm x\n", ("no-git-execution", "x", ""), "EXEMPT"),
+        ("sh comment line ending in a backslash is no continuation, text row", "sh", "#!/bin/sh\n# note \\\n#; git commit -qm x\n", ("no-git-execution", "x", ""), "EXEMPT"),
+        ("sh heredoc body # line runs a substitution, text row", "sh", "#!/bin/sh\ncat <<EOF\n# $(git commit -qm x)\nEOF\n", ("no-git-execution", "x", ""), "UNSCRUBBED"),
+        ("sh NBSP before # on the canonical line", "sh", "#!/bin/bash\nfor _ge_v in %s; do unset \"$_ge_v\"; done; unset _ge_v\u00a0# x; export GIT_DIR=/inh\ngit init -q x\n" % lst, None, "UNSCRUBBED"),
+        ("sh Unicode in the tail comment of the canonical line", "sh", "#!/bin/bash\n" + sh_scrub.rstrip("\n") + " # \u00e9\ngit init -q x\n", None, "UNSCRUBBED"),
+        ("sh shebang -O extdebug", "sh", "#!/bin/bash -O extdebug\n" + sh_scrub + "git init -q x\n", None, "UNSCRUBBED"),
+    ]
     bad = []
+    # direct checks of the pieces a member-only needle cannot reach (a file that never names git still reaches them)
+    for what, got, want in (
+        ("code_lines keeps a VT-led `#;` line as code", ". ./lib/x.sh" in "\n".join(code_lines("sh", "#!/bin/sh\n\x0b#;. ./lib/x.sh\n")), True),
+        ("code_lines keeps a continued `#` line as code", "git add" in "\n".join(code_lines("sh", "echo x\\\n#; git add -A\n")), True),
+        ("code_lines blanks a blank-joined `#` line", "git add" in "\n".join(code_lines("sh", "echo x \\\n#; git add -A\n")), False),
+        ("code_lines blanks a plain comment line", "git add" in "\n".join(code_lines("sh", "# git add -A\n")), False),
+        ("code_lines keeps a heredoc `#` body line", "git add" in "\n".join(code_lines("sh", "cat <<EOF\n# $(git add -A)\nEOF\n")), True),
+        ("sh_continued marks the second line", sh_continued(["a\\", "b", "c"]), [False, True, False]),
+        ("hidden_mention_problem sees a NUL", hidden_mention_problem("sh", "a\x00b\n") is not None, True),
+        ("hidden_mention_problem leaves a CRLF file to reading_problem", hidden_mention_problem("sh", "a\r\n"), None),
+    ):
+        if got != want:
+            bad.append("direct check %s: got %r, want %r" % (what, got, want))
     for name, lang, text, row, want in cases:
         st, line, detail, ws = judge(lang, text, canon)
         if st is not None:
@@ -1182,7 +1293,7 @@ def needles(canon):
     for sp, se, st_, sx, want in shapes:
         if shaped_data(sp, se, st_, sx) != want:
             bad.append("shape rule on %s %r exec=%s: got %s" % (sp, st_[:40], sx, not want))
-    return bad, len(cases) + 7 + len(shapes)
+    return bad, len(cases) + 15 + len(shapes)
 
 
 def git_env(canon):
@@ -1309,9 +1420,6 @@ def main(argv):
             inv["absent"] += 1
             problems.append("cannot read %s: %s" % (f, e))
             continue
-        if b"\0" in b:
-            inv["binary"] += 1
-            continue
         text = b.decode("utf-8", "replace")
         executable = mode == "100755"
         base = f.rsplit("/", 1)[-1]
@@ -1320,6 +1428,12 @@ def main(argv):
         # over the executable bit: an executable file can be run as `./file` whatever its name
         lang = None if ((ext in DATA_EXT and not executable) or shaped_data(f, ext, text, executable)) \
             else lang_of(f, text[:200], executable)
+        if b"\0" in b and (lang is None or b[:4] in BINARY_MAGIC):
+            # round 5 (R4-3): only a file that is NOT code, or a native executable (ELF / Mach-O / PE magic, which the
+            # kernel runs itself and never as a script), is set aside as binary; a script with a NUL byte is judged
+            # (bash ignores a NUL after line 1 and runs the file, so `skip as binary` was a hole)
+            inv["binary"] += 1
+            continue
         if lang is None:
             if ext and ext not in DATA_EXT and not shaped_data(f, ext, text, executable):
                 inv["unclassified"] += 1

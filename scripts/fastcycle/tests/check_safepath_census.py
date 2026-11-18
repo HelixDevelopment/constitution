@@ -100,9 +100,11 @@ CONVERGENCE document embeds -- and a SUMMARY line. Exit 0 no violation, 1 at lea
 import os as _ge_os  # git-env-hermetic: clear the caller's repository-locating git variables first (list = CL_GIT_SCRUB_VARS of scripts/lib/constitution_layout.sh; checked by scripts/validation/git_env_class_census.py)
 for _ge_v in "GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_REPLACE_REF_BASE GIT_NO_REPLACE_OBJECTS GIT_QUARANTINE_PATH GIT_INTERNAL_SUPER_PREFIX".split(): _ge_os.environ.pop(_ge_v, None)
 import ast
+import io
 import os
 import re
 import sys
+import tokenize
 import unicodedata
 
 SH_TAGS = {"msg", "param", "devnull"}
@@ -293,8 +295,37 @@ def _git_env_scrub_py(tree):
     return i
 
 
+# CON-450 round 5 (review R4-1, section 11.4.276(E) structural): the Python file is read the way the INTERPRETER reads it,
+# and only the encodings this census models are admitted. A PEP 263 coding cookie other than utf-8 / ascii (e.g.
+# `# -*- coding: utf-7 -*-`) makes the interpreter decode the file differently from this census, so statements it sees
+# were invisible here (measured: a hidden `subprocess.run(["git", ...])` ran before the scrub while the census read a
+# comment). A NUL byte is refused too (the interpreter refuses such a source; this census would otherwise crash on it).
+PY_ENCODINGS = ("utf-8", "utf-8-sig", "ascii", "us-ascii")
+
+
+def _py_read_as_interpreter(path):
+    """(source text with universal newlines, None) or (None, reason): the file as the interpreter decodes it."""
+    data = open(path, "rb").read()
+    if b"\0" in data:
+        return None, "the file holds a NUL byte (the interpreter refuses such a source; not modelled, fail-closed)"
+    try:
+        enc, _used = tokenize.detect_encoding(io.BytesIO(data).readline)
+    except SyntaxError as e:
+        return None, "the coding cookie or the first bytes are invalid (%s); not modelled, fail-closed" % e
+    if enc.lower() not in PY_ENCODINGS:
+        return None, ("the file declares the source encoding %r (PEP 263 cookie): the interpreter decodes it with that, this "
+                      "census with UTF-8; only %s are modelled, fail-closed (CON-450 r5, R4-1)" % (enc, " / ".join(PY_ENCODINGS)))
+    try:
+        text = data.decode(enc)
+    except UnicodeDecodeError as e:
+        return None, "the file is not valid %s (%s); fail-closed" % (enc, e)
+    return text.replace("\r\n", "\n").replace("\r", "\n"), None
+
+
 def py_census(path):
-    src = open(path).read()
+    src, why = _py_read_as_interpreter(path)
+    if why is not None:                                   # fail-closed: nothing of the file is censused
+        return [(os.path.basename(path), 1, "<module>", "<file text>", "VIOLATION", why)]
     lines = src.split("\n")
     tree = ast.parse(src)
     rows = []
@@ -981,7 +1012,22 @@ def _sh_read_as_bash(path):
         return None, [(data[:e.start].count(b"\n") + 1, "the file is not valid UTF-8 (byte 0x%02x): outside the census's "
                        "modelled character set (fail-closed, _sh_read_as_bash)" % data[e.start])]
     probs = []
+    hd_end, hd_quoted, hd_open = None, False, 0
     for no, raw in enumerate(text.split("\n"), 1):
+        if hd_end is not None:
+            # inside a here-document: a `#` is not a comment there, and when the delimiter is UNQUOTED bash runs every
+            # `$(...)` / backtick of the body (review R4-2: D2, D3, D4, D18, D19). Fail-closed on any such body line.
+            if raw.strip() == hd_end:
+                hd_end = None
+            elif not hd_quoted and ("$(" in raw or "`" in raw):
+                probs.append((no, "an UNQUOTED here-document body (opened at line %d) holds a command substitution (`$(` or a "
+                                  "backtick): bash runs it, this census reads the body as data; not modelled, fail-closed "
+                                  "(_sh_read_as_bash, CON-450 r5, R4-2)" % hd_open))
+            continue
+        if not raw.lstrip().startswith("#"):
+            _m = HEREDOC_RE.search(code_part(raw))
+            if _m:
+                hd_end, hd_quoted, hd_open = _m.group(2), bool(_m.group(1)), no
         if no == 1 and raw.startswith("#!") and raw not in SH_SHEBANGS:
             probs.append((no, "line 1 is a #! line outside the closed set %s: run directly, its arguments run before "
                               "the file's first line (fail-closed, _sh_read_as_bash)" % " / ".join(SH_SHEBANGS)))
