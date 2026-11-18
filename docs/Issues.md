@@ -4659,14 +4659,14 @@ Link (section 11.4.214, open original, link only; 2026-11-17, release prep): doc
 
 ## CON-380 — v73.4 wrap-up: CHANGELOG first heading and release record for the cut (tag_and_release preflight requires the heading)
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (filing subagent)
 
 What: the first CHANGELOG heading must become the v73.4 heading at the cut, keeping older Unreleased entries; the release record and regenerated tracker docs follow. Scope: CHANGELOG.md, docs/release. Reproduction: not applicable. Acceptance: heading and release record match the cut facts. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89.
 
-## CON-381 — v73.4: the section 11.4.40 full-suite retest is not registered in the tracker
+## CON-381 — v73.4: the section 11.4.40 --include-heavy retest and section 11.4.185 confirmation of the v73.4 candidate are owed (retest not yet run on the cut)
 
 **Status:** Queued
 **Type:** Task
@@ -4679,9 +4679,11 @@ Link (section 11.4.214, open original, link only; 2026-11-17, release prep): thi
 
 Lander follow-up (2026-11-17, link only, relprep checklist B6): the retest statement says PARTIAL-TOPOLOGY, but the runner RESULT is FAIL (40 unexplained; default tier, allow-topology-gaps, base ebd8818c); the statement must say FAIL.
 
+Release cut (2026-11-18): the 'has no item' wording above describes the state before this item was filed; this item is the owed retest. The v73.4 entry and the waiver record docs/operator_decisions/2026-11-18_waiver_v73.4.md cite it as the owed work; the recorded run (default tier, --allow-topology-gaps, base ebd8818c) is FAIL and was not re-run on the cut, so the retest of the v73.4 candidate is NOT RUN.
+
 ## CON-382 — v73.4 waiver: record the section 11.4.271 waiver (authoriser, expiry, source) and fix the draft wording 'relaxes (L7)'
 
-**Status:** Queued
+**Status:** In progress
 **Type:** Task
 **Severity:** Medium
 **Created-By:** Claude Opus 5.5 (filing subagent)
@@ -4689,6 +4691,10 @@ Lander follow-up (2026-11-17, link only, relprep checklist B6): the retest state
 What: the waiver for the v73.4 cut is not recorded, and waiver_v734.draft.md still says it relaxes (L7), which a waiver cannot do. Scope: the v73.4 waiver record. Reproduction: not applicable. Acceptance: a recorded waiver with rostered authoriser, unelapsed expiry and tracked item; the wording corrected. Source: session-74ce2b36 scratchpad (outside the repository)/wrapup_drift_audit.md sha256 2da39da4ee53c1fda37fc341d512e06aff0c5776d03f8dac8c2b2d12c1a82f14; session-74ce2b36 scratchpad (outside the repository)/release_survey.md sha256 2297f3fcd8723bc6cda30e9c37a5f69290132a12ec0c48aecb3856cd802a775e. Split of approved FU-89; related to CON-229 and CON-230.
 
 Lander follow-up (2026-11-17, link only, relprep step 1.4): the waiver record docs/operator_decisions/2026-11-17_waiver_v73.4.md is still not committed.
+
+Release cut (2026-11-18): the waiver W-v73.4-01 is recorded at docs/operator_decisions/2026-11-18_waiver_v73.4.md (authoriser i@mvasic.ru, rostered; expiry 2026-12-18; tracked item CON-381 (the owed retest and confirmation of the v73.4 candidate); the record says the release overrides the (L1), (L6), (L7) conditions of section 11.4.230(F.3)(2) on an operator decision and does not waive them, so the 'relaxes (L7)' wording is not used). Committed on the release pull request ahead of the release commit; PROVISIONAL (section 11.4.290) until that pull request is merged and the tag reads back.
+
+Review round 2 of the release pull request (2026-11-18): the record now cites the source of its terms (docs/operator_decisions/2026-11-11_relayed_decisions.md, decision 4, Release v73.4) and states that no agent-roster QA ran for this cut.
 
 ## CON-383 — v73.4: the release template amendment conflicts with fix227 and is neither landed nor reviewed
 
@@ -7316,4 +7322,23 @@ PR #20 merged PROVISIONAL after a NO-GO in review round 14; the findings are not
 **Created-By:** Claude Opus 5.5 (lander subagent)
 
 At the PR #18 landing CON-266, CON-267 and CON-268 had severity Low and no Severity body line; the export added the line and diff reported 18-byte body differences. repair-bodies fixed the three. Decide whether the exporter or the body is canonical and make add/update keep them consistent; regression test. PROVISIONAL, gate-logic. Source: lander follow-ups of the 2026-11-17 merge-all landing (operator decision 2026-11-17: merge all PRs PROVISIONAL, file the unresolved findings).
+
+## CON-599 — Two ratchet gates FAIL for missing consumer data: CM-ZERO-FINDINGS-MONOTONE-RATCHET (no docs/findings/zero_findings_ratchet.tsv) and the escape ratchet (no docs/requests/discovery_channel.jsonl)
+
+**Status:** Queued
+**Type:** Task
+**Severity:** Medium
+
+**What:** at the v73.4 cut (2026-11-18) bash scripts/gates/cm_zero_findings_monotone_ratchet.sh exits 1 with reason=RATCHET_SNAPSHOT_MISSING (docs/findings/zero_findings_ratchet.tsv, the section 11.4.261(C) brownfield ceiling) and bash scripts/gates/cm_escape_ratchet.sh exits 2 with "ledger not readable: docs/requests/discovery_channel.jsonl" (section 11.4.238). Neither file has ever been tracked (git log --all on both paths is empty).
+
+**Affected scope / file-scope manifest:**
+docs/findings/zero_findings_ratchet.tsv, docs/requests/discovery_channel.jsonl, scripts/gates/cm_zero_findings_monotone_ratchet.sh, scripts/gates/cm_escape_ratchet.sh
+
+**Reproduction / context:**
+Run the two commands on a fresh clone of main; found by the v73.4 release cut agent in a scratch clone outside the repository.
+
+**Acceptance criteria:**
+The brownfield snapshot is recorded by operator decision (section 11.4.66, section 11.4.224(E) adoption fence) and the discovery-channel ledger is created, or the gates are recorded as not applicable with a reason; both gates exit 0 on main. Not fixed in v73.4; listed among its known gaps.
+
+Parent / links: none
 
