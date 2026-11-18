@@ -30,6 +30,8 @@
 #   P11       the reviewers' probes r3, r3b, r4, r6 and r7 run verbatim (tests/release/pvl_reviewer.py probes)
 #   P12       the reviewers' mutants listed: applies, not applicable with covering cases, or run by another suite
 #   P13       the paired mutants (own, tests/release/pvl_mutants.tsv, and the reviewers' that apply) each killed
+#   P14       round 10 (review r9): the body alphabet, the structure bound, the end of the body and the document
+#             check (tests/release/pvl_r10.py), including the reviewer's look-alike bodies and repros D1 and D3
 #             (tests/release/pvl_mutate.py)
 # Class (section 11.4.289(C)(2)): gate-logic fixtures; P5 reads the real database of this checkout.
 #
@@ -385,6 +387,11 @@ nown="$(grep -vc -e '^#' -e '^$' "$HERE/pvl_mutants.tsv")"
 [ "$nown" -ge 15 ] && ok "P13 own mutants: $nown (at least 15)" || bad "P13 own mutants: $nown (at least 15)"
 has "P13 mutant needle (own, including the r8 reviewer rows RVA* and analogs R9A*, plus the 25 vendored reviewer mutants that apply: 5 of r2-r4, RV01-RV12 except RV04 RV07 RV11, RW01 RW02 RW08 RW09, R7M05-R7M09 R7M14 R7M15; 47 retired rows re-proved absent; no equivalent rows)" "^MUTATE total=$((nown + 25)) killed=$((nown + 25)) survived=0 not_applied=0 retired=47 equivalent=0 retired_fail=0\$"
 printf '%s\n' "$OUT" | grep -c '^MUT-EQUIVALENT ' | grep -qx 0 && ok "P13 no mutant is claimed equivalent (round 9: O48 O59 O88 O89 retired with their code)" || bad "P13 an equivalent mutant is listed"
+
+# P14 round 10: alphabet, structure bound, end of body, document
+OUT="$(python3 -I "$HERE/pvl_r10.py" "$C" "$W/r10" 2>&1)"; RC=$?
+[ "$RC" = 0 ] && ok "P14 round 10 cases" || bad "P14 round 10 ($RC): $(printf '%s\n' "$OUT" | grep ' FAIL' | head -5 | tr '\n' '|')"
+has "P14 needle (93 cases: alphabet with needles and the reviewer look-alikes, numeric references, the RV9M tells, the structure bound, the document check, the round 10 mutation tells)" '^R10 cases=93 pass=93 fail=0$'
 
 echo "RESULT: pass=$pass fail=$fail"
 [ "$fail" = 0 ]

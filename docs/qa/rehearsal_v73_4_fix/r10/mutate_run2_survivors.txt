@@ -1,0 +1,60 @@
+MUT-RETIRED O20: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O23: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O24: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O25: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O26: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O27: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O32: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O33: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O34: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O35: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O42: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O37: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O43: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O44: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O45: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O47: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O49: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O58: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O50: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O60: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED RVA01: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED RVA03: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED RVA04: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED RVA07: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED RVA08: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED RVA09: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED RVA12: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O46: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O56: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O62: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O63: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O70: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O71: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O72: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O73: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O76: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O77: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O78: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O79: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O80: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O81: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O83: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O84: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O48: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O88: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O89: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-RETIRED O59: old text occurs 0 times in scripts/validation/check_provisional_verification_lines.py
+MUT-CONTROL unmutated copy passes api r10 grid linemodel lineend blockstate property timing inventory
+MUT O66 KILLED by r10 (rc 1)
+MUT R9A01b KILLED by api (rc 1)
+MUT R9A09 KILLED by api (rc 1)
+MUT O91 KILLED by api (rc 1)
+MUT RV9M07 KILLED by r10 (rc 1)
+MUT O112 SURVIVED
+MUT O115 KILLED by r10 (rc 1)
+MUT O120 KILLED by r10 (rc 1)
+MUT O121 KILLED by r10 (rc 1)
+MUT O122 KILLED by r10 (rc 1)
+MUT O128 KILLED by r10 (rc 1)
+MUTATE total=11 killed=10 survived=1 not_applied=0 retired=47 equivalent=0 retired_fail=0

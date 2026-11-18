@@ -20,6 +20,11 @@ Round 9 turns the rule around. A body is accepted only when it is built from a s
 hide or change, and then five real readings must show the line exactly as written. Everything else is refused. This
 refuses some harmless bodies; the cost on the real tracker is measured below.
 
+Correction (round 10, review r9 finding F5): "Everything else is refused" is too strong. Round 9 checked each body
+alone, on the five readers, with the near-label table; look-alike labels (F1) and constructs left open into the next
+item of the exported document (F2) were not refused. Round 10 adds those checks; see
+[../r10/README.md](../r10/README.md).
+
 | Layer | Rule | Depends on a reader |
 |---|---|---|
 | THE BODY | at most 64 KiB; no run of more than 512 characters without ASCII white space; no lone CR; no bidi control (also as a reference); no `:::` line; `<` + letter, `!`, `?` or `/` only inside a simple ```` ``` ```` fence at column 0, and then no `]:` | no |

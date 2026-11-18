@@ -1,0 +1,40 @@
+FAIL CON-015 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_gate_env_census_jq_regions.sh (expec'
+FAIL CON-016 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_gate_env_census_jq_regions.sh (52 pa'
+FAIL CON-023 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_gate_env_overrides_guarded.sh on mai'
+FAIL CON-043 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/gates/test_oracle_frozen_exclusions.sh, tests/g'
+FAIL CON-144 Ready for testing: no '**Verification:** provisional' line
+FAIL CON-159 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard in a clean checkout of the landing comm'
+FAIL CON-160 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard in a clean checkout of the landing comm'
+FAIL CON-161 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard in a clean checkout of the landing comm'
+FAIL CON-162 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run the new guard in a clean checkout of the landing comm'
+FAIL CON-183 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run bash scripts/fastcycle/tests/test_consumer_required_m'
+FAIL CON-184 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run bash scripts/fastcycle/tests/test_consumer_required_m'
+FAIL CON-185 Ready for testing: the body holds raw HTML ('<copy of test_consumer_require' on line 7 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-186 Ready for testing: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one construct; add a blank line before the verification line
+FAIL CON-189 Ready for testing: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one construct; add a blank line before the verification line
+FAIL CON-190 Ready for testing: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one construct; add a blank line before the verification line
+FAIL CON-191 Ready for testing: the verification line is not a paragraph of its own: the line above it is not blank, so a reader may join the two lines into one paragraph or read them as one construct; add a blank line before the verification line
+FAIL CON-211 Ready for testing: the body holds raw HTML ('<version>-fkidx1-resolve1-reso' on line 8 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-216 Ready for testing: the body holds raw HTML ('<dir with ps that exits 3>:$PA' on line 6 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-217 Ready for testing: the body holds raw HTML ('<pre-change test_enumerate_dec' on line 6 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-218 Ready for testing: the body holds raw HTML ('<pre-change test_enumerate_dec' on line 6 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-219 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_decision_mutant_census_wording_r1_re names
+FAIL CON-220 Ready for testing: field 'job' passes on, which is not an integer, an option, a path or a selector scripts/validation/test_enumerate_decision_mutants_r2_regres names
+FAIL CON-222 Ready for testing: the body holds raw HTML ('<helper> bash <pre-change test' on line 6 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-223 Ready for testing: the body holds raw HTML ('<helper> bash <pre-change test' on line 6 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-224 Ready for testing: the body holds raw HTML ('<helper copy with RV-C> bash <' on line 6 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-226 Ready for testing: field 'job' does not start an invocation with a runner (bash, sh, python3, python3 -I, then a script): 're-run tests/release/test_tag_and_release.sh (45 passed, 0 f'
+FAIL CON-235 Ready for testing: the body holds raw HTML ('<rostered id> (lock a symlink)' on line 7 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-236 Ready for testing: the body holds raw HTML ('<scratch copy with a second M3' on line 7 (outside a ``` fence); HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+FAIL CON-265 Ready for testing: no '**Verification:** provisional' line
+DOC-FAIL CON-112 Queued: in document Issues, pandoc markdown does not show the paragraph after this item as a paragraph of its own: the item leaves a construct open at its end (an unclosed fence, comment, HTML block or raw HTML element) that hides or changes what follows it; close it
+DOC-FAIL CON-113 Queued: in document Issues, pandoc markdown does not show the paragraph after this item as a paragraph of its own: the item leaves a construct open at its end (an unclosed fence, comment, HTML block or raw HTML element) that hides or changes what follows it; close it
+ROOT: /mnt/DATA1TB/claude-work/scratch/fix10_con521_1794924276/maintree
+TODAY: 2026-11-17 window=60d
+CHECKED items=491 provisional_status=29 ok=0 fail=29
+DOCUMENT documents=2 segments=491 real=2 other_fail=2
+VERDICT: FAIL
+
+real	0m39.832s
+user	0m25.410s
+sys	0m2.585s

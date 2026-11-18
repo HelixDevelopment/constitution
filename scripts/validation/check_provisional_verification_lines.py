@@ -70,7 +70,8 @@ the set is refused, so some harmless bodies are refused too (the false refusals 
            without ASCII white space (pandoc gfm's time grows faster than such a run's length: a 20000-character run
            took more than 30 s in round 9), and a body that holds a CR not followed by LF (readers split lines
            differently), a bidi control character, also as a character reference (it can reorder what a reader
-           shows), a line starting with `:::` (a pandoc fenced div), or `<` followed by a letter, `!`, `?` or `/` (raw HTML, a comment or an
+           shows), a character outside THE BODY ALPHABET (round 10, below), a body over THE STRUCTURE BOUND (round
+           10, below), a line starting with `:::` (a pandoc fenced div), or `<` followed by a letter, `!`, `?` or `/` (raw HTML, a comment or an
            autolink to some reader) anywhere outside a ``` fence that opens at column 0 as ```WORD and closes with
            exactly ```; a code span is NOT exempt, because a link destination or a link-definition title can change
            which backticks pair. A body holding such a `<` may not hold a link reference definition (`]:`).
@@ -94,6 +95,31 @@ the set is refused, so some harmless bodies are refused too (the false refusals 
            is applied to the text a person reads with the line removed and to every attribute value. A missing or
            untested reader, a reader error or a timeout makes the item fail or the run BLIND, never a pass. A line the
            alphabet allows can still be refused here: pandoc `gfm` turns an email address or a bare URL into a link.
+THE BODY ALPHABET (round 10, review r9 F1, structural: rounds 7 to 9 read a non-ASCII character through THE READING
+TABLE, and every review found a character the table read differently from a reader). A body, with its character
+references decoded (numeric ones as CommonMark decodes them, NUM_REF), holds only TAB, LF, CR, printable ASCII and the
+four characters of BODY_EXTRA (U+2014, U+00A7, U+2192, U+00B7: the only non-ASCII characters of provisional and other
+bodies on main besides one Cyrillic letter in a non-provisional body). Every look-alike letter, mark, invisible, format,
+separator and control character is refused, so the label can only be written in ASCII. The suite enumerates every code
+point and every code point written as &#xHEX; (docs/qa/rehearsal_v73_4_fix/r10/enum_alphabet.txt: 0 accepted outside
+the alphabet; 0 of the 1329 code points the Unicode confusables data lists as a look-alike of an ASCII letter, digit or
+colon accepted). THE READERS' output is held to the alphabet too, with SHOWN_EXTRA (pandoc's smart punctuation and the
+no-break space): a character a reader writes from ASCII source (pandoc gfm writes an emoji for :smile:) is refused.
+THE STRUCTURE BOUND (round 10, review r9 F4). A reader's time grows faster than the length of some constructs; the
+reviewer's bodies of 60000 characters took more than 30 s per reader. A body is refused before any reader when it holds
+more of a markup character than STRUCT_MAX allows, opens a [ while MAX_BRACKET_DEPTH are still open in its paragraph
+(pandoc markdown's time doubles with each), or starts a line with more than MAX_DEPTH container markers. Every bound is
+at least 4 times the largest count on main. Measured on one host at load about 52 (r10/bound_timing.txt): a 65 KB body
+at each bound took at most 2.34 s for all five readers; this is a measurement, not a proven bound for every body, and a
+reader that still takes more than PANDOC_TIMEOUT makes the item fail, never the run hang.
+THE END OF THE BODY (round 10, review r9 F2). confirm() reads the body followed by a blank line and a probe paragraph;
+every reader must show the probe as a paragraph of its own, else the body leaves a construct open (an unclosed fence,
+comment or HTML block) that would hide the next item of the document.
+THE DOCUMENT (round 10, review r9 F2; check_document). With the tracker engine's doc_segments table, each document
+(docs/Issues.md, docs/Fixed.md) is built as renderDocument builds it and read by every reader: an item of ANY status,
+or a raw segment, that leaves a construct open at its end is refused (a provisional item fails, any other is reported
+as DOC-FAIL and fails the run), and a counted line that the document around it shows fewer times than its items carry
+it fails. Without doc_segments, one document of every item in id order is read for the closure check only.
 THE NEAR RULE: the label is the word Verification then a colon (markup, spaces or link syntax allowed between them),
 a colon then the word, or the word then provisional, matched on fold() of the text. The source is read twice, as
 written and with link tails `](...)` / `][...]` and markup characters removed, so a label split by a link, an image,
@@ -114,8 +140,11 @@ process); a selector, option or env value is accepted when the script merely men
 due date is past (derive_release_facts.sh reports that) or whether the job was run. Only the five readings of READERS
 are checked, each to HTML as the tracker export writes it (its PDF is rendered from HTML by weasyprint, its DOCX drops
 raw TeX); a LaTeX output is not checked (the export writes none; whether raw TeX can hide a line there is
-UNCONFIRMED). A body is read alone, not
-inside the exported document around it. THE READING is ICU's: an ASCII
+UNCONFIRMED); DOCX and PDF outputs are not read (review r9 F6, a follow-up). cmark-gfm, the GFM reference reader, is not run by the
+checker (the host Python has no cmarkgfm); it was run on the round 10 fixtures and on main as evidence
+(r10/cmark_gfm_*.txt). THE DOCUMENT is read without renderDocument's rewrite of the Status and state lines (a no-op for an
+item in sync); a segment ending with no blank line is joined by one LF, and what that changes is caught only when it
+changes a counted line. THE STRUCTURE BOUND is measured, not proven. THE READING is ICU's: an ASCII
 character is read as itself (so `l`, `I` and `1` stay different), a character whose skeleton is not ASCII is read as
 itself, and a visible gap such as U+2800 BRAILLE PATTERN BLANK is a character, not nothing; a reader whose fonts or
 rules differ from Unicode 17.0 may show a character the table reads differently. False refusals, the safe direction:
@@ -123,11 +152,13 @@ a body holding a `<` placeholder anywhere outside a ``` fence (also inside a cod
 character outside THE LINE ALPHABET, a line without a blank line on both sides, an email address or bare URL in the
 line, and the label anywhere else (also inside code).
 
-Output: one `FAIL <id> <status>: <reason>` line per refused item, then `ROOT: <real root>` and `TODAY: <date>
-window=<N>d`, then `CHECKED items=N provisional_status=P ok=K fail=F`, then `VERDICT: PASS|FAIL|BLIND`. Exit 0 PASS,
+Output: one `FAIL <id> <status>: <reason>` line per refused item, one `DOC-FAIL <id> <status>: <reason>` (or `DOC-FAIL
+<document> segment <seq>: <reason>`) line per other item or raw segment THE DOCUMENT refuses, then `ROOT: <real root>`
+and `TODAY: <date> window=<N>d`, then `CHECKED items=N provisional_status=P ok=K fail=F`, then `DOCUMENT documents=D
+segments=S real=R other_fail=O`, then `VERDICT: PASS|FAIL|BLIND`. Exit 0 PASS,
 1 FAIL, 2 BLIND (the database cannot be read, a database file or sidecar is not a regular file or exceeds the size
 bound, it has no items table, or holds no items: a zero there proves nothing; the CommonMark parser is missing or is
-not a tested version, or the reading table is not intact), 64 usage (also a root that is not a directory, a --today
+not a tested version, the reading table is not intact, or the tracker's document cannot be built or read), 64 usage (also a root that is not a directory, a --today
 that is not a date, a window that is not 0..3650).
 """
 
@@ -220,6 +251,38 @@ MAX_BODY = 64 * 1024  # 4.9 times the longest real body (13433, 2026-11-17); pan
 MAX_RUN = 512  # the longest real run is 179; pandoc gfm time grows faster than a run's length
 LONG_RUN = re.compile(r"[^ \t\r\n]{%d}" % (MAX_RUN + 1))  # ASCII white space only: pandoc splits on nothing else
 PANDOC_TIMEOUT = 30
+# THE STRUCTURE BOUND (round 10, review r9 F4): a body, and every part of a document, holds at most this many of each
+# character that opens or closes a construct a reader has to match, and a line starts with at most MAX_DEPTH container
+# markers (> or a list marker). Measured on main ebd8818c (491 bodies, 2026-11-17), the largest counts are [ 9, ( 102,
+# { 8, < 5, > 27, ! 3, * 84, _ 162, ` 64, ~ 2, | 12, $ 15, \ 10, & 8, ^ 5 and a depth of 1; each bound is at least four
+# times that. Bodies such as "[ " * 30000 or "> " * 30000 took 33 to 38 s in a pandoc reading (review r9); they are now
+# refused before any reader runs. The measured worst time of a body within the bound is in the r10 evidence.
+STRUCT_MAX = {"[": 64, "]": 64, "{": 64, "}": 64, "<": 64, "!": 64, "~": 64, "^": 64, "(": 512, ")": 512, ">": 256,
+              "*": 512, "_": 1024, "`": 512, "|": 512, "$": 256, "\\": 256, "&": 256}
+MAX_DEPTH = 8
+# pandoc markdown's time doubles with every [ still open inside one paragraph (2026-11-17, one host: 8 open in 0.4 s,
+# 14 in 2.0 s, 16 in 9.7 s, 32 over 60 s; 64 [ each closed at once, [a] [a] ..., in 0.1 s); main holds at most 2
+MAX_BRACKET_DEPTH = 6
+CONTAINER = re.compile(r"[ \t]*(?:>|[-*+](?=[ \t]|\Z)|[0-9]{1,9}[.)](?=[ \t]|\Z))")
+# THE BODY ALPHABET (round 10, review r9 F1, structural: rounds 7 to 9 read a non-ASCII character through a confusable
+# table and every review found a character the table read differently from a reader, section 11.4.250). A provisional
+# body, with its character references decoded, holds only TAB, LF, CR, printable ASCII and the characters of
+# BODY_EXTRA: the only non-ASCII characters any body on main holds besides one Cyrillic letter in a non-provisional
+# body (census of 491 bodies, 2026-11-17: U+2014 in 491, U+00A7 in 127, U+2192 in 10, U+00B7 in 2, U+0441 in 1). Each
+# is visible, is no letter, mark, format or control character and reads as no letter, digit or colon (the suite checks
+# this with fold()). Everything else (a look-alike letter, a mark, an invisible or control character, U+0085 and U+000B
+# included) is refused, so the label can only be written in ASCII and THE NEAR RULE reads ASCII.
+BODY_EXTRA = frozenset("—§→·")
+# what a reader may show besides: pandoc markdown's smart extension writes these for -- ... and ASCII quotes, and a
+# backslash-escaped space is a no-break space
+SHOWN_EXTRA = BODY_EXTRA | frozenset("–…“”‘’ ")
+DOC_TIMEOUT = 60  # seconds for one reading of a whole document, plus DOC_TIMEOUT_PER_MIB for every MiB of it
+DOC_TIMEOUT_PER_MIB = 60  # pandoc read the 0.8 MB Issues.md of main in 3.3 to 5.4 s (2026-11-17, host load about 48)
+PROBE = "PVLCLOSED%06d"
+# a numeric character reference as CommonMark reads it (section 2.5): the code point itself, U+FFFD for 0, a surrogate
+# or a value past U+10FFFF; html.unescape does not (it drops a noncharacter and reads &#x80;-&#x9F; as windows-1252)
+NUM_REF = re.compile(r"&#(?:[xX]([0-9a-fA-F]{1,6})|([0-9]{1,7}));")
+PROBE_RE = re.compile(r"PVLCLOSED[0-9]{6}")
 READERS = ("markdown-it commonmark", "markdown-it gfm", "pandoc commonmark", "pandoc gfm", "pandoc markdown")
 # pandoc markdown is the tracker export's own reader (scripts/workable-items/cmd/workable-items/export.go runPandoc;
 # operator decision 2026-11-17: in scope). Its smart extension writes these characters for these sequences, and
@@ -247,7 +310,7 @@ REF_DEF = re.compile(r"\][ \t]*:")
 # markup a person does not read as part of a word: removed in the second source view of THE NEAR RULE (a link target or
 # a reference label first, then the characters)
 LINK_TAIL = re.compile(r"\]\([^)\n]*\)|\]\[[^\]\n]*\]")
-MARKUP_CHARS = str.maketrans("", "", "*_~`\\[]()<>!^{}|#$")
+MARKUP_CHARS = str.maketrans("", "", "*_~`\\[]()<>!^{}|#$-")  # round 10 (review r9 F7): "-" too, Verifi-cation:
 
 # THE READER OUTPUT: every tag a reader writes must be one of these, with attributes of these names (style only as a
 # text alignment); anything else (a comment, a doctype, another tag or attribute) refuses the body
@@ -306,8 +369,8 @@ def reader_problem():
     return None
 
 
-def render(body, reader):
-    """The HTML READER writes for BODY (one of READERS)."""
+def render(body, reader, timeout=PANDOC_TIMEOUT):
+    """The HTML READER writes for BODY (one of READERS); a pandoc reading is bounded by TIMEOUT seconds."""
     if reader.startswith("markdown-it"):
         if reader not in _MD:
             md = _MarkdownIt("commonmark")
@@ -316,7 +379,7 @@ def render(body, reader):
             _MD[reader] = md
         return _MD[reader].render(body)
     out = subprocess.run([_pandoc_version()[0], "-f", PANDOC_FROM[reader.split(" ")[1]], "-t", "html", "--wrap=none"],
-                         input=body.encode("utf-8"), capture_output=True, timeout=PANDOC_TIMEOUT, check=False)
+                         input=body.encode("utf-8"), capture_output=True, timeout=timeout, check=False)
     if out.returncode != 0:
         raise ReaderError("%s exited %d" % (reader, out.returncode))
     return out.stdout.decode("utf-8")
@@ -386,6 +449,48 @@ def has_label(s):
     return any(p.search(v) for v in (t, LINK_TAIL.sub("]", t).translate(MARKUP_CHARS)) for p in NEAR)
 
 
+def structure_problem(text, lines=None):
+    """THE STRUCTURE BOUND: the first count of TEXT over its bound, a [ opened while MAX_BRACKET_DEPTH are still open
+    in its paragraph, or a line with more than MAX_DEPTH container markers at its start, as a reason; else None. Linear
+    in the length of TEXT."""
+    for ch, most in STRUCT_MAX.items():
+        n = text.count(ch)
+        if n > most:
+            return "%d of %r, more than %d (a reader's time grows with such a count)" % (n, ch, most)
+    brackets = 0  # [ still open in the paragraph; a blank line ends it
+    for j, ln in enumerate(LINE_END.split(text) if lines is None else lines):
+        if not ln.strip(" \t"):
+            brackets = 0
+        for ch in ln:
+            if ch == "[":
+                brackets += 1
+                if brackets > MAX_BRACKET_DEPTH:
+                    return "line %d opens a [ while %d are still open in its paragraph" % (j + 1, MAX_BRACKET_DEPTH)
+            elif ch == "]" and brackets:
+                brackets -= 1
+        pos, depth = 0, 0
+        while True:
+            m = CONTAINER.match(ln, pos)
+            if m is None or m.end() == pos:
+                break
+            depth, pos = depth + 1, m.end()
+            if depth > MAX_DEPTH:
+                return "line %d starts with more than %d container markers" % (j + 1, MAX_DEPTH)
+    return None
+
+
+def outside_alphabet(s, extra):
+    """The first character of S that is not TAB, LF, CR, printable ASCII or in EXTRA, or None."""
+    for ch in s:
+        if not ("\x20" <= ch <= "\x7e" or ch in "\t\n\r" or ch in extra):
+            return ch
+    return None
+
+
+def describe_char(ch):
+    return "U+%04X %s (%s)" % (ord(ch), unicodedata.name(ch, "unnamed"), unicodedata.category(ch))
+
+
 def body_problem(body, lines):
     """THE BODY: the first reader-independent reason a reader could hide the counted line or write raw HTML, or None.
     Each reason is `KIND: detail`."""
@@ -393,10 +498,23 @@ def body_problem(body, lines):
     if run:
         return "run: line %d holds %d or more characters with no white space between them" % (
             body.count("\n", 0, run.start()) + 1, MAX_RUN + 1)
+    sp = structure_problem(body, lines)
+    if sp:
+        return "structure: " + sp
     if re.search(r"\r(?!\n)", body):
         return "line-end: a CR that is not followed by LF (readers disagree on it)"
-    for ch in sorted(set(html.unescape(body)) & BIDI_CONTROLS):
+    decoded = html.unescape(body)
+    for ch in sorted(set(decoded) & BIDI_CONTROLS):
         return "bidi: U+%04X %s" % (ord(ch), unicodedata.name(ch, "unnamed"))
+    for ref in NUM_REF.finditer(body):
+        cp = int(ref.group(1), 16) if ref.group(1) else int(ref.group(2))
+        ch = chr(cp) if 0 < cp <= 0x10FFFF and not 0xD800 <= cp <= 0xDFFF else "\ufffd"
+        if outside_alphabet(ch, BODY_EXTRA) is not None:
+            return "char: the body holds the character reference %s, %s, outside THE BODY ALPHABET" % (
+                ref.group(0), describe_char(ch))
+    bad = outside_alphabet(decoded, BODY_EXTRA)
+    if bad is not None:
+        return "char: the body holds %s, outside THE BODY ALPHABET" % describe_char(bad)
     for j, ln in enumerate(lines):
         if DIV_FENCE.match(ln):
             return "div: line %d starts a pandoc fenced div" % (j + 1)
@@ -473,8 +591,8 @@ def scan(body):
     counted = [j for j, ln in enumerate(lines) if ln.startswith(PREFIX)]
     problems = []
     bp = body_problem(body, lines)
-    if bp:
-        problems.append(bp)
+    if bp:  # the first reason is the one reported; the label scan is not run on a body THE BODY refuses (its cost on
+        return [lines[j] for j in counted], [bp]  # a body over THE STRUCTURE BOUND is not bounded)
     if not counted and not problems:
         for j, ln in enumerate(lines):
             if BOLD_LABEL in ln:
@@ -512,20 +630,79 @@ def confirm(body, rest):
     """THE READERS: [] when every reader of READERS shows BODY with exactly one top-level paragraph that is the counted
     line exactly as written (REST is that line after its label), writes only THE READER OUTPUT, and shows the label
     nowhere else (THE NEAR RULE on the text a person reads and on every attribute value); else [the first reason].
-    It does not depend on the source rules, so it can be tested alone (tests/release/pvl_mutate.py api_r9)."""
+    It does not depend on the source rules, so it can be tested alone (tests/release/pvl_mutate.py api_r9).
+    Round 10 (review r9 F2): every reader reads BODY followed by a blank line and the probe paragraph PROBE % 0, as the
+    next item follows it in the tracker's document; the probe must be shown as a top-level paragraph of its own exactly
+    once, else the body leaves a construct open at its end (an unclosed fence, comment or HTML block) that would swallow
+    what follows it in the document."""
+    probe = PROBE % 0
     for r in READERS:
         shown_rest = smart(rest) if r == "pandoc markdown" else rest
         want = "<strong>Verification:</strong>" + shown_rest
         try:
-            paras, text, attrs = _output(render(body, r), r)
+            paras, text, attrs = _output(render(body + "\n\n" + probe + "\n", r), r)
         except (ReaderError, OSError, subprocess.SubprocessError, UnicodeDecodeError) as exc:
             return ["reader: %s" % (exc if isinstance(exc, ReaderError) else "%s: %s" % (r, exc.__class__.__name__))]
+        if paras.count(probe) != 1:
+            return ["open: %s does not show a paragraph that follows the body as a paragraph of its own" % r]
         if paras.count(want) != 1:
             return ["exact: %s does not show the line as a paragraph of its own, exactly as written" % r]
+        bad = outside_alphabet(text + "".join(attrs), SHOWN_EXTRA)
+        if bad is not None:
+            return ["shown: %s shows %s, outside THE BODY ALPHABET and pandoc's smart characters" % (
+                r, describe_char(bad))]
         shown = text.replace("Verification:" + shown_rest, "", 1)
         if near_label(shown) or any(near_label(a) for a in attrs):
             return ["label: %s shows the label elsewhere" % r]
     return []
+
+
+HTML_VOID = frozenset("area base br col embed hr img input link meta param source track wbr".split())
+HTML_RAWTEXT = frozenset("script style textarea title xmp iframe noembed noframes noscript plaintext".split())
+HTML_TOKEN = re.compile(r"<!--|<(/?)([A-Za-z][A-Za-z0-9-]*)((?:[^>\"']|\"[^\"]*\"|'[^']*')*)>|<[!?][^>]*>")
+
+
+def top_paragraphs(h):
+    """The inner HTML of every <p> element at element depth 0 of the HTML H, read conservatively as a browser nests
+    elements (round 10, the document check: unlike _output it accepts any tag, because other items of the document may
+    hold any raw HTML): an unclosed comment or raw-text element hides the rest; an end tag closes up to its open element
+    and is ignored when none is open; a start tag that is not void and not self-closing stays open until its end tag, so
+    a raw <details> or <div style=display:none> left open keeps everything after it below depth 0."""
+    out, stack, pos, start = [], [], 0, None
+    while True:
+        m = HTML_TOKEN.search(h, pos)
+        if m is None:
+            return out
+        if m.group(0) == "<!--":
+            end = h.find("-->", m.end())
+            if end < 0:
+                return out
+            pos = end + 3
+            continue
+        if m.group(2) is None:
+            pos = m.end()
+            continue
+        close, name, attrs = m.group(1), m.group(2).lower(), m.group(3)
+        pos = m.end()
+        if close:
+            if name in stack:
+                while stack.pop() != name:
+                    pass
+                if name == "p" and not stack and start is not None:
+                    out.append(h[start:m.start()])
+                    start = None
+            continue
+        if name in HTML_VOID or attrs.rstrip().endswith("/"):
+            continue
+        if name in HTML_RAWTEXT:
+            e = re.compile(r"</%s[ \t\n\r/>]" % name, re.I).search(h, pos)
+            if e is None:
+                return out
+            pos = h.find(">", e.start()) + 1 or len(h)
+            continue
+        if name == "p" and not stack:
+            start = pos
+        stack.append(name)
 
 
 def smart(s):
@@ -850,6 +1027,172 @@ def check_body(body, root=None, ctx=None):
     return check_line(lines[0], ctx)
 
 
+class DocError(Exception):
+    """The tracker's document cannot be built from the database (the run is BLIND)."""
+
+
+def _text(v):
+    if isinstance(v, (bytes, bytearray)):
+        return bytes(v).decode("utf-8", "replace")
+    return v if isinstance(v, str) else ""
+
+
+def build_documents(con):
+    """THE DOCUMENT (round 10, review r9 F2): [(name, real, [(key, atm_id, status, text)])]. With a doc_segments table
+    (the tracker engine's), each document is built as renderDocument (scripts/workable-items/cmd/workable-items/db.go)
+    builds docs/<name>.md: its segments in seq order, a raw segment as written, an item segment as the body of the item
+    whose current_location is the document and whose representation is the segment's (an empty one read as section),
+    each appended after a LF when the text before it does not end with one; real is True. renderDocument also rewrites
+    the Status and state lines from their columns, which is a no-op for every item whose body is in sync (the engine's
+    `diff` checks that); this builder does not, a stated limit. Without a doc_segments table no document is defined:
+    one document of every item in id order is built for the closure check only (real is False)."""
+    tables = {r[0] for r in con.execute("select name from sqlite_master where type = 'table'")}
+    if "doc_segments" not in tables:
+        rows = con.execute("select atm_id, status, body_md from items order by atm_id").fetchall()
+        return [("items", False, [((a, ""), a, s, _text(b)) for a, s, b in rows])]
+    cols = {r[1] for r in con.execute("pragma table_info(items)")}
+    if not {"current_location", "representation"} <= cols:
+        raise DocError("doc_segments exists but items has no current_location or representation column")
+    body = {}
+    for a, s, b, loc, rep in con.execute("select atm_id, status, body_md, current_location, representation from items"):
+        body[(loc, a, rep or "section")] = (s, _text(b))
+    docs = []
+    for (name,) in con.execute("select distinct document from doc_segments order by document").fetchall():
+        segs = []
+        for seq, kind, a, rep, raw in con.execute("select seq, kind, atm_id, representation, raw from doc_segments "
+                                                  "where document = ? order by seq", (name,)):
+            if kind == "raw":
+                segs.append((("raw", seq), None, None, _text(raw)))
+            elif kind == "item":
+                k = (name, a, rep or "section")
+                if k not in body:
+                    raise DocError("document %s segment %s names item %s [%s], which is not in it" % (
+                        name, seq, a, rep or "section"))
+                segs.append(((a, rep or "section"), a, body[k][0], body[k][1]))
+            else:
+                raise DocError("document %s segment %s has kind %r" % (name, seq, kind))
+        docs.append((name, True, segs))
+    return docs
+
+
+def join_segments(texts):
+    """The texts joined as renderDocument joins segments: a LF before a text when the joined text does not end with
+    one."""
+    out = []
+    for t in texts:
+        if out and not out[-1].endswith("\n"):
+            out.append("\n")
+        out.append(t)
+    return "".join(out)
+
+
+def _render_all(text, timeout):
+    """{reader: HTML} for every reader of READERS (the pandoc readings run side by side); raises ReaderError."""
+    import concurrent.futures
+    out = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        futs = {r: pool.submit(render, text, r, timeout) for r in READERS if r.startswith("pandoc")}
+        for r in READERS:
+            if r not in futs:
+                out[r] = render(text, r)
+        for r, f in futs.items():
+            try:
+                out[r] = f.result()
+            except subprocess.TimeoutExpired:
+                raise ReaderError("%s took more than %d s on the document" % (r, timeout)) from None
+            except (OSError, subprocess.SubprocessError, UnicodeDecodeError) as exc:
+                raise ReaderError("%s: %s" % (r, exc.__class__.__name__)) from None
+    return out
+
+
+def check_document(name, real, segs, lines):
+    """The document check of one document (round 10, review r9 F2): (fails, problem). FAILS maps a segment key to the
+    reason it is refused; PROBLEM is a reason the run is BLIND (a reader cannot read the document), else None.
+      UNREAD  a segment over MAX_BODY, holding a run over MAX_RUN or over THE STRUCTURE BOUND is refused and left out
+              (every reader's time is then bounded by the document's length)
+      CLOSED  every segment is followed by a blank line and its own probe paragraph PROBE % N; every reader must show
+              each probe as a paragraph at element depth 0 (top_paragraphs) exactly once. The first segment whose
+              probe is not so shown leaves a construct open at its end that a blank line does not close (a fence, a
+              comment, an HTML block, a raw HTML element, a pandoc raw tag); it is refused and left out, and the
+              document is read again, until every probe is shown. A segment that ends with no blank line is joined to
+              the next by one LF; what that changes (a lazy continuation, a setext underline) is caught by SHOWN when
+              it changes a counted line, and not reported otherwise (a stated limit).
+      SHOWN   (real documents only) the document as renderDocument joins it, without the refused segments: for every
+              counted line of LINES (key -> the line of a provisional item whose body passed), every reader must show
+              at least as many top-level paragraphs that are the line as there are such items carrying it (a limit:
+              the same line written as a paragraph in another item is counted too)."""
+    fails, active = {}, []
+    for key, _a, _s, text in segs:
+        why = None
+        if len(text) > MAX_BODY:
+            why = "it is longer than %d characters (%d)" % (MAX_BODY, len(text))
+        elif LONG_RUN.search(text):
+            why = "it holds a run of %d or more characters with no white space" % (MAX_RUN + 1)
+        else:
+            why = structure_problem(text)
+        if why:
+            fails[key] = "in document %s the item is not read: %s" % (name, why)
+        else:
+            active.append((key, text))
+    mib = 1024 * 1024
+    base = 0  # the segments before base are shown closed by every reader; the next reading starts after them
+    while base < len(active):
+        parts = []
+        for n in range(base, len(active)):
+            parts.append(active[n][1])
+            parts.append("\n" + PROBE % n + "\n\n")  # after a blank line, as confirm() reads a body
+        doc = join_segments(parts)
+        timeout = DOC_TIMEOUT + DOC_TIMEOUT_PER_MIB * len(doc.encode("utf-8")) // mib
+        try:
+            outs = _render_all(doc, timeout)
+        except ReaderError as exc:
+            return fails, "document %s cannot be read: %s" % (name, exc)
+        # each reader's first probe not shown: the reader read every segment before it closed, so that segment itself
+        # leaves a construct open in that reader (a later segment of another reader is judged by that reader alone)
+        first = {}
+        for r in READERS:
+            paras = top_paragraphs(outs[r])
+            for n in range(base, len(active)):
+                if paras.count(PROBE % n) != 1:
+                    first.setdefault(n, r)
+                    break
+        if not first:
+            break
+        for n in sorted(first, reverse=True):
+            fails[active[n][0]] = ("in document %s, %s does not show the paragraph after this item as a paragraph of "
+                                   "its own: the item leaves a construct open at its end (an unclosed fence, comment, "
+                                   "HTML block or raw HTML element) that hides or changes what follows it; close it" % (
+                                       name, first[n]))
+            del active[n]
+        base = min(first)
+    if not real:
+        return fails, None
+    want = {k: ln for k, ln in lines.items() if k in {key for key, _t in active}}
+    if not want:
+        return fails, None
+    doc = join_segments([t for _k, t in active])
+    timeout = DOC_TIMEOUT + DOC_TIMEOUT_PER_MIB * len(doc.encode("utf-8")) // mib
+    try:
+        outs = _render_all(doc, timeout)
+    except ReaderError as exc:
+        return fails, "document %s cannot be read: %s" % (name, exc)
+    for r in READERS:
+        paras = top_paragraphs(outs[r])
+        for key, ln in sorted(want.items()):
+            if key in fails:
+                continue
+            shown_rest = ln[len(BOLD_LABEL):]
+            if r == "pandoc markdown":
+                shown_rest = smart(shown_rest)
+            n_want = sum(1 for v in want.values() if v == ln)
+            n_shown = paras.count("<strong>Verification:</strong>" + shown_rest)
+            if n_shown < n_want:
+                fails[key] = ("in document %s, %s shows the verification line as a paragraph of its own %d times for "
+                              "%d items that carry it: something before it in the document changes how it is read" % (
+                                  name, r, n_shown, n_want))
+    return fails, None
+
+
 REFUSAL = {
     "line-end": "the body holds %s",
     "run": ("the body is not read: %s; a reader's time grows faster than the length of such a run (break it with a "
@@ -867,6 +1210,12 @@ REFUSAL = {
     "alphabet": "%s (letters, digits, space and . , ; : / @ ( ) + = _ -, the em dash only as a separator)",
     "exact": "a reader does not show the verification line exactly as written: %s",
     "reader": "a reader's output cannot be judged: %s",
+    "open": ("the body leaves a construct open at its end (%s): in the tracker's document it hides or changes the next "
+             "item; close the fence, comment or HTML block"),
+    "structure": "the body is not read: it holds %s; break it up",
+    "char": ("%s: a look-alike, invisible or control character can make a reader show a label the checker does not "
+             "read; write it in ASCII"),
+    "shown": "%s: a reader may show a label the checker does not read",
 }
 
 
@@ -1046,14 +1395,17 @@ def main(argv):
                 items = dict(con.execute("select atm_id, status from items").fetchall())
                 allrows = con.execute("select atm_id, status, body_md, %s from items order by atm_id"
                                       % created_col).fetchall()
+                docs = build_documents(con)
             finally:
                 con.close()
         except sqlite3.Error as exc:
             return blind("the database cannot be read (%s)" % exc.__class__.__name__)
+        except DocError as exc:
+            return blind("the tracker's document cannot be built: %s" % exc)
     if total == 0:
         return blind("the items table holds no items")
     rows = [r for r in allrows if status_key(r[1]) in PROVISIONAL_KEYS]
-    fails = 0
+    reasons, passed = {}, {}
     for atm_id, status, body, created in rows:
         exact = PROVISIONAL_KEYS[status_key(status)]
         if status != exact:
@@ -1063,15 +1415,41 @@ def main(argv):
         else:
             ctx = Context(root, items, atm_id, parse_date(created), today, int(w), targets)
             reason = check_body(body, ctx=ctx)
-        if reason:
+        reasons[atm_id] = reason
+        if not reason:
+            passed[atm_id] = [ln for ln in LINE_END.split(body) if ln.startswith(PREFIX)][0]
+    # THE DOCUMENT (round 10): every item of every document is read in the document, provisional or not
+    doc_fail, nseg = [], 0
+    for name, real, segs in docs:
+        nseg += len(segs)
+        lines = {key: passed[a] for key, a, _s, _t in segs if a in passed}
+        dfails, problem = check_document(name, real, segs, lines)
+        if problem:
+            return blind(problem)
+        for key, a, st, _t in segs:
+            if key not in dfails:
+                continue
+            if a in reasons:
+                reasons[a] = reasons[a] or dfails[key]
+            elif a is None:
+                doc_fail.append("DOC-FAIL %s segment %s: %s" % (name, key[1], dfails[key]))
+            else:
+                doc_fail.append("DOC-FAIL %s %s: %s" % (a, st, dfails[key]))
+    fails = 0
+    for atm_id, status, _body, _created in rows:
+        if reasons[atm_id]:
             fails += 1
-            print("FAIL %s %s: %s" % (atm_id, status, reason))
+            print("FAIL %s %s: %s" % (atm_id, status, reasons[atm_id]))
+    for ln in doc_fail:
+        print(ln)
     ctx = Context(root, today=today)
     print("ROOT: %s" % root)
     print("TODAY: %s window=%sd" % (ctx.today, w))
     print("CHECKED items=%d provisional_status=%d ok=%d fail=%d" % (total, len(rows), len(rows) - fails, fails))
-    print("VERDICT: %s" % ("FAIL" if fails else "PASS"))
-    return 1 if fails else 0
+    print("DOCUMENT documents=%d segments=%d real=%d other_fail=%d" % (
+        len(docs), nseg, sum(1 for d in docs if d[1]), len(doc_fail)))
+    print("VERDICT: %s" % ("FAIL" if fails or doc_fail else "PASS"))
+    return 1 if fails or doc_fail else 0
 
 
 def run(argv):

@@ -2,14 +2,14 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-11-17 |
-| Last modified | 2026-11-17T12:00:00Z |
+| Last modified | 2026-11-17T20:00:00Z |
 | Status | active |
 | Status summary | How to write the one `**Verification:** provisional` line of a PROVISIONAL-DONE item so the checker accepts it, and what makes the checker refuse a body. |
 | Authority | Tool documentation for `scripts/validation/check_provisional_verification_lines.py` (§11.4.18); the rule is §11.4.290; no new anchor and no new CM-* token. |
 | Scope | Universal (§11.4.17): any project whose tracker bodies carry §11.4.290 verification lines. |
-| Issues | CON-PENDINGpvl8 (rounds 5 to 9 of the checker; evidence under `docs/qa/rehearsal_v73_4_fix/`) |
+| Issues | CON-PENDINGpvl8 (rounds 5 to 10 of the checker; evidence under `docs/qa/rehearsal_v73_4_fix/`) |
 | Generated twins | .html / .pdf / .docx not generated for this revision (honestly absent, §11.4.106(E)). |
 
 ## What it is for
@@ -53,6 +53,15 @@ Round 9 changed the design. The checker no longer tries to work out what a reade
 when the body is built from a small set of shapes that no reader can hide or change, and then five readings by two
 independent Markdown libraries confirm the result. Anything outside that set is refused, so some harmless bodies are refused too.
 
+Round 10 adds three checks that run before the line rules, and one that reads the whole exported document:
+
+| Round 10 check | What it refuses |
+|---|---|
+| THE BODY ALPHABET | Any character other than tab, LF, CR, printable ASCII and four extra characters (`—` U+2014, `§` U+00A7, `→` U+2192, `·` U+00B7), written directly or as a numeric character reference (`&#x7F;`, `&#xFDD0;`, `&#151;` and so on). Look-alike and invisible characters are refused this way as a class. The four extra characters are not letters, marks or controls and do not fold to a letter, digit or colon. Enumerated over all 1112064 code points: 100 are accepted, none outside this set (`docs/qa/rehearsal_v73_4_fix/r10/enum_alphabet.txt`). An emoji shortcode such as `:smile:` is refused because pandoc `gfm` shows it as an emoji. |
+| THE STRUCTURE BOUND | More than 8 container markers (`>`, list markers) on one line, more than 6 open `[` in one paragraph, or more than the per-character count bounds. pandoc `markdown` takes time exponential in open `[` (8 open: 0.4 s, 16 open: 9.7 s, 32 open: over 60 s). Every pattern at its bound in a 65 KB body was read in at most 2.34 s on this host (`bound_timing.txt`). This is a measurement on one host, not a proven bound. |
+| THE END OF THE BODY | The body followed by a blank line and a probe paragraph must show the probe as its own paragraph to every reader. A body that leaves a fence, comment, HTML block or raw HTML element open is refused. |
+| THE DOCUMENT | The tracker's Issues and Fixed documents are built from the database in order. Each segment is followed by a probe paragraph and the whole document is read by every reader. An item, of any status, after which a probe is missing is refused (`DOC-FAIL` for an item that is not provisional); a raw segment that leaves a construct open is reported as `DOC-FAIL ... segment N`. In each document every reader must show the verification line of each provisional item as a paragraph of its own. |
+
 **The body** (these hold before any reader runs):
 
 | Body holds | Why it is refused |
@@ -77,8 +86,10 @@ independent Markdown libraries confirm the result. Anything outside that set is 
 **The readers.** markdown-it-py 3.0.0 (CommonMark 0.30, and CommonMark with GFM tables and strikethrough) and
 pandoc 3.11 (`commonmark` and `gfm`, CommonMark 0.31.2, and `markdown-yaml_metadata_block`, the reader the tracker
 export uses) must each show exactly one top-level paragraph that is the line as written, must write only plain tags,
-and must not show the label anywhere else. A missing or untested reader makes the run BLIND, never a pass. When the
-readers show the verification line differently (for example `<!x` or a lowercase `<!doctype html`, which CommonMark 0.31.2 hides and
+and must not show the label anywhere else. A missing or untested reader makes the run BLIND, never a pass. The scope
+of this comparison is the verification line and the label: each body is read alone by the five readers, and in the
+document check (round 10) only the probe paragraphs and the verification lines are compared. Other text that the
+readers show differently is not compared. When the readers show the verification line differently (for example `<!x` or a lowercase `<!doctype html`, which CommonMark 0.31.2 hides and
 0.30 does not, or a definition list that only pandoc `markdown` reads and that takes the line as its term), the
 body is refused. Other lines may be shown differently (a line block, a span) as long as every reader shows the
 verification line exactly and the label nowhere else. The export reader has
@@ -136,9 +147,17 @@ and `false_refusal_fix8.txt`.
   line, `\fi` is accepted: every reader shows the line in HTML, and pandoc 3.11 also writes `\iffalse` as plain text
   in LaTeX (measured, `iffalse_html.txt` in the evidence), so the earlier claim that this body hides the line is not
   reproduced. Whether other raw TeX can hide a line in a LaTeX output is UNCONFIRMED; the export writes no LaTeX.
-- **A body is read alone.** The checker reads each body as its own document, not inside the exported file that holds
-  many items, so a construct left open by the item before it is not modelled.
+- **The document.** Round 10 reads the Issues and Fixed documents as the checker builds them from the database. The
+  tracker export (`renderDocument`) may rewrite text differently; that rewrite is not replicated. A segment that ends
+  with no blank line is joined to the next by one line break, and the probe sits after a blank line, so a change such
+  a join makes to a non-provisional line is not caught; a change to a verification line is caught by the paragraph
+  count. cmark-gfm is not run by the checker; it was run once as evidence on the fixture and on `main` and agreed
+  (`cmark_gfm_fixture.txt`, `cmark_gfm_main.txt`).
+- **Look-alikes without the colon.** `**Verification** job:` and `**Verification -** job:` are still accepted, and a
+  label split across two table cells is not detected. Follow-ups (review r9 F7, F8).
+- **DOCX and PDF.** The export writes them and they are not read. Follow-up (review r9 F6, operator question).
 - **Fonts.** Characters are read as Unicode 17.0 reads them. A font that draws a character differently is not
   modelled.
-- **Evidence.** The round 9 evidence is in [docs/qa/rehearsal_v73_4_fix/r9/](../qa/rehearsal_v73_4_fix/r9/README.md).
-  It is PROVISIONAL (§11.4.290).
+- **Evidence.** The round 9 evidence is in [docs/qa/rehearsal_v73_4_fix/r9/](../qa/rehearsal_v73_4_fix/r9/README.md),
+  round 10 in [docs/qa/rehearsal_v73_4_fix/r10/](../qa/rehearsal_v73_4_fix/r10/README.md). Both are PROVISIONAL
+  (§11.4.290).

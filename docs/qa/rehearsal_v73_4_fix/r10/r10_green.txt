@@ -1,0 +1,85 @@
+R10 F1-NU_caps_after PASS the body holds U+039D GREEK CAPITAL LETTER NU (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-NU_caps_bold PASS the body holds U+039D GREEK CAPITAL LETTER NU (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-NU_caps_before PASS the body holds U+039D GREEK CAPITAL LETTER NU (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-NU_mathbold PASS the body holds U+1D415 MATHEMATICAL BOLD CAPITAL V (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-visarga_colon PASS the body holds U+0903 DEVANAGARI SIGN VISARGA (Mc), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-visarga_bold PASS the body holds U+0903 DEVANAGARI SIGN VISARGA (Mc), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-gujarati_visarga PASS the body holds U+0A83 GUJARATI SIGN VISARGA (Mc), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-fe30_colon PASS the body holds U+FE30 PRESENTATION FORM FOR VERTICAL TWO DOT LEADER (Po), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-control_omicron PASS the body holds U+03BF GREEK SMALL LETTER OMICRON (Ll), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-lunate_sigma_c PASS the body holds U+03F2 GREEK LUNATE SIGMA SYMBOL (Ll), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-long_s_f PASS the body holds U+017F LATIN SMALL LETTER LONG S (Ll), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-palochka_caps_I PASS the body holds U+04C0 CYRILLIC LETTER PALOCHKA (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-nu_in_list PASS the body holds U+039D GREEK CAPITAL LETTER NU (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-nu_in_heading PASS the body holds U+039D GREEK CAPITAL LETTER NU (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-nu_in_table PASS the body holds U+039D GREEK CAPITAL LETTER NU (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-vt_000b PASS the body holds U+000B unnamed (Cc), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-nel_mid_bold_heading PASS the body holds U+0085 unnamed (Cc), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ls_2028 PASS the body holds U+2028 LINE SEPARATOR (Zl), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ps_2029 PASS the body holds U+2029 PARAGRAPH SEPARATOR (Zp), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-hair_200a PASS the body holds U+200A HAIR SPACE (Zs), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-nel_0085 PASS the body holds U+0085 unnamed (Cc), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-entity_nu PASS the body holds the character reference &#x39D;, U+039D GREEK CAPITAL LETTER NU (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-entity_nu_dec PASS the body holds the character reference &#925;, U+039D GREEK CAPITAL LETTER NU (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-entity_named_nu PASS the body holds U+039D GREEK CAPITAL LETTER NU (Lu), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-sample PASS sampled=11409 keys=3457 accepted=
+R10 F1-ref-x7F PASS the body holds the character reference &#x7F;, U+007F unnamed (Cc), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ref-xFDD0 PASS the body holds the character reference &#xFDD0;, U+FDD0 unnamed (Cn), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ref-xFFFF PASS the body holds the character reference &#xFFFF;, U+FFFF unnamed (Cn), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ref-x10FFFF PASS the body holds the character reference &#x10FFFF;, U+10FFFF unnamed (Cn), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ref-x97 PASS the body holds the character reference &#x97;, U+0097 unnamed (Cc), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ref-151 PASS the body holds the character reference &#151;, U+0097 unnamed (Cc), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ref-0 PASS the body holds the character reference &#0;, U+FFFD REPLACEMENT CHARACTER (So), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ref-xD800 PASS the body holds the character reference &#xD800;, U+FFFD REPLACEMENT CHARACTER (So), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-ref-x110000 PASS the body holds the character reference &#x110000;, U+FFFD REPLACEMENT CHARACTER (So), outside THE BODY ALPHABET: a look-alike, invisible or control character can make a reader show a label the checker does not read; write it in ASCII
+R10 F1-needle-in PASS 
+R10 F1-needle-out PASS 
+R10 F1-extra-accepted PASS None
+R10 F1-extra-property PASS 
+R10 F1-shown-emoji PASS pandoc gfm shows U+1F604 SMILING FACE WITH OPEN MOUTH AND SMILING EYES (So), outside THE BODY ALPHABET and pandoc's smart characters: a reader may show a label the checker does not read
+R10 F7-hyphen PASS a line a reader shows carries the Verification label but is not the one counted line (label in another source line): the label may occur only at the start of the one verification line
+R10 F3-RV9M01a PASS a reader's output cannot be judged: pandoc markdown writes the attribute hidden=''
+R10 F3-RV9M01b PASS a reader's output cannot be judged: pandoc markdown writes the attribute lang='fr'
+R10 F3-RV9M02 PASS a reader's output cannot be judged: pandoc markdown writes the attribute style='display:none'
+R10 F3-RV9M03 PASS the body holds raw HTML ('<b' with a link reference definition in the body; HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+R10 F3-RV9M04 PASS the body holds raw HTML ('<b' with line 3 inside a fence that is not a ``` closing line; HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+R10 F3-RV9M05 PASS the body holds raw HTML ('<b' with line 1, a fence that is not ```WORD at column 0; HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+R10 F3-RV9M06 PASS the body holds raw HTML ('<b' with a ``` fence that is not closed; HTML comments and autolinks too): a reader may hide or wrap a line with it; write a placeholder such as <name> as NAME, or inside a ``` fenced block at column 0, so a reader shows it as text
+R10 F3-RV9M07 PASS ['label: markdown-it commonmark shows the label elsewhere']
+R10 F3-RV9M08 PASS the body holds the bidi control U+2067 RIGHT-TO-LEFT ISOLATE: it can reorder what a reader shows
+R10 F3-RV9M09 PASS the body is not read: line 1 holds 513 or more characters with no white space between them; a reader's time grows faster than the length of such a run (break it with a space)
+R10 F3-RV9M10 PASS ['a<span><p>b</p></span>c']
+R10 F4-bang_brackets PASS 0.01s the body is not read: it holds 20000 of '[', more than 64 (a reader's time grows with such a count); break it up
+R10 F4-brace PASS 0.00s the body is not read: it holds 7500 of '[', more than 64 (a reader's time grows with such a count); break it up
+R10 F4-brackets PASS 0.00s the body is not read: it holds 30000 of '[', more than 64 (a reader's time grows with such a count); break it up
+R10 F4-link_open PASS 0.01s the body is not read: it holds 12000 of '[', more than 64 (a reader's time grows with such a count); break it up
+R10 F4-list_nest PASS 0.10s the body leaves a construct open at its end (markdown-it commonmark does not show a paragraph that follows the body as a paragraph of its own): in the tracker's document it hides or changes the next item; close the fence, comment or HTML block
+R10 F4-nested_quote PASS 0.00s the body is not read: it holds 30000 of '>', more than 256 (a reader's time grows with such a count); break it up
+R10 F4-pipes PASS 0.00s the body is not read: it holds 14342 of '|', more than 512 (a reader's time grows with such a count); break it up
+R10 F4-depth PASS the body is not read: it holds line 1 starts with more than 8 container markers; break it up
+R10 F4-depth-bound PASS None
+R10 F4-bracket-open7 PASS line 1 opens a [ while 6 are still open in its paragraph
+R10 F4-bracket-open6 PASS None
+R10 F4-bracket-nested7 PASS line 1 opens a [ while 6 are still open in its paragraph
+R10 F4-bracket-closed64 PASS None
+R10 F4-bracket-open7-lines PASS line 7 opens a [ while 6 are still open in its paragraph
+R10 F4-bracket-open7-paras PASS None
+R10 F4-count-bounds PASS 
+R10 F2-refused-CON-901 PASS ["FAIL CON-901 Ready for testing: the body leaves a construct open at its end (markdown-it commonmark does not show a paragraph that follows the body as a paragraph of its own): in the tracker's document it hides or changes the next item; close the fence, comment or HTML block"]
+R10 F2-refused-CON-911 PASS ["FAIL CON-911 Ready for testing: the body leaves a construct open at its end (markdown-it commonmark does not show a paragraph that follows the body as a paragraph of its own): in the tracker's document it hides or changes the next item; close the fence, comment or HTML block"]
+R10 F2-refused-CON-920 PASS ['FAIL CON-920 Ready for testing: in document Fixed, markdown-it commonmark shows the verification line as a paragraph of its own 0 times for 1 items that carry it: something before it in the document changes how it is read']
+R10 F2-accepted-CON-902 PASS []
+R10 F2-accepted-CON-904 PASS []
+R10 F2-accepted-CON-906 PASS []
+R10 F2-accepted-CON-912 PASS []
+R10 F2-accepted-CON-913 PASS []
+R10 F2-docfail-CON-903 PASS 
+R10 F2-docfail-CON-905 PASS 
+R10 F2-docfail-raw PASS 
+R10 F2-verdict PASS rc=1 ['TODAY: 2026-11-16 window=60d', 'CHECKED items=15 provisional_status=8 ok=5 fail=3', 'DOCUMENT documents=2 segments=13 real=2 other_fail=3', 'VERDICT: FAIL']
+R10 F2-blind-missing PASS BLIND the tracker's document cannot be built: document Fixed segment 999 names item CON-999 [section], which is not in it\nVERDICT: BLIND\n
+R10 F2-lazy-quote PASS ({('B', ''): 'in document t, markdown-it commonmark shows the verification line as a paragraph of its own 0 times for 1 items that carry it: something before it in the document changes how it is read'}, None)
+R10 F2-shown PASS ({('B', ''): 'in document t, markdown-it commonmark shows the verification line as a paragraph of its own 0 times for 1 items that carry it: something before it in the document changes how it is read'}, None)
+R10 F2-shown-not-real PASS ({}, None)
+R10 F2-pandoc-tag-swallow PASS ({('P', ''): 'in document t, pandoc markdown does not show the paragraph after this item as a paragraph of its own: the item leaves a construct open at its end (an unclosed fence, comment, HTML block or raw HTML element) that hides or changes what follows it; close it'}, None)
+R10 cases=84 pass=84 fail=0
