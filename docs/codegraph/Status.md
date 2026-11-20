@@ -342,3 +342,39 @@ Per `constitution/Constitution.md` §11.4.275's own two "EXTENSION landed 2026-0
 - before: `1.6.0`
 - after:  `1.6.2`
 - npm command: `npm install -g @colbymchenry/codegraph@1.6.2`
+
+## 2026-11-20T12:16:27Z — codegraph update FAILED (§107 bluff caught)
+
+- before: `1.6.2`
+- target: `1.6.3`
+- after:  `1.6.2` (mismatch — npm exit 0 was bluffing)
+
+## 2026-11-20T13:44:12Z — codegraph version check
+
+- current: `1.6.3`
+- latest:  `1.6.3`
+- action:  **no-op** (already at latest)
+
+## 2026-11-20T13:46:12Z — codegraph version check
+
+- current: `1.6.3`
+- latest:  `1.6.3`
+- action:  **no-op** (already at latest)
+
+## 2026-11-20T14:35:42Z — codegraph version check
+
+- current: `1.6.3`
+- latest:  `1.6.3`
+- action:  **no-op** (already at latest)
+
+## 2026-11-20T16:08:32Z — codegraph updated
+
+- before: `1.6.3`
+- after:  `1.6.4`
+- npm command: `npm install -g @colbymchenry/codegraph@1.6.4`
+
+## 2026-11-20T16:52:15Z — codegraph version check
+
+- current: `1.6.4`
+- latest:  `1.6.4`
+- action:  **no-op** (already at latest)
