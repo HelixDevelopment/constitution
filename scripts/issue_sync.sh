@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/issue_sync.sh -- entry point of the workable-items Issues mirror (anchor §11.4.300).
-# Usage: issue_sync.sh {plan|apply|verify|status} [--config F] [--db F] --owner-repo HOST/OWNER/REPO --target HOST/OWNER/REPO ... [--apply] [--only-open] [--limit N] [--json]
+# Usage: issue_sync.sh {plan|apply|verify|status} [--config F] [--db F] --owner-repo HOST/OWNER/REPO [--db-repo HOST/OWNER/REPO] --target HOST/OWNER/REPO ... [--apply] [--only-open] [--limit N] [--json]
 #   plan    dry-run (default): the actions each leg would take; NO write
 #   apply   writes ONLY with --apply AND config mode: apply (+ apply_decision); never in dry-run
 #   verify  read-only; exit 0 every leg matches the DB, 1 drift (item ids named), 2 cannot determine (never a pass)

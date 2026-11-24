@@ -78,6 +78,9 @@ class Leg:
 def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None):
     """Return a list of actions for one leg. Action: {op, item, number?, reason?}. ops: create update close reopen noop
     blocked unconfirmed duplicate orphan. `issues` is the leg's full issue listing (state=all)."""
+    if issues is None:     # the leg's issues cannot be listed: nothing may be planned from an assumed-empty listing
+        r = leg.unconfirmed_reason(["can_list"]) or "capability-unverified:can_list"
+        return [{"op": "unconfirmed", "item": it["atm_id"], "reason": r} for it in items]
     acts = []
     ok, why = vis.allowed_target(owner_repo, (leg.host, leg.owner, leg.repo), owner_vis, leg.visibility)
     idx = index_issues(issues)

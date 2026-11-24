@@ -9,7 +9,8 @@ FIELDS = "atm_id, type, status, title, severity, description, current_location"
 
 
 def open_db(path, write=False):
-    uri = "file:%s?mode=%s" % (path, "rwc" if write else "ro")
+    import pathlib
+    uri = pathlib.Path(path).resolve().as_uri() + "?mode=" + ("rw" if write else "ro")   # escaped; a missing DB is an error, never created here
     con = sqlite3.connect(uri, uri=True)
     con.row_factory = sqlite3.Row
     return con
@@ -27,11 +28,16 @@ def load_items(con):
 
 
 def load_sub_projects(con):
-    try:
-        rows = con.execute("SELECT prefix, class, url FROM sub_projects").fetchall()
-    except sqlite3.OperationalError:
-        return {}, set()
-    return {r["prefix"]: r["url"] for r in rows if r["url"]}, {r["prefix"] for r in rows if r["class"] == "third-party"}
+    """-> (prefix -> url for prefixes with their own repo, third-party prefixes, parent prefixes, table_present). Only a MISSING table is tolerated;
+    any other error (missing column, lock, I/O) propagates so routing can never fail open."""
+    has = con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sub_projects'").fetchone()
+    if not has:
+        return {}, set(), set(), False
+    rows = con.execute("SELECT prefix, class, url FROM sub_projects").fetchall()
+    if not rows:                      # an empty map carries no routing information: same as no table (the DB's own repo owns everything)
+        return {}, set(), set(), False
+    return ({r["prefix"]: r["url"] for r in rows if r["url"]}, {r["prefix"] for r in rows if r["class"] == "third-party"},
+            {r["prefix"] for r in rows if r["class"] == "parent" and not r["url"]}, True)
 
 
 def ensure_map(con):

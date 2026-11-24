@@ -4,6 +4,7 @@ All three-valued: 0 in sync / done, 1 drift / failure, 2 cannot determine (never
 Targets: --target HOST/OWNER/REPO (repeatable). Tokens are read by variable NAME (credentials.py), never printed.
 Visibility of the owning repo is resolved live from the target's repo_info; undetermined blocks."""
 import argparse
+import sqlite3
 import datetime
 import json
 import sys
@@ -42,6 +43,7 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
     ap.add_argument("--db", default="docs/workable_items.db")
     ap.add_argument("--target", action="append", default=[])
     ap.add_argument("--owner-repo", help="HOST/OWNER/REPO owning the items of this DB (items route to its trackers only)")
+    ap.add_argument("--db-repo", help="HOST/OWNER/REPO whose DB this is (owner of prefixes with no repo of their own); default --owner-repo")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--only-open", action="store_true", help="tier 1: skip items in a closed status")
     ap.add_argument("--limit", type=int, default=0)
@@ -65,12 +67,37 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
     if not a.target or not a.owner_repo:
         print("cannot determine: --target and --owner-repo are required", file=out)
         return 2
+    if any(t.count("/") < 2 for t in a.target) or a.owner_repo.count("/") < 2 or (a.db_repo and a.db_repo.count("/") < 2):
+        print("cannot determine: --target/--owner-repo/--db-repo must be HOST/OWNER/REPO", file=out)
+        return 2
     owner_repo = vis.canonical_repo("ssh://git@%s/%s.git" % tuple(a.owner_repo.split("/", 1)))
+    db_repo = vis.canonical_repo("ssh://git@%s/%s.git" % tuple((a.db_repo or a.owner_repo).split("/", 1)))
     hosts = registry.load_hosts()
-    con = store.open_db(a.db, write=(a.cmd == "apply"))
-    items = store.load_items(con)
-    prefixes, third = store.load_sub_projects(con)
+    try:
+        con = store.open_db(a.db, write=(a.cmd == "apply"))
+        items = store.load_items(con)
+        prefixes, third, parents, has_table = store.load_sub_projects(con)
+    except (sqlite3.Error, OSError) as e:
+        print("cannot determine: workable-items DB unreadable (%s)" % type(e).__name__, file=out)
+        return 2
     items = [i for i in items if not vis.is_third_party(i["atm_id"], third)]
+    # route each item to its OWNING repository; only items owned by --owner-repo are ever written to its trackers
+    own = {p: vis.canonical_repo(u) for p, u in prefixes.items()}
+    routed, foreign, unroutable = [], 0, 0
+    for i in items:
+        pfx = i["atm_id"].split("-", 1)[0].upper()
+        if pfx in own:
+            o = own[pfx]
+        elif pfx in parents or not has_table:
+            o = db_repo                       # the parent / the DB's own repository (or a DB with no sub_projects table)
+        else:
+            unroutable += 1
+            continue
+        if o is not None and o[1:] == owner_repo[1:]:
+            routed.append(i)
+        else:
+            foreign += 1
+    items = routed
     if a.only_open:
         items = [i for i in items if not engine.is_closed(i["status"])]
     if a.limit:
@@ -86,7 +113,7 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
             rc = max(rc, 2) if rc != 1 else 1
             continue
         try:
-            issues = leg.adapter.list_issues(leg.owner, leg.repo) if leg.exists and leg.adapter.capabilities["can_list"] and leg.issues_enabled is not False else []
+            issues = leg.adapter.list_issues(leg.owner, leg.repo) if leg.exists and leg.adapter.capabilities["can_list"] and leg.issues_enabled is not False else None
         except AdapterError as e:
             report.append({"leg": leg.id, "verdict": "UNDETERMINED", "reason": e.code})
             rc = 1 if rc == 1 else 2
@@ -98,7 +125,11 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
             continue
         acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues)
         if a.cmd == "apply":
-            ensure = store.ensure_map(con)
+            try:
+                store.ensure_map(con)
+            except sqlite3.Error as e:
+                print("cannot determine: DB not writable (%s)" % type(e).__name__, file=out)
+                return 2
             now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             def done(act, issue, h, leg=leg):
                 store.record(con, act["item"], leg.id, leg.host, "%s/%s" % (leg.owner, leg.repo), issue, h, now)
@@ -115,6 +146,10 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
         report.append({"leg": leg.id, "counts": counts, **({"reasons": reasons} if reasons else {})})
         if any(x["op"] in ("blocked", "unconfirmed") for x in acts):
             rc = max(rc, 2) if rc != 1 else 1
+    if foreign or unroutable:
+        report.append({"routing": {"not-owned-by-this-repo (never sent)": foreign, "unroutable-prefix (blocked)": unroutable}})
+        if unroutable:
+            rc = 1 if rc == 1 else 2
     print(json.dumps(report, indent=1) if a.json else "\n".join(json.dumps(r) for r in report), file=out)
     return rc
 
