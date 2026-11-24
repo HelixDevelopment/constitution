@@ -236,6 +236,7 @@ MARKERS=(
     'CM-COVENANT-114-296-PROPAGATION'
     'CM-GITHUB-ISSUES-SOURCE-ANCHOR-WIRED'
     'OWED-GATE-181'
+    'Carve-out note (2026-11-24, §11.4.300)'
 )
 for m in "${MARKERS[@]}"; do
     chk "canon: block carries marker '$m'" has "$BLK" "$m"
@@ -273,6 +274,7 @@ for f in CLAUDE.md AGENTS.md QWEN.md GEMINI.md; do
     chk "mirror $f: block names the issue-creation ban" has "$CB" "\`gh issue create\`"
     chk "mirror $f: block names the closed write-back words" has "$CB" "\`acknowledged\`, \`in-progress\`, \`in-testing\`, \`resolved\`, \`done\`, \`blocked\`, \`reopened\`"
     chk "mirror $f: block quotes the scope ruling" has "$CB" "We will be importing and maintaining already opened issues (workable items) from GitHub Issues but we will NOT import our other workable items there"
+    chk "mirror $f: block names the 2026-11-24 carve-out" has "$CB" "Carve-out note (2026-11-24)"
     chk "mirror $f: block names the default mode dry-run" has "$CB" "default \`dry-run\`"
     chk "mirror $f: block names the content hash" has "$CB" "content hash"
     chk "mirror $f: block names gate $GATE" has "$CB" "$GATE"

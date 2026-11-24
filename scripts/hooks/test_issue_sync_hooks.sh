@@ -21,4 +21,12 @@ printf 'enabled: true\nmode: dry-run\n' > .workable-items-sync.yaml; bash "$HERE
 [ ! -e .git/issue-sync.log ]; ok "post-merge dry-run starts no job" 0 $?
 printf 'enabled: true\nmode: apply\napply_decision: d.md\n' > .workable-items-sync.yaml; bash "$HERE/issue_sync_post_merge.sh"; ok "post-merge without targets exits 0" 0 $?
 grep -q undeclared .git/issue-sync.log; ok "post-merge logs undeclared targets" 0 $?
+# the hooks take the mode from the engine's validator, never from grepping the YAML: an invalid declaration (YAML 1.1 boolean, duplicate key) is never ON
+export ISSUE_SYNC_TARGETS="github.com/o/r" ISSUE_SYNC_OWNER_REPO="github.com/o/r"
+for bad in 'enabled: yes\nmode: apply\napply_decision: d.md\n' 'enabled: false\nenabled: true\nmode: apply\napply_decision: d.md\n'; do
+  rm -f .git/issue-sync.log; printf "$bad" > .workable-items-sync.yaml; bash "$HERE/issue_sync_post_merge.sh"; ok "post-merge invalid config exits 0" 0 $?
+  grep -q "config invalid" .git/issue-sync.log; ok "post-merge invalid config starts no job and logs why" 0 $?
+done
+rm -f .git/issue-sync.log; printf 'enabled: true\nmode: dry-run\n# mode: apply\n' > .workable-items-sync.yaml; bash "$HERE/issue_sync_post_merge.sh"
+[ ! -e .git/issue-sync.log ]; ok "post-merge ignores a commented-out apply line" 0 $?
 exit "$fail"

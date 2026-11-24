@@ -63,7 +63,10 @@ class HttpTransport:
             try:
                 with self._opener.open(req, timeout=self.timeout) as r:
                     raw = r.read()
-                    return r.status, dict(r.headers), (json.loads(raw) if raw else None)
+                    try:
+                        return r.status, dict(r.headers), (json.loads(raw) if raw else None)
+                    except ValueError:     # a 2xx whose body is not JSON: a write may have happened, so never treat it as success or retry it
+                        raise AdapterError("malformed_body", r.status)
             except urllib.error.HTTPError as e:
                 raw = e.read()
                 if 300 <= e.code < 400:
@@ -91,12 +94,17 @@ class Adapter:
     provider = "base"
     api_base = ""
     default_headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    # unverified until proven by a live create + read-back; True only where documented AND proven
+    # unverified until proven by a live create + read-back; True only where documented AND proven. Read verbs may be proven by a read-only probe.
     capabilities = {"can_list": False, "can_create": False, "can_update": False, "can_close": False, "can_reopen": False,
                     "can_label": False, "not_planned": False}
 
-    def __init__(self, transport, api_base=None):
+    write_capabilities = {}   # declared, UNPROVEN write verbs: enabled only per host through `proven` (recorded live create + read-back)
+
+    def __init__(self, transport, api_base=None, proven=False):
         self.t, self.api_base = transport, (api_base or self.api_base).rstrip("/")
+        self.capabilities = dict(type(self).capabilities)
+        if proven:
+            self.capabilities.update(self.write_capabilities)
 
     def _call(self, method, path, body=None, ok=(200, 201, 204)):
         st, hdr, js = self.t(method, self.api_base + path, self.default_headers, body)

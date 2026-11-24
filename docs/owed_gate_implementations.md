@@ -1070,7 +1070,7 @@ The item-level gate named in §11.4.296 is registered as a deferral in the same 
 - **OWED-GATE-181** — `CM-GITHUB-ISSUES-SYNC-EVIDENCE`
   - **Must assert:** (per §11.4.296(B)/(C)/(D)/(E)/(F)/(H)/(J)) from a snapshot of the platform issues assigned to a declared account, a read-only copy of the workable-items database and the run records: every issue has exactly one item carrying the marker line `GitHub-Issue` exactly once; no marker is duplicated or points at another repository; the content hash stored in each item equals the hash recomputed from the snapshot; consecutive run starts are at most the interval plus the grace apart; every created item has a first-response comment posted or planned in its run; the derived documents are recorded fresh after a changing run; an external-tracker leg configured as blocked is never recorded synced; the sync tooling holds no issue-creating command and no write-back path for an unmarked item; the verdict is INCONCLUSIVE (exit 3) when offline or when no snapshot or database is supplied, never a PASS without evidence; golden-FALSE: an unchanged snapshot imported twice leaves exactly one item per issue
   - **Blocked on:** the constitution ships no sync engine, no platform client and no run-record store; the consuming project implements the gate
-  - **Paired §1.1 mutation:** duplicate a marker, drop an item, edit the issue body without re-importing, widen the run gap, add an issue-creating command or a write-back for an unmarked item to the tooling; the gate MUST FAIL
+  - **Paired §1.1 mutation:** duplicate a marker, drop an item, edit the issue body without re-importing, widen the run gap, add an issue-creating command or a write-back for an unmarked item to the tooling; the gate MUST FAIL (a footer-marked mirror issue created by the §11.4.300 engine `scripts/issue_sync/` is exempt per §11.4.300(H) and MUST NOT fail the issue-creation check; anything without the footer still fails it)
 
 ### §11.4.297 Pull-request delivery (registered 2026-11-07)
 
@@ -1112,7 +1112,7 @@ The item-level gate named in §11.4.298 is registered as a deferral in the same 
 
 - **OWED-GATE-188** — `CM-ISSUE-SYNC-VERIFIED`
   - **Must assert:** (per §11.4.300(C)/(D)/(E)) every mapped workable item exists on every derived tracker with matching hash, label and state; no private item maps to a public or undetermined tracker; no duplicate key; an unverified leg is UNCONFIRMED; verdict 0/1/2 with 2 never a pass
-  - **Blocked on:** the engine, adapters and verifier are delivered by items C2 to C5 of the workable-items issue sync; the per-consumer declaration is consumer DATA
+  - **Blocked on:** the engine, adapters, verifier and CLI are delivered (`scripts/issue_sync/`, `scripts/verify_issues_sync.sh`; the anchor-level gate `CM-ISSUE-SYNC-VERIFIER-PROOF` proves the verifier logic on a test double and is NOT this gate); what remains is the per-consumer declaration (consumer DATA) and a recorded live create plus read-back per host (`config/forge/issue_sync_proven.tsv` is empty until then)
   - **Paired §1.1 mutation:** deleted tracker issue, edited title, wrongly closed issue, duplicate key, private-to-public mapping, stripped footer, unset token, 429 everywhere, corrupt hash each MUST flip the verdict
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)

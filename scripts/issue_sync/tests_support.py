@@ -40,3 +40,38 @@ def mkdb(rows, subs=()):
 def cfgfile(text="enabled: true\nmode: dry-run\n"):
     p = os.path.join(tempfile.mkdtemp(), "c.yaml"); open(p, "w").write(text); return p
 
+
+PROVEN = {"github.com", "gitlab.com"}   # hosts treated as write-proven by the TEST DOUBLES only; the shipped issue_sync_proven.tsv is empty
+
+def applycfg(extra=""):
+    """A config in a throwaway git repository whose apply_decision (d.md) is a real, non-empty, git-tracked file."""
+    import subprocess
+    d = tempfile.mkdtemp()
+    subprocess.run(["git", "init", "-q", d], check=True)
+    open(os.path.join(d, "d.md"), "w").write("recorded operator decision (test fixture)\n")
+    subprocess.run(["git", "-C", d, "add", "d.md"], check=True)
+    p = os.path.join(d, ".workable-items-sync.yaml")
+    open(p, "w").write("enabled: true\nmode: apply\napply_decision: d.md\n" + extra)
+    return p
+
+class FakeGitLab:
+    """Minimal GitLab v4 shaped transport: project visibility, empty issue list, records every write."""
+    def __init__(self, visibility="public", fail_visibility=False):
+        self.visibility, self.writes, self.calls, self.issues, self.fail_visibility = visibility, 0, [], [], fail_visibility
+    def __call__(self, m, url, h, body):
+        self.calls.append((m, url))
+        path = url.split("/api/v4")[1]
+        if m == "GET" and re.fullmatch(r"/projects/[^/]+", path):
+            d = {"issues_access_level": "enabled"}
+            if self.visibility is not None:
+                d["visibility"] = self.visibility
+            return 200, {}, d
+        if m == "GET":
+            return 200, {}, [self._j(i) for i in self.issues] if "page=1" in path else []
+        self.writes += 1
+        if m == "POST":
+            i = {"iid": len(self.issues) + 1, "title": body["title"], "description": body["description"], "state": "opened", "labels": body["labels"].split(",")}
+            self.issues.append(i); return 201, {}, self._j(i)
+        return 404, {}, None
+    @staticmethod
+    def _j(i): return dict(i, web_url="https://gitlab.com/o/r/-/issues/%d" % i["iid"])

@@ -22,10 +22,33 @@ def load_hosts(path=HOSTS_TSV):
     return hosts
 
 
-def make(host, transport_factory, hosts=None):
-    """-> adapter or None (unknown host: nothing is guessed). transport_factory(token_vars, host) -> transport."""
+PROVEN_TSV = os.path.join(os.path.dirname(__file__), "..", "..", "config", "forge", "issue_sync_proven.tsv")
+
+
+def load_proven(path=PROVEN_TSV, root=None):
+    """Hosts whose WRITE verbs are proven: rows `host<TAB>evidence-path` where the evidence file (a recorded live create + read-back) EXISTS
+    under the constitution root. A missing file, a row without evidence, or an evidence path that does not exist proves nothing."""
+    root = root or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    proven = set()
+    try:
+        with open(path) as f:
+            for line in f:
+                if line.startswith("#") or not line.strip():
+                    continue
+                c = line.rstrip("\n").split("\t")
+                ev = os.path.realpath(os.path.join(root, c[1])) if len(c) >= 2 and c[1] else None
+                if ev and ev.startswith(os.path.realpath(root) + os.sep) and os.path.isfile(ev):
+                    proven.add(c[0])
+    except OSError:
+        pass
+    return proven
+
+
+def make(host, transport_factory, hosts=None, proven=()):
+    """-> adapter or None (unknown host: nothing is guessed). transport_factory(token_vars, host) -> transport.
+    Write verbs are enabled only for hosts in `proven`."""
     hosts = hosts or load_hosts()
     h = hosts.get(host)
     if not h:
         return None
-    return CLASSES[h["provider"]](transport_factory(h["token_vars"], host), h["api_base"])
+    return CLASSES[h["provider"]](transport_factory(h["token_vars"], host), h["api_base"], proven=host in proven)

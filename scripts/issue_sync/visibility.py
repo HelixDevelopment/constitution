@@ -2,6 +2,7 @@
 import re
 
 _SCP = re.compile(r"^(?:[\w.-]+@)?([\w.-]+):(?!//)/?(.+)$")
+_NESTED_HOSTS = {"gitlab.com"}          # hosts with nested groups: the owner keeps the WHOLE group path
 _URL = re.compile(r"^(?:https?|ssh|git)://(?:[^@/]+@)?([^/:]+)(?::\d+)?/(.+)$")
 
 
@@ -14,9 +15,13 @@ def canonical_repo(url):
     if path.endswith(".git"):
         path = path[:-4]
     parts = path.split("/")
-    if len(parts) < 2 or not all(parts[-2:]):
+    if "-" in parts:                      # GitLab web path 'group/proj/-/issues': only what precedes '/-/' names the project
+        parts = parts[:parts.index("-")]
+    if len(parts) < 2 or not all(parts):
         return None
-    return (host, parts[-2].lower(), parts[-1].lower())
+    if host not in _NESTED_HOSTS and len(parts) != 2:
+        return None                       # flat namespaces: 'org/repo/issues' is NOT a repo named 'issues'
+    return (host, "/".join(parts[:-1]).lower(), parts[-1].lower())
 
 
 def resolve(probe, repo=None):

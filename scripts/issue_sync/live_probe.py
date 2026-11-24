@@ -14,12 +14,12 @@ def probe(spec):
         return "%s UNKNOWN host_not_in_hosts_tsv" % spec
     st, name, tok = credentials.resolve(hosts[host]["token_vars"])
     tr = HttpTransport(tok if st == "found" else None, min_interval=0.5)
-    ad = registry.CLASSES[hosts[host]["provider"]](tr, hosts[host]["api_base"])
+    ad = registry.CLASSES[hosts[host]["provider"]](tr, hosts[host]["api_base"], proven=host in registry.load_proven())
     try:
         info = ad.repo_info(owner, repo)
     except AdapterError as e:
         return "%s UNDETERMINED %s (auth=%s)" % (spec, e.code, st)
-    return "%s exists=%s private=%s issues_enabled=%s auth=%s caps=%s" % (spec, info["exists"], info["private"], info["issues_enabled"], st if st != "found" else "token:" + name, ",".join(k for k, v in ad.capabilities.items() if v) or "none-verified")
+    return "%s exists=%s private=%s issues_enabled=%s auth=%s caps=%s writes=%s" % (spec, info["exists"], info["private"], info["issues_enabled"], st if st != "found" else "token:" + name, ",".join(k for k, v in ad.capabilities.items() if v) or "none-verified", "PROVEN" if ad.capabilities.get("can_create") else "UNCONFIRMED")
 
 
 def main(argv):

@@ -9,7 +9,7 @@ class GitVerse(Gitea):
     default_headers = {"Accept": "application/vnd.gitverse.object+json;version=1", "Content-Type": "application/json"}
 
     def __init__(self, transport, api_base=None, proven=False):
-        super().__init__(transport, api_base, proven=False)
+        super().__init__(transport, api_base, proven=False)   # the Gitea base is never told `proven`: GitVerse closing is undocumented
         self.capabilities = dict(self.capabilities, can_close=False, can_reopen=False)
         if proven:
             self.capabilities.update(can_create=True, can_update=True)

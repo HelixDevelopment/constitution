@@ -7,17 +7,19 @@ import argparse
 import sqlite3
 import datetime
 import json
+import os
+import subprocess
 import sys
 
-from . import config as cfgmod, credentials, registry, store, engine, visibility as vis
+from . import config as cfgmod, credentials, redact, registry, store, engine, visibility as vis
 from .adapters.base import AdapterError, HttpTransport
 
 
-def _legs(targets, hosts, transport_factory):
+def _legs(targets, hosts, transport_factory, proven=()):
     legs = []
     for t in targets:
         host, owner, repo = t.split("/", 2)
-        ad = registry.make(host, transport_factory, hosts)
+        ad = registry.make(host, transport_factory, hosts, proven)
         if ad is None:
             legs.append((t, None, "unknown-host"))
             continue
@@ -36,7 +38,38 @@ def _transport_factory(token_vars, host):
     return HttpTransport(tok if st == "found" else None)
 
 
-def run(argv, transport_factory=_transport_factory, out=sys.stdout):
+def _decision_problem(cfg_path, decision):
+    """None when `decision` (the config's apply_decision) is an existing, non-empty, git-TRACKED regular file inside the repository that holds the
+    config; else a short reason. A string in a YAML file is not a recorded operator decision."""
+    base = os.path.dirname(os.path.abspath(cfg_path))
+    try:
+        top = subprocess.run(["git", "-C", base, "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=30)
+        if top.returncode != 0:
+            return "config is not inside a git repository"
+        top = os.path.realpath(top.stdout.strip())
+        p = os.path.realpath(os.path.join(top, decision))
+        if not p.startswith(top + os.sep) or not os.path.isfile(p) or os.path.getsize(p) == 0:
+            return "file missing, empty or outside the repository"
+        tr = subprocess.run(["git", "-C", top, "ls-files", "--error-unmatch", "--", os.path.relpath(p, top)], capture_output=True, timeout=30)
+        return None if tr.returncode == 0 else "file is not tracked by git"
+    except (OSError, subprocess.SubprocessError):
+        return "could not verify the decision file"
+
+
+def _fingerprints(paths):
+    """-> (set|None, error|None). Hashes of k-word shingles of the private corpus files; an unreadable or empty corpus is an error (fail closed)."""
+    text = []
+    for p in paths:
+        try:
+            with open(p, errors="replace") as f:
+                text.append(f.read())
+        except OSError:
+            return None, "private corpus unreadable"
+    fps = redact.fingerprints("\n".join(text))
+    return (fps, None) if fps else (None, "private corpus holds no matchable text")
+
+
+def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts=None):
     ap = argparse.ArgumentParser(prog="issue_sync")
     ap.add_argument("cmd", choices=["plan", "apply", "verify", "status"])
     ap.add_argument("--config", default=".workable-items-sync.yaml")
@@ -44,6 +77,7 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
     ap.add_argument("--target", action="append", default=[])
     ap.add_argument("--owner-repo", help="HOST/OWNER/REPO owning the items of this DB (items route to its trackers only)")
     ap.add_argument("--db-repo", help="HOST/OWNER/REPO whose DB this is (owner of prefixes with no repo of their own); default --owner-repo")
+    ap.add_argument("--private-corpus", action="append", default=[], help="file whose 8-word shingles must never leave (repeatable; also ISSUE_SYNC_PRIVATE_CORPUS, path-separated)")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--only-open", action="store_true", help="tier 1: skip items in a closed status")
     ap.add_argument("--limit", type=int, default=0)
@@ -59,12 +93,24 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
     if a.cmd == "apply" and not (a.apply and cfg["mode"] == "apply"):
         print("apply refused: needs --apply AND mode: apply with a recorded apply_decision in the config (dry-run default)", file=out)
         return 2
+    if a.cmd == "apply":
+        why = _decision_problem(a.config, cfg["apply_decision"])
+        if why:
+            print("apply refused: apply_decision %s (%s)" % (cfg["apply_decision"], why), file=out)
+            return 2
     if not a.owner_repo or (a.cmd != "status" and not a.target):
         print("cannot determine: --target and --owner-repo are required", file=out)
         return 2
     if any(t.count("/") < 2 for t in a.target) or a.owner_repo.count("/") < 2 or (a.db_repo and a.db_repo.count("/") < 2):
         print("cannot determine: --target/--owner-repo/--db-repo must be HOST/OWNER/REPO", file=out)
         return 2
+    fps = None
+    corpus = list(a.private_corpus) + [p for p in os.environ.get("ISSUE_SYNC_PRIVATE_CORPUS", "").split(os.pathsep) if p]
+    if corpus and a.cmd != "status":
+        fps, why = _fingerprints(corpus)
+        if why:
+            print("cannot determine: %s" % why, file=out)
+            return 2
     owner_repo = vis.canonical_repo("ssh://git@%s/%s.git" % tuple(a.owner_repo.split("/", 1)))
     db_repo = vis.canonical_repo("ssh://git@%s/%s.git" % tuple((a.db_repo or a.owner_repo).split("/", 1)))
     hosts = registry.load_hosts()
@@ -75,16 +121,20 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
     except (sqlite3.Error, OSError) as e:
         print("cannot determine: workable-items DB unreadable (%s)" % type(e).__name__, file=out)
         return 2
+    if parents and not a.db_repo:
+        print("cannot determine: --db-repo is required when the DB has parent prefixes (the parent's items must be routed to a repo you name, never to whichever --owner-repo was passed)", file=out)
+        return 2
     items = [i for i in items if not vis.is_third_party(i["atm_id"], third)]
     # route each item to its OWNING repository; only items owned by --owner-repo are ever written to its trackers
     own = {p: vis.canonical_repo(u) for p, u in prefixes.items()}
+    single = len({i["atm_id"].split("-", 1)[0].upper() for i in items}) <= 1   # a DB without routing data may only be one project's own
     routed, foreign, unroutable = [], 0, 0
     for i in items:
         pfx = i["atm_id"].split("-", 1)[0].upper()
         if pfx in own:
             o = own[pfx]
-        elif pfx in parents or not has_table:
-            o = db_repo                       # the parent / the DB's own repository (or a DB with no sub_projects table)
+        elif pfx in parents or (not has_table and single):
+            o = db_repo                       # the parent / the DB's own repository (a DB with no routing data and ONE prefix)
         else:
             unroutable += 1
             continue
@@ -93,6 +143,7 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
         else:
             foreign += 1
     items = routed
+    all_ids = {i["atm_id"] for i in routed}      # every item this repository owns, before any --only-open/--limit filter
     if a.cmd == "status":      # offline: no network, no write; only items this repository owns
         from . import offline_status
         r = offline_status.status(a.db, items=items)
@@ -102,11 +153,15 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
         items = [i for i in items if not engine.is_closed(i["status"])]
     if a.limit:
         items = items[:a.limit]
+    if a.cmd == "verify" and not items:
+        print(json.dumps([{"verdict": "UNDETERMINED", "reason": "no-items-routed", "routing": {"not-owned-by-this-repo (never sent)": foreign, "unroutable-prefix (blocked)": unroutable}}]), file=out)
+        return 2             # nothing to compare is not 'in sync'
     rc, report = 0, []
+    proven = registry.load_proven() if proven_hosts is None else set(proven_hosts)
     tf = _transport_factory if transport_factory is None else transport_factory
-    _, owner_leg, _ = _legs([a.owner_repo], hosts, tf)[0]           # the OWNING repo's own visibility, resolved live
+    _, owner_leg, _ = _legs([a.owner_repo], hosts, tf, proven)[0]           # the OWNING repo's own visibility, resolved live
     owner_vis = owner_leg.visibility if owner_leg else "undetermined"
-    legs = _legs(a.target, hosts, tf)
+    legs = _legs(a.target, hosts, tf, proven)
     for tid, leg, err in legs:
         if leg is None:
             report.append({"leg": tid, "verdict": "UNDETERMINED", "reason": err})
@@ -119,11 +174,11 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
             rc = 1 if rc == 1 else 2
             continue
         if a.cmd == "verify":
-            r, f = engine.verify_leg(items, leg, owner_vis, owner_repo, issues)
+            r, f = engine.verify_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids)
             report.append({"leg": leg.id, "rc": r, "findings": f})
             rc = 1 if (r == 1 or rc == 1) else max(rc, r)
             continue
-        acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues)
+        acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids)
         if a.cmd == "apply":
             try:
                 store.ensure_map(con)
@@ -134,7 +189,7 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
             def done(act, issue, h, leg=leg):
                 store.record(con, act["item"], leg.id, leg.host, "%s/%s" % (leg.owner, leg.repo), issue, h, now)
             try:
-                acts = engine.apply_leg(items, leg, acts, on_done=done, apply=True)
+                acts = engine.apply_leg(items, leg, acts, on_done=done, apply=True, fingerprint_set=fps)
             except AdapterError as e:
                 report.append({"leg": leg.id, "verdict": "STOPPED", "reason": e.code})
                 rc = 1
@@ -142,9 +197,9 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
         counts = {}
         for x in acts:
             counts[x["op"]] = counts.get(x["op"], 0) + 1
-        reasons = sorted({x["reason"] for x in acts if x["op"] in ("blocked", "unconfirmed")})   # ids never printed with reasons; counts only
+        reasons = sorted({x["reason"] for x in acts if x["op"] in ("blocked", "unconfirmed", "anomaly")})   # ids never printed with reasons; counts only
         report.append({"leg": leg.id, "counts": counts, **({"reasons": reasons} if reasons else {})})
-        if any(x["op"] in ("blocked", "unconfirmed") for x in acts):
+        if any(x["op"] in ("blocked", "unconfirmed", "anomaly") for x in acts):
             rc = max(rc, 2) if rc != 1 else 1
     if foreign or unroutable:
         report.append({"routing": {"not-owned-by-this-repo (never sent)": foreign, "unroutable-prefix (blocked)": unroutable}})
