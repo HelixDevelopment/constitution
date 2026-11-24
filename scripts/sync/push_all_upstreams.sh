@@ -27,6 +27,7 @@ printf '%s\n' "$out" | sed -E 's#(://)[^/@]*@#\1#'
 BLOCK=0
 while read -r word url _; do
   [ "$word" = BEHIND ] || continue
+  case "$url" in -*) echo "BLOCKED  refused URL beginning with -"; BLOCK=1; continue;; esac
   if [ "$APPLY" = 1 ]; then
     if git -C "$REPO" push "$url" "$SHA:refs/heads/$BRANCH" >/dev/null 2>&1; then echo "PUSHED   $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')"
     else echo "BLOCKED  $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')  (push refused; never forced)"; BLOCK=1; fi

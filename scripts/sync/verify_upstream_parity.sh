@@ -89,6 +89,9 @@ check_repo() {  # $1 = absolute dir, $2 = display name
     line=$(grep -E '^[[:space:]]*(export[[:space:]]+)?UPSTREAMABLE_REPOSITORY=' "$rec" | head -1 | sed -E 's/^[^=]*=//; s/^["'"'"']//; s/["'"'"'].*$//')
     [ -n "$line" ] && urls="$urls"$'\n'"$line"
   done
+  # a declared URL that begins with "-" would be read by git as an option (e.g. --upload-pack=...): refuse before any git call
+  local bad=0; while read -r u; do case "$u" in -*) say "CANNOT-DETERMINE  $name  refused an upstream URL that begins with '-' (option injection)"; bad=1;; esac; done <<< "$urls"
+  if [ "$bad" = 1 ]; then F2=$((F2+1)); return; fi
   # de-duplicate by normalised URL, keep the first spelling
   local seen="" uniq=""
   while read -r u; do
@@ -143,7 +146,7 @@ walk() {  # $1 abs dir, $2 display name
   local key path url
   while read -r key path; do
     url=$(git config -f "$1/.gitmodules" --get "${key%.path}.url" 2>/dev/null)
-    local rel="${2#.}"; rel="${rel#/}"; [ -n "$rel" ] && rel="$rel/$path" || rel="$path"
+    local rel; if [ "$2" = "." ]; then rel="$path"; else rel="$2/$path"; fi
     if is_skipped "$rel"; then say "NOTE  $rel  skipped by --skip"; continue; fi
     if ! is_own "$url"; then say "NOTE  $rel  third party (url outside --own-org), not a verdict input"; continue; fi
     if [ ! -e "$1/$path/.git" ]; then say "CANNOT-DETERMINE  $rel  declared submodule is not initialised"; F2=$((F2+1)); continue; fi
@@ -156,8 +159,8 @@ if [ -n "$FLEET" ]; then
   walk "$ROOT" "."
 else
   ROOT=$(cd "$REPO" 2>/dev/null && pwd) || { echo "verify_upstream_parity: --repo not found" >&2; exit 2; }
-  SUPER=$(git -C "$ROOT" rev-parse --show-superproject-working-tree 2>/dev/null)
-  if [ -n "$SUPER" ]; then KEY="${ROOT#"$SUPER"/}"; else KEY="."; fi   # same key as --fleet: path relative to the superproject root, "." for a top-level repo
+  OUT="$ROOT"; while :; do SUP=$(git -C "$OUT" rev-parse --show-superproject-working-tree 2>/dev/null); [ -n "$SUP" ] || break; OUT="$SUP"; done
+  if [ "$OUT" != "$ROOT" ]; then KEY="${ROOT#"$OUT"/}"; else KEY="."; fi   # same key as --fleet: path relative to the OUTERMOST superproject root, "." for a top-level repo
   check_repo "$ROOT" "$KEY"
 fi
 if [ "$F1" -gt 0 ]; then echo "RESULT: BEHIND-OR-DIVERGED ($F1 finding(s), $F2 undetermined) -- exit 1"; exit 1; fi

@@ -4,7 +4,7 @@
 # "upstreams" of a throwaway work repository (the tool's own logic is under test here; the live proof of a real merge is
 # the per-upstream `git ls-remote` read-back the anchor demands, not this test). Every case states its expected exit code;
 # a verifier that returned 0 on a behind/diverged/unreachable/empty state would be the PASS-bluff the anchor forbids.
-# Cases M1..M18, L1..L5. Exit 0 all as expected · 1 a case differed · 2 environment fault.
+# Cases M1..M20, L1..L5. Exit 0 all as expected · 1 a case differed · 2 environment fault.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); V="$HERE/../sync/verify_upstream_parity.sh"; P="$HERE/../sync/push_all_upstreams.sh"
 [ -x "$V" ] && [ -x "$P" ] || { echo "tools missing" >&2; exit 2; }
@@ -66,6 +66,20 @@ git init -q --bare -b main "$T/sp.a.git"; git -C "$T/sp" remote add a "$T/sp.a.g
 bash "$V" --fleet "$T/sp" --exempt "$T/ex2.tsv" --quiet >/dev/null; expect "M18a --fleet honours the exemption -> 0" 0 $?
 bash "$P" --repo "$T/sp/subx" --sha "$S2" --exempt "$T/ex2.tsv" --apply >/dev/null 2>&1; expect "M18b push_all --repo honours the same exemption -> 0" 0 $?
 [ "$(git -C "$T/spsub.b.git" rev-parse main)" != "$S2" ] && expect "M18c exempt mirror was NOT pushed" 0 0 || expect "M18c exempt mirror was NOT pushed" 0 1
+# M19 option-injection URL in a recipe is refused (rc 2) and nothing is executed
+mk "$W"; mkdir -p "$W/upstreams"; printf '#!/bin/bash\nexport UPSTREAMABLE_REPOSITORY="--upload-pack=touch %s/PWNED;git-upload-pack"\n' "$T" > "$W/upstreams/x.sh"
+bash "$V" --repo "$W" --quiet >/dev/null 2>&1; rc=$?; [ ! -e "$T/PWNED" ] && expect "M19a injected --upload-pack not executed" 0 0 || expect "M19a injected --upload-pack not executed" 0 1
+expect "M19b option-like URL -> rc 2" 2 $rc
+# M20 two-level nesting: exemption key is the path relative to the OUTERMOST root, honoured by --fleet and by push_all --repo
+nb "$T/leaf" l; for r in a b; do git init -q --bare -b main "$T/leaf.$r.git"; git -C "$T/leaf" remote add $r "$T/leaf.$r.git"; git -C "$T/leaf" push -q $r main; done
+echo 2 >> "$T/leaf/f"; git -C "$T/leaf" commit -qam l2; LS=$(git -C "$T/leaf" rev-parse HEAD); git -C "$T/leaf" push -q a main
+nb "$T/outer" o; git -C "$T/outer" submodule add -q "$T/leaf.a.git" inner; git -C "$T/outer" commit -qm i; git init -q --bare -b main "$T/outer.a.git"; git -C "$T/outer" remote add a "$T/outer.a.git"; git -C "$T/outer" push -q a main
+nb "$T/top" t; git -C "$T/top" submodule add -q "$T/outer.a.git" outer; git -C "$T/top" submodule update -q --init --recursive; git init -q --bare -b main "$T/top.a.git"; git -C "$T/top" remote add a "$T/top.a.git"; git -C "$T/top" commit -qm o; git -C "$T/top" push -q a main
+git -C "$T/top/outer/inner" remote add b "$T/leaf.b.git"; git -C "$T/top/outer/inner" fetch -q origin; git -C "$T/top/outer/inner" checkout -q -B main origin/main
+printf 'outer/inner\t%s\tsnapshot-fed mirror, recorded decision\n' "$T/leaf.b.git" > "$T/ex3.tsv"
+bash "$V" --fleet "$T/top" --exempt "$T/ex3.tsv" --quiet >/dev/null 2>&1; expect "M20a --fleet honours nested exemption -> 0" 0 $?
+bash "$P" --repo "$T/top/outer/inner" --sha "$LS" --exempt "$T/ex3.tsv" --apply >/dev/null 2>&1; expect "M20b push_all honours nested exemption -> 0" 0 $?
+[ "$(git -C "$T/leaf.b.git" rev-parse main)" != "$LS" ] && expect "M20c nested exempt mirror NOT pushed" 0 0 || expect "M20c nested exempt mirror NOT pushed" 0 1
 # ---- verify_constitution_latest.sh (the "constitution is latest + nested submodules current" check) ----
 L="$HERE/../sync/verify_constitution_latest.sh"; 
 nb "$T/nest" n; git init -q --bare -b main "$T/nest.git"; git -C "$T/nest" push -q "$T/nest.git" main
