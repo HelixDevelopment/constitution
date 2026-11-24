@@ -1086,3 +1086,4 @@ tests/workable_items/test_secret_shapes_r11.py	py	entry	default	python3	-	auto
 scripts/issue_sync/tests/test_adapters.py	py	entry	default	python3	-	auto
 scripts/gates/cm_issue_sync_verifier_proof_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/issue_sync/tests/test_engine_cli.py	py	entry	default	python3	-	auto
+scripts/issue_sync/tests_support.py	py	member	default	-	scripts/issue_sync/tests/test_engine_cli.py	auto: imported by test_engine_cli.py and prove_failure
