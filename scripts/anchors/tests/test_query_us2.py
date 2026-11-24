@@ -100,8 +100,10 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # "Classification: universal (§11.4.17)"): universal 195 -> 196 = +1. 196 + 110 + 2 mixed = 308.
         # Re-measured 2026-11-12: unstated 110 -> 111 = +1 for the §11.4.184(J) EXTENSION
         # paragraph (no Classification line; universal stays 196).
-        assert len(universal) == 196, (
-            f"expected exactly 196 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-11-24 (§11.4.299 merged-is-not-delivered-until-pushed added,
+        # "Classification: universal (§11.4.17)"): universal 196 -> 197 = +1.
+        assert len(universal) == 197, (
+            f"expected exactly 197 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )

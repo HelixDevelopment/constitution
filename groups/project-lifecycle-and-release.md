@@ -1930,3 +1930,4 @@ Classification: universal (§11.4.17) — no product, device or project literal;
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.298.
 
 **Non-compliance is a release blocker. No escape hatch — no `--deploy-without-live-run`, `--tag-without-live-run`, `--emulator-counts-as-target`, `--partial-suite-release`, `--reuse-other-product-verdict`, `--no-hardware-is-skip`, `--deploy-blocked-product`, `--release-covers-blocked-product` flag exists.**
+

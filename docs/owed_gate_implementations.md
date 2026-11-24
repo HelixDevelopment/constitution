@@ -28,6 +28,7 @@
 **R21 (2026-11-07, §11.4.297):** `OWED-GATE-182` (`CM-PR-LANDING-READBACK`), `OWED-GATE-183` (`CM-PR-EVIDENCE-RESOLVES-FROM-TIP`) and `OWED-GATE-184` (`CM-SUBMODULE-PIN-MIRROR-PARITY`) registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.297; section after the §11.4.296 section.
 
 **R22 (2026-11-07, §11.4.298):** `OWED-GATE-185` (`CM-RELEASE-GATE-PER-PRODUCT`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.298; section after the §11.4.297 section.
+**R24 (2026-11-24, §11.4.299):** `OWED-GATE-187` (`CM-UPSTREAM-PARITY-AFTER-MERGE`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.299.
 
 **R23 (2026-11-07, §11.4.297 audit fixes):** the `OWED-GATE-182` contract now also requires a source-correctness GO recorded for the merged head and the remote base tip, fetched right before the merge, to be an ancestor of the merged head (§11.4.297(C)(2)(a) and (g)); two paired mutations added to match. No row added or removed.
 
@@ -1103,6 +1104,11 @@ The item-level gate named in §11.4.298 is registered as a deferral in the same 
   - **Must assert:** (per the §11.4.288 amendment note of 2026-11-24, with §11.4.297(A.2)/(C)/(F)(4)) after every landing on main the landed tip is equal to or an ancestor of main on every upstream and mirror in the declared upstream set of the project root and each own submodule touched, including parent pin-bump commits (ancestry after a fetch); a non-containing upstream is reported MIRROR-LAG, an unread one UNREACHABLE, with error text, tracked retry, bound and escalation; leaving the declared set only by recorded operator decision
   - **Blocked on:** the declared upstream list, the sanctioned push path and network access are consuming-project DATA
   - **Paired §1.1 mutation:** one upstream left behind the tip and the landing reported complete; an upstream silently dropped from the set; the gate MUST FAIL
+
+- **OWED-GATE-187** — `CM-UPSTREAM-PARITY-AFTER-MERGE`
+  - **Must assert:** (per §11.4.299(A) to (D)) every pull request or merge a consuming project reports as landed or done carries a per-upstream `git ls-remote` read-back whose tip equals or contains the merged sha for every declared upstream; a submodule pin bump follows the submodule's own read-back; a BLOCKED or UNREACHABLE upstream is reported and never counted done
+  - **Blocked on:** the delivery tooling, the upstream declarations and the exemption data are consuming-project DATA; the constitution ships the read-only instruments `scripts/sync/verify_upstream_parity.sh` and `scripts/sync/verify_constitution_latest.sh` and the guarded helper `scripts/sync/push_all_upstreams.sh`, not the project's delivery hook
+  - **Paired §1.1 mutation:** a behind upstream, a diverged upstream, a recipe-only upstream, a second push URL of one remote, an unreachable upstream, an empty declaration, an exemption without a reason and a not-latest constitution each MUST make the verifier non-zero (`scripts/gates/cm_upstream_parity_mutation_test.sh`, cases M1 to M20 and L1 to L5)
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 

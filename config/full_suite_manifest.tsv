@@ -574,6 +574,7 @@ scripts/gates/cm_covenant_114_295_propagation_mutation_test.sh	sh	entry	heavy	ba
 scripts/gates/cm_covenant_114_296_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_297_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_298_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_299_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_decisions_override_valid_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
 scripts/gates/cm_decisions_wizard_safety_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
@@ -646,6 +647,7 @@ scripts/gates/cm_test_mock_pid_explicit_int_mutation_test.sh	sh	entry	heavy	bash
 scripts/gates/cm_track_branch_label_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_unchallenged_capability_blocks_release_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_unreferenced_gate_bound_or_retired_mutation_test.sh	sh	entry	heavy	sh	-	auto
+scripts/gates/cm_upstream_parity_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_user_manual_per_component_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_version_increment_on_deploy_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_zero_findings_audit_sweep_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -738,6 +740,7 @@ scripts/skill_activation/test_skill_activation.sh	sh	entry	default	bash	-	auto
 scripts/sonarqube/tests/test_registry_login.sh	sh	entry	default	bash	-	auto
 scripts/sonarqube/tests/test_registry_login_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/sonarqube/tests/test_registry_login_wiring.sh	sh	entry	default	bash	-	auto
+scripts/sync/verify_constitution_latest.sh	sh	entry	default	bash	-	auto
 scripts/test_portable_skill_symlink.sh	sh	entry	default	bash	-	auto
 scripts/validation/enumerate_decision_mutants.py	py	entry	heavy	python3	-	override: the decision-mutant census (CON-158 / CON-147 round 6): runs every single-edit mutant of meta_test_verification.sh, host_guard.sh and host_report.py against its regression test; exit 0 only when each is KILLED or listed EQUIVALENT with a proof; takes hours, so heavy
 scripts/validation/meta_test_verification.sh	sh	entry	heavy	bash	-	auto
