@@ -26,6 +26,6 @@ if cfg["mode"] != "dry-run": print("MODE: template ships mode != dry-run"); sys.
 print("OK")
 PY
 ) || { echo "$GATE: FAIL -- $out"; exit 1; }
-tests=$(cd "$ROOT/scripts" && python3 -W ignore -m unittest discover -s issue_sync/tests -t . 2>&1) || { echo "$GATE: FAIL -- issue_sync unit tests:"; printf '%s\n' "$tests" | tail -15; exit 1; }
+tests=$(cd "$ROOT/scripts" && python3 -W ignore -m unittest discover -s issue_sync/tests 2>&1) || { echo "$GATE: FAIL -- issue_sync unit tests:"; printf '%s\n' "$tests" | tail -15; exit 1; }
 echo "$GATE: PASS -- template ships enabled:false mode:dry-run and validates; issue_sync unit tests pass"
 exit 0

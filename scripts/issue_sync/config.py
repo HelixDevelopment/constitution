@@ -2,6 +2,7 @@
 a missing file means the mechanism is OFF (default-OFF), never an error."""
 import re
 import yaml
+from . import redact
 
 DEFAULTS = {
     "enabled": False, "scope": {"recursive": False}, "mode": "dry-run", "trackers": [], "visibility_policy": "owning-repo",
@@ -64,8 +65,10 @@ def validate(raw):
                 errs.append("token_vars[%s] must be a non-empty list of variable NAMES" % host)
                 continue
             for n in names:
-                if not isinstance(n, str) or not _NAME.match(n) or n.startswith(("GHP_", "GLPAT")):
+                if not isinstance(n, str) or not _NAME.match(n) or redact.scan({"v": n}) or re.match(r"^(AKIA|AIZA|SG_|XOX)", n):
                     errs.append("token_vars[%s] holds a value that is not a variable NAME (names only, never values)" % host)
+    if errs:
+        return _merge(DEFAULTS, {}), errs   # fail closed: an invalid declaration is never an enabled one
     return cfg, errs
 
 

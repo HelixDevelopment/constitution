@@ -36,6 +36,10 @@ class T(unittest.TestCase):
         _, errs = load("token_vars: {github.com: [GITHUB_TOKEN]}\n"); self.assertEqual(errs, [])
         _, errs = load("token_vars: {github.com: [ghp_abcdefghijklmnopqrstuvwxyz0123456789]}\n"); self.assertTrue(errs)
         _, errs = load("token_vars: {github.com: ['x y']}\n"); self.assertTrue(errs)
+    def test_invalid_config_fails_closed(self):
+        for text in ["enabled: true\ninterval_hours: 99\n", "enabled: true\nbogus: 1\n", "enabled: true\nmode: apply\n"]:
+            cfg, errs = load(text); self.assertTrue(errs); self.assertFalse(cfg["enabled"])
+        _, errs = load("token_vars: {github.com: [AKIAABCDEFGHIJKLMNOP]}\n"); self.assertTrue(errs)
     def test_invalid_yaml(self):
         _, errs = load("a: [\n"); self.assertTrue(errs)
     def test_template_ships_off(self):

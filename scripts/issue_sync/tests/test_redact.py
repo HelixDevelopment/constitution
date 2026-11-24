@@ -12,6 +12,11 @@ class T(unittest.TestCase):
         self.assertIn("private-key", self.kinds("-----BEGIN RSA PRIVATE KEY-----"))
         self.assertIn("assignment-secret", self.kinds("password = hunter2hunter2"))
         self.assertIn("bearer", self.kinds("Authorization: Bearer abcdefghijklmnop12345"))
+    def test_more_secret_shapes(self):
+        for kind, text in [("slack-token", "xoxb-" + "1"*12 + "-abcdef"), ("jwt", "eyJhbGciOiJI.eyJzdWIiOiIx.abcd1234"), ("stripe-key", "sk_live_" + "a"*20),
+                           ("google-key", "AIza" + "B"*35), ("sendgrid-key", "SG." + "a"*22 + "." + "b"*22),
+                           ("url-credentials", "https://user:pass@host.example/x"), ("url-credentials", "postgres://u:pw@db/x")]:
+            self.assertIn(kind, self.kinds(text), kind)
     def test_personal_data(self):
         self.assertIn("email", self.kinds("mail someone@example.org now"))
         self.assertIn("phone", self.kinds("call +7 495 123-45-67"))
