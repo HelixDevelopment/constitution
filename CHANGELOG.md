@@ -2,6 +2,7 @@
 
 #### Post-v73.4 amendment — 2026-11-24 (not a release)
 
+- Pin bumps: `submodules/claude_toolkit` 718cd256 -> 7e88cde (it dropped the stale challenges/containers/superspec gitlinks, so `git submodule status --recursive` works again) and `submodules/containers` 5ea870a5 -> d71b6205 (upstream main tip). All four `helix-deps.yaml` refs were stale against the old gitlinks and now match the recorded gitlinks: claude_toolkit (25c4803 -> 7e88cde), containers (1d8274c -> d71b6205), llmctl (3877467 -> 391d8177) and llama.cpp (1537a0a -> 2bc46baa).
 - §11.4.288 amendment note: landing on `main` is complete only when the landed tip is contained in `main` of every upstream in the declared upstream set of every own repository touched (including pin-bump commits); MIRROR-LAG / UNREACHABLE reporting, bounded retry, escalation, removal only by recorded operator decision. Deferral `OWED-GATE-186` (`CM-LANDING-ALL-UPSTREAMS-READBACK`) registered, not implemented. Carriers CLAUDE.md, AGENTS.md, QWEN.md, GEMINI.md in lockstep.
 
 ## helixconstitution-v73.4 — 2026-11-18 — PROVISIONAL pre-release after v73.3: §11.4.294–§11.4.298, workable-items state columns (schema v8), full-suite runner with a clean manifest, ownership redesign waves 1 and 2, the pull-request delivery and release-gate anchors, the CM-KILLPG-PGID-GUARD gate back to PASS (PROVISIONAL, CON-226), vehicles landed by pull requests merged PROVISIONAL (several on NO-GO)
