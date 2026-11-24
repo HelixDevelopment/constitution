@@ -96,7 +96,7 @@ deps:
 
   - name: containers
     ssh_url: git@github.com:vasic-digital/Containers.git
-    ref: d71b620             # pinned sha = the recorded gitlink; origin/main tip (2026-11-24)
+    ref: ec32935             # pinned sha = the recorded gitlink; origin/main tip (2026-11-24 re-pin)
     why: "§11.4.76 / §11.4.161 digital.vasic.containers — the sole rootless container orchestration layer (boot / compose / health / remote distribution); provided flat by the hub so engines (llmctl among them) resolve it here instead of nesting it (§11.4.28(C))"
     layout: grouped
 
@@ -120,7 +120,7 @@ deps:
   # ─── Third-party REFERENCE checkout (§11.4.162; never a product's consumption path) ──
   - name: open_design
     ssh_url: git@github.com:nexu-io/open-design.git
-    ref: 3805d03             # pinned sha = the recorded gitlink; origin/main tip (update-all 2026-10-29; third party, read-only)
+    ref: 5fdcc3d             # pinned sha = the recorded gitlink; origin/main tip (2026-11-24 re-pin; third party, read-only)
     why: "§11.4.162 OpenDesign upstream, ONE pinned REFERENCE checkout for design-system work; products consume OpenDesign as a dependency, never through this path; excluded from the index, coverage and own-org review"
     layout: grouped
     third_party: true
@@ -129,7 +129,7 @@ deps:
   # ─── OpenDesign design-toolkit (grouped layout since 1c89813, 2026-10-11) ──
   - name: design-toolkit
     ssh_url: git@github.com:vasic-digital/design-toolkit.git
-    ref: 1b9abac             # pinned sha = the recorded gitlink; origin/main tip (update-all 2026-10-29)
+    ref: bfad9dc             # pinned sha = the recorded gitlink; origin/main tip (2026-11-24 re-pin)
     why: "§11.4.162 OpenDesign UI design-system engine — canonical machine-readable design-token source (§11.4.216) + brand contract (§11.4.217) + living design-library catalogue (§11.4.218); consumed by every project that ships a user-facing UI"
     layout: grouped
 
@@ -152,7 +152,7 @@ deps:
 
   - name: verify
     ssh_url: git@github.com:KeyValueSoftwareSystems/maestro.git
-    ref: cda25a0
+    ref: ec66f55
     why: "external verification skill (maestro), third-party read-only checkout"
     layout: grouped
     third_party: true        # not an own org; licence MIT identified by reading LICENSE
@@ -176,7 +176,7 @@ deps:
 
   - name: verification
     ssh_url: git@github.com:ArcBlock/agent-skills.git
-    ref: 5bc0d2c
+    ref: 307f7dd
     why: "external verification skill (ArcBlock agent-skills), third-party read-only checkout"
     layout: grouped
     third_party: true        # not an own org; licence MIT identified by reading LICENSE
