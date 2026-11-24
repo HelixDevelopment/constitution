@@ -1102,3 +1102,4 @@ Classification: universal (§11.4.17) — no repository, account, host or projec
 **Canonical authority:** constitution submodule [`Constitution.md`](Constitution.md) §11.4.299.
 
 **Non-compliance is a release blocker. No escape hatch — no `--merged-means-done`, `--push-one-upstream-OK`, `--skip-upstream-readback`, `--pointer-before-submodule-push`, `--bypass-push-gate`, `--force-to-reach-parity`, `--silent-skip-blocked-upstream`, `--exempt-without-recorded-decision` flag exists.**
+

@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-11-24T16:09:06.443912+00:00'
+generated_at: '2026-11-24T22:15:42.182991+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: c5a70b98c84bfe11dc71e5ffc3ce6883239eb146
-  source_sha256: ba1adfbcd80b82d8189d5c4ab5e24d248ace83950fcc9d811cbd9234184f5517
+  commit: f9eb835e03db435ad4265b90bcaa23f761247dfd
+  source_sha256: 976cd49771dae2df6aa5eccd77e767a3956bb69cf4d75adbe9419b711cc81831
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -31,7 +31,7 @@ groups:
   anchor_count: 13
 - name: project-lifecycle-and-release
   path: constitution/groups/project-lifecycle-and-release.md
-  anchor_count: 53
+  anchor_count: 54
 - name: testing-and-tdd
   path: constitution/groups/testing-and-tdd.md
   anchor_count: 43
@@ -8162,6 +8162,45 @@ anchors:
   - 11.4.88
   - '2.1'
   - '9.2'
+- id: 11.4.300
+  title: '— Workable items are mirrored to the Issues of every declared upstream,
+    recursively and always in sync, as a default-OFF mechanism a project turns on:
+    the database is the source of truth, the tracker is a one-way mirror, visibility
+    follows the owning repository, an undetermined leg is UNCONFIRMED and never in
+    sync (User mandate, 2026-11-24)'
+  group: project-lifecycle-and-release
+  location: constitution/groups/project-lifecycle-and-release.md
+  classification: universal
+  propagation_gate: null
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.10
+  - 11.4.106
+  - 11.4.148
+  - 11.4.15
+  - 11.4.153
+  - 11.4.156
+  - 11.4.16
+  - 11.4.17
+  - 11.4.227
+  - 11.4.28
+  - 11.4.288
+  - 11.4.289
+  - 11.4.294
+  - 11.4.296
+  - 11.4.299
+  - 11.4.300
+  - 11.4.33
+  - 11.4.54
+  - 11.4.55
+  - 11.4.56
+  - 11.4.6
+  - 11.4.63
+  - 11.4.86
+  - 11.4.90
+  - 11.4.93
+  - 11.4.95
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety

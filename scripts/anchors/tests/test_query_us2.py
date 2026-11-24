@@ -102,8 +102,9 @@ def test_filter_by_classification_matches_plain_yaml_list_comprehension():
         # paragraph (no Classification line; universal stays 196).
         # Re-measured 2026-11-24 (§11.4.299 merged-is-not-delivered-until-pushed added,
         # "Classification: universal (§11.4.17)"): universal 196 -> 197 = +1.
-        assert len(universal) == 197, (
-            f"expected exactly 197 anchors whose source TEXT genuinely states "
+        # Re-measured 2026-11-24 (§11.4.300 workable-items issue mirror added, "Classification: universal (§11.4.17)"): universal 197 -> 198 = +1.
+        assert len(universal) == 198, (
+            f"expected exactly 198 anchors whose source TEXT genuinely states "
             f"'universal' (independently re-measured), got {len(universal)} — "
             f"if this grew, check whether 'unstated' anchors are leaking back in"
         )

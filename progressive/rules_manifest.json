@@ -1,5 +1,5 @@
 {
- "anchor_count": 310,
+ "anchor_count": 311,
  "rules": {
   "§10": {
    "file": "progressive/rules/10.md",
@@ -1318,7 +1318,7 @@
   "§11.4.299": {
    "file": "progressive/rules/11.4.299.md",
    "hash": "sha256:06dd947c23601018edced12a6db0f73046f186263d9b8a7b1a1437bbfecef805",
-   "line_end": 13142,
+   "line_end": 13143,
    "line_start": 13112
   },
   "§11.4.3": {
@@ -1332,6 +1332,12 @@
    "hash": "sha256:963864a42a6c491c151ad2c9cfd5e3624b5a6b4e936f04c03ba0006f0291b2a1",
    "line_end": 2330,
    "line_start": 2201
+  },
+  "§11.4.300": {
+   "file": "progressive/rules/11.4.300.md",
+   "hash": "sha256:9f06df634c9f504fd9813ff7a18e9f448ffc00f813d80f3427b25cacf50510f6",
+   "line_end": 13170,
+   "line_start": 13144
   },
   "§11.4.31": {
    "file": "progressive/rules/11.4.31.md",
@@ -1864,5 +1870,5 @@
  },
  "schema_version": 1,
  "source": "Constitution.md",
- "source_sha256": "ba1adfbcd80b82d8189d5c4ab5e24d248ace83950fcc9d811cbd9234184f5517"
+ "source_sha256": "976cd49771dae2df6aa5eccd77e767a3956bb69cf4d75adbe9419b711cc81831"
 }
