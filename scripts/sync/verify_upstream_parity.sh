@@ -15,7 +15,7 @@
 #   --branch B     the branch every upstream must carry (default main)
 #   --sha SHA      the sha that must be on every upstream (default: the local <branch> tip, else HEAD); a sha newer
 #                  than the local tip is accepted (the merged sha of a pull request read from the platform)
-#   --exempt FILE  TSV `<repo-relative-path>\t<url-substring>\t<reason>`; a matching upstream is reported EXEMPT with
+#   --exempt FILE  TSV `<path relative to the superproject root, `.` for a top-level repo; the same key in --repo and --fleet>\t<url-substring>\t<reason>`; a matching upstream is reported EXEMPT with
 #                  its reason on every run and is not a verdict input; an empty reason makes the run exit 2
 #   --own-org ORG  repeatable; with --fleet only submodules whose URL contains `/ORG/` or `:ORG/` are own
 #   --skip PATH    repeatable; a repo-relative path of a submodule to leave out (reported as NOTE)
@@ -117,7 +117,7 @@ check_repo() {  # $1 = absolute dir, $2 = display name
     if why=$(exempt_reason "$name" "$u"); then
       say "  EXEMPT       $shown  reason: $why"; continue
     else
-      case $? in 3) say "  BAD-EXEMPTION $shown  (empty reason)"; F2=$((F2+1)); continue ;; esac
+      case $? in 3) say "  BAD-EXEMPTION $shown  (empty reason; evaluated as not exempt, undetermined)"; F2=$((F2+1)) ;; esac
     fi
     if [ "$rc" != 0 ]; then say "  UNREACHABLE  $shown  (ls-remote rc=$rc)"; F2=$((F2+1)); continue; fi
     tip=$(awk '{print $1}' "$tmpd/$i.out" | head -1)
@@ -156,7 +156,9 @@ if [ -n "$FLEET" ]; then
   walk "$ROOT" "."
 else
   ROOT=$(cd "$REPO" 2>/dev/null && pwd) || { echo "verify_upstream_parity: --repo not found" >&2; exit 2; }
-  check_repo "$ROOT" "$(basename "$ROOT")"
+  SUPER=$(git -C "$ROOT" rev-parse --show-superproject-working-tree 2>/dev/null)
+  if [ -n "$SUPER" ]; then KEY="${ROOT#"$SUPER"/}"; else KEY="."; fi   # same key as --fleet: path relative to the superproject root, "." for a top-level repo
+  check_repo "$ROOT" "$KEY"
 fi
 if [ "$F1" -gt 0 ]; then echo "RESULT: BEHIND-OR-DIVERGED ($F1 finding(s), $F2 undetermined) -- exit 1"; exit 1; fi
 if [ "$F2" -gt 0 ]; then echo "RESULT: CANNOT-DETERMINE ($F2 undetermined) -- exit 2 (never a pass)"; exit 2; fi

@@ -1101,7 +1101,7 @@ The item-level gate named in §11.4.298 is registered as a deferral in the same 
 - **OWED-GATE-186** — `CM-UPSTREAM-PARITY-AFTER-MERGE`
   - **Must assert:** (per §11.4.299(A) to (D)) every pull request or merge a consuming project reports as landed or done carries a per-upstream `git ls-remote` read-back whose tip equals or contains the merged sha for every declared upstream; a submodule pin bump follows the submodule's own read-back; a BLOCKED or UNREACHABLE upstream is reported and never counted done
   - **Blocked on:** the delivery tooling, the upstream declarations and the exemption data are consuming-project DATA; the constitution ships the read-only instruments `scripts/sync/verify_upstream_parity.sh` and `scripts/sync/verify_constitution_latest.sh` and the guarded helper `scripts/sync/push_all_upstreams.sh`, not the project's delivery hook
-  - **Paired §1.1 mutation:** a behind upstream, a diverged upstream, a recipe-only upstream, a second push URL of one remote, an unreachable upstream, an empty declaration, an exemption without a reason and a not-latest constitution each MUST make the verifier non-zero (`scripts/gates/cm_upstream_parity_mutation_test.sh`, cases M1 to M15 and L1 to L5)
+  - **Paired §1.1 mutation:** a behind upstream, a diverged upstream, a recipe-only upstream, a second push URL of one remote, an unreachable upstream, an empty declaration, an exemption without a reason and a not-latest constitution each MUST make the verifier non-zero (`scripts/gates/cm_upstream_parity_mutation_test.sh`, cases M1 to M18 and L1 to L5)
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 

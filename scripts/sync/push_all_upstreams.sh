@@ -22,7 +22,7 @@ while [ $# -gt 0 ]; do case "$1" in
 git -C "$REPO" cat-file -e "$SHA^{commit}" 2>/dev/null || { echo "push_all_upstreams: sha not in $REPO" >&2; exit 2; }
 EX=(); [ -n "$EXEMPT" ] && EX=(--exempt "$EXEMPT")
 out=$(VUP_RAW=1 bash "$HERE/verify_upstream_parity.sh" --repo "$REPO" --branch "$BRANCH" --sha "$SHA" "${EX[@]}" 2>&1); rc=$?
-printf '%s\n' "$out"
+printf '%s\n' "$out" | sed -E 's#(://)[^/@]*@#\1#'
 [ "$rc" = 2 ] && grep -q 'no upstream is declared' <<<"$out" && exit 2
 BLOCK=0
 while read -r word url _; do
