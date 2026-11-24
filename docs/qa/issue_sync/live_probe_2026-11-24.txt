@@ -1,0 +1,10 @@
+# Read-only live probe 2026-11-24 (python3 -m issue_sync.live_probe; GET only; tokens by variable NAME, values never printed)
+github.com/HelixDevelopment/constitution exists=True private=False issues_enabled=True auth=token:GITHUB_TOKEN caps=can_list,can_create,can_update,can_close,can_reopen,can_label,not_planned
+github.com/vasic-digital/job_seeker exists=False private=None issues_enabled=None auth=token:GITHUB_TOKEN caps=can_list,can_create,can_update,can_close,can_reopen,can_label,not_planned
+gitlab.com/helixdevelopment1/helixconstitution exists=True private=False issues_enabled=True auth=token:GITLAB_TOKEN caps=can_list,can_create,can_update,can_close,can_reopen,can_label
+gitlab.com/vasic-digital/HelixConstitution exists=True private=False issues_enabled=True auth=token:GITLAB_TOKEN caps=can_list,can_create,can_update,can_close,can_reopen,can_label
+codeberg.org/HelixDevelopment/constitution exists=True private=False issues_enabled=True auth=token:CODEBERG_GITEA_TOKEN caps=can_list
+git.m3w.org/Helix/constitution exists=True private=True issues_enabled=True auth=token:M3W_GITEA_TOKEN caps=can_list
+gitverse.ru/helixdevelopment/HelixConstitution exists=True private=False issues_enabled=True auth=token:GITVERSE_TOKEN caps=can_list
+gitflic.ru/helixdevelopment/helixconstitution UNDETERMINED capability_unverified:repo_info (auth=found)
+# GitFlic: UNDETERMINED by design (no verified endpoint). Codeberg/m3w/GitVerse: reads proven, write capabilities UNCONFIRMED (no live create+read-back performed; none permitted in this task).
