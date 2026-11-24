@@ -1,6 +1,7 @@
 """Mirrored-field allowlist, canonical content hash, and the pre-write gate (anchor 11.4.300(D),(E))."""
 import hashlib
 import json
+import re
 
 from . import redact
 
@@ -9,8 +10,8 @@ PRIVATE_FIELDS = ("forensic_anchor", "body_md")      # never sent; their text is
 
 
 def build(item):
-    if not item.get("atm_id"):
-        raise ValueError("item has no atm_id")
+    if not item.get("atm_id") or not re.fullmatch(r"[A-Za-z0-9._-]+", str(item["atm_id"])):
+        raise ValueError("item has no atm_id the mirror key can carry")
     return {f: ("" if item.get(f) is None else str(item.get(f))) for f in ALLOWED_FIELDS}
 
 
@@ -28,7 +29,10 @@ def own_private_fingerprints(item, k=8):
 def prepare(item, fingerprint_set=None, k=8):
     """{'verdict': 'OK', 'payload', 'hash'} or {'verdict': 'BLOCKED', 'item': id, 'hits': [...]} (id and kinds only; an id that is itself
     the hit is withheld)."""
-    pl = build(item)
+    try:
+        pl = build(item)
+    except ValueError:      # an id the footer/title key cannot carry would be re-created on every run: refuse it, naming nothing
+        return {"verdict": "BLOCKED", "item": "[redacted-id]", "hits": [{"field": "atm_id", "kind": "unkeyable-id"}]}
     fps = set(fingerprint_set or ()) | own_private_fingerprints(item, k)
     hits = redact.scan(pl, fps or None, k)
     if hits:

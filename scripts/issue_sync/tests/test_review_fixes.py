@@ -41,8 +41,13 @@ class TestB1CapabilitiesUnconfirmed(unittest.TestCase):
         d = tempfile.mkdtemp(); t = os.path.join(d, "p.tsv")
         open(t, "w").write("github.com\tdocs/qa/none.txt\ngitlab.com\n")
         self.assertEqual(registry.load_proven(t, root=d), set())
-        os.makedirs(os.path.join(d, "docs/qa")); open(os.path.join(d, "docs/qa/none.txt"), "w").write("live create + read-back")
+        os.makedirs(os.path.join(d, "docs/qa")); open(os.path.join(d, "docs/qa/none.txt"), "w").write("a read-only probe, no write")
+        self.assertEqual(registry.load_proven(t, root=d), set())            # an existing file without the recorded create+read-back marker proves nothing
+        open(os.path.join(d, "docs/qa/none.txt"), "w").write("notes\n" + registry.EVIDENCE_MARKER + " github.com 2026-11-25\n")
         self.assertEqual(registry.load_proven(t, root=d), {"github.com"})
+        open(t, "w").write("unknown.example\tdocs/qa/none.txt\n")
+        self.assertEqual(registry.load_proven(t, root=d), set())            # host must be a declared forge host
+        open(t, "w").write("github.com\tdocs/qa/none.txt\n")
         open(t, "w").write("github.com\t../outside.txt\n")
         self.assertEqual(registry.load_proven(t, root=d), set())
     def test_github_leg_is_unconfirmed_and_apply_writes_nothing_by_default(self):
@@ -210,6 +215,13 @@ class TestR6UnkeyedTitleMatch(unittest.TestCase):
         f.issues.insert(0, {"number": 0, "title": "[A-1] decoy", "body": "x", "state": "open", "labels": []})
         idx = engine.index_issues([engine_issue for engine_issue in [dict(i, labels=[]) for i in f.issues]])
         self.assertTrue(engine.FOOTER.search(idx["A-1"][0]["body"]))
+
+
+class TestUnkeyableIds(unittest.TestCase):
+    def test_id_the_footer_cannot_carry_is_blocked_not_recreated(self):
+        rows = [("CON 1/x", "Bug", "Queued", "t", "", "a description long enough", None, None, "Issues")]
+        f = FakeGitHub(); rc, out = go(base("apply", mkdb(rows), applycfg(), "--apply"), f)
+        self.assertEqual((rc, f.writes), (2, 0)); self.assertIn("unkeyable-id", out)
 
 
 class TestR7FilteredRunsNoFalseDrift(unittest.TestCase):

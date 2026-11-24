@@ -77,7 +77,7 @@ Issues assigned to a declared account enter through 11.4.296, once. An issue car
 
 **Can a tracker edit change an item?** No. The next run resets it.
 
-**Why does apply refuse on GitHub and GitLab?** Their write verbs are declared but UNPROVEN: nothing may write until a live create and read-back is recorded and the host is listed in `config/forge/issue_sync_proven.tsv` (host, evidence path; the evidence file must exist). The read-only probe (`live_probe`) proves reads only and prints `writes=UNCONFIRMED`.
+**Why does apply refuse on GitHub and GitLab?** Their write verbs are declared but UNPROVEN: nothing may write until a live create and read-back is recorded and the host is listed in `config/forge/issue_sync_proven.tsv` (host, evidence path; the host must be a declared forge host and the evidence file must exist and carry a line starting `LIVE-CREATE-READBACK-RECORDED`). The read-only probe (`live_probe`) proves reads only and prints `writes=UNCONFIRMED`.
 
 **Does it print my token?** No. Tokens are used only in a request header to the origin named in `hosts.tsv`; redirects are refused.
 
