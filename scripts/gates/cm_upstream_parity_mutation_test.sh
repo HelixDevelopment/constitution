@@ -46,7 +46,7 @@ git -C "$W" checkout -q -b side "$C1"; echo y > "$W/h"; git -C "$W" add h; git -
 bash "$P" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1; rc=$?; expect "M14a diverged upstream -> not 0 (no force)" 1 $(( rc == 0 ? 0 : 1 ))
 [ "$(git -C "$W.a.git" rev-parse main)" = "$SIDE" ] && expect "M14b diverged upstream untouched" 0 0 || expect "M14b diverged upstream untouched" 0 1
 FORCE_RE='push.*(--force|force-with-lease|--mirror|--no-verify|[[:space:]]-[a-zA-Z]*f[a-zA-Z]*([[:space:]]|$)|["'"'"'[:space:]]\+|:\+)'
-for mut in 'git push "$u" "+$SHA:refs/heads/$B"' 'git push -f "$u" "$SHA:refs/heads/$B"' 'git push --force "$u" x' 'git push --force-with-lease "$u" x' 'git push --mirror "$u"'; do
+for mut in 'git push "$u" "+$SHA:refs/heads/$B"' 'git push -f "$u" "$SHA:refs/heads/$B"' 'git push --force "$u" x' 'git push --force-with-lease "$u" x' 'git push --mirror "$u"' 'git push -qf "$u" x' 'git push -fq "$u" x'; do
   printf '%s\n' "$mut" | grep -qE -- "$FORCE_RE" && expect "M15s force-regex flags seeded mutant: $mut" 0 0 || expect "M15s force-regex flags seeded mutant: $mut" 0 1; done
 if grep -nE -- "$FORCE_RE" "$P" | grep -vE '^[0-9]+:#' >/dev/null; then expect "M15 no force construct in push command" 0 1; else expect "M15 no force construct in push command" 0 0; fi
 # M16 a push refused by the remote (pre-receive hook) is reported BLOCKED, rc 1, upstream unchanged, never forced
@@ -122,7 +122,8 @@ for sub in '.git' 'http' "$T" "$(basename "$W").b" ; do printf '.\t%s\treason\n'
 # M26 blocked-push text, 1-outranks-2, exact ref match
 mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; printf '#!/bin/sh\necho REFUSAL-TEXT-X >&2\nexit 1\n' > "$W.b.git/hooks/pre-receive"; chmod +x "$W.b.git/hooks/pre-receive"
 o=$(bash "$P" --repo "$W" --sha "$C2" --apply 2>&1); printf '%s' "$o" | grep '^BLOCKED' | grep -q 'REFUSAL-TEXT-X' && expect "M26a BLOCKED line carries the refusal text" 0 0 || expect "M26a BLOCKED line carries the refusal text" 0 1
-git -C "$W" remote set-url c "$T/nonexistent.git"; bash "$P" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1; expect "M26b blocked push + unreachable read-back -> 1" 1 $?
+mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; printf '#!/bin/sh\nmv "$PWD" "$PWD.gone"\nexit 1\n' > "$W.b.git/hooks/pre-receive"; chmod +x "$W.b.git/hooks/pre-receive"
+bash "$P" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1; expect "M26b refused push whose upstream then reads back UNREACHABLE (verifier 2) -> 1 (1 outranks 2)" 1 $?
 mk "$W"; git -C "$W" push -q b "$C2:refs/heads/x/refs/heads/main" 2>/dev/null; git -C "$W.b.git" update-ref -d refs/heads/main; bash "$V" --repo "$W" --quiet >/dev/null 2>&1; expect "M26c suffix-only ref refs/heads/x/refs/heads/main is NOT main -> 1" 1 $?
 # ---- verify_constitution_latest.sh (the "constitution is latest + nested submodules current" check) ----
 L="$HERE/../sync/verify_constitution_latest.sh"; 
