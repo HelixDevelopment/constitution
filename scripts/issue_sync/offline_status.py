@@ -5,9 +5,9 @@ import sys
 from . import payload as pl, store
 
 
-def status(db_path, ids=False):
+def status(db_path, ids=False, items=None):
     con = store.open_db(db_path)
-    items = store.load_items(con)
+    items = store.load_items(con) if items is None else items
     try:
         rows = con.execute("SELECT atm_id, tracker, content_hash FROM issue_sync_map").fetchall()
     except Exception:

@@ -12,7 +12,7 @@ CFG="$ROOT/.workable-items-sync.yaml"; DB="$ROOT/docs/workable_items.db"
 HOME_S="${ISSUE_SYNC_HOME:-$ROOT/submodules/constitution/scripts}"; [ -d "$HOME_S/issue_sync" ] || HOME_S="$ROOT/scripts"
 [ -d "$HOME_S/issue_sync" ] || exit 0
 export PYTHONPATH="$HOME_S${PYTHONPATH:+:$PYTHONPATH}"
-out=$(cd "$ROOT" && python3 -W ignore -m issue_sync.cli status --config "$CFG" --db "$DB" 2>&1); rc=$?
+out=$(cd "$ROOT" && python3 -W ignore -m issue_sync.cli status --config "$CFG" --db "$DB" --owner-repo "${ISSUE_SYNC_OWNER_REPO:-github.com/unknown/unknown}" 2>&1); rc=$?
 case "$out" in disabled*) exit 0 ;; esac
 [ "$rc" -eq 0 ] && exit 0
 if [ "${ISSUE_SYNC_ACK:-0}" = "1" ]; then echo "issue-sync: pending mirror changes acknowledged (ISSUE_SYNC_ACK=1): $out" >&2; exit 0; fi

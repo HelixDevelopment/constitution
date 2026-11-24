@@ -14,6 +14,6 @@ class T(unittest.TestCase):
         self.assertEqual(offline_status.status(db, ids=True)["ids"], ["A-1"])
     def test_cli_status_makes_no_network_call_and_exit_codes(self):
         db = mkdb(ROWS); f = FakeGitHub(); out = io.StringIO()
-        rc = cli.run(["status", "--db", db, "--config", cfgfile()], transport_factory=lambda v, h: f, out=out)
+        rc = cli.run(["status", "--db", db, "--config", cfgfile(), "--owner-repo", "github.com/o/r"], transport_factory=lambda v, h: f, out=out)
         self.assertEqual((rc, f.calls), (1, []))
 if __name__ == "__main__": unittest.main()
