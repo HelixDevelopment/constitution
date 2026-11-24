@@ -2,6 +2,8 @@
 Capability flags are per host; a verb whose behaviour is unverified is False and the leg is reported UNCONFIRMED, never in sync."""
 import json
 import time
+import email.utils
+import socket
 import urllib.error
 import urllib.request
 
@@ -14,13 +16,40 @@ class AdapterError(Exception):
         self.code, self.status = code, status
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """The token must go only to the hosts.tsv origin: a redirect is refused, never followed (it would carry the auth header along)."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def retry_after_seconds(value, attempt):
+    """Retry-After as delta-seconds or HTTP-date; anything else falls back to exponential backoff; clamped to 0..120."""
+    try:
+        sec = float(value)
+    except (TypeError, ValueError):
+        try:
+            sec = (email.utils.parsedate_to_datetime(value).timestamp() - time.time())
+        except (TypeError, ValueError):
+            sec = 2 ** attempt
+    return max(0.0, min(sec, 120.0))
+
+
+def _pre_send(err):
+    """True only when the failure provably happened before any request bytes left (so even a POST may be retried)."""
+    r = getattr(err, "reason", err)
+    return isinstance(r, (ConnectionRefusedError, socket.gaierror))
+
+
 class HttpTransport:
     """Real transport. The token is placed in a header here only; never logged. Honors Retry-After on 429/403-secondary."""
     def __init__(self, token, min_interval=1.0, max_retries=4, sleep=time.sleep, timeout=30):
         self._token, self.min_interval, self.max_retries, self._sleep, self.timeout = token, min_interval, max_retries, sleep, timeout
         self._last = 0.0
+        self._opener = urllib.request.build_opener(_NoRedirect)
 
     def __call__(self, method, url, headers, body):
+        if not url.startswith("https://"):
+            raise AdapterError("non_https_refused")
         data = None if body is None else json.dumps(body).encode()
         for attempt in range(self.max_retries + 1):
             wait = self.min_interval - (time.monotonic() - self._last)
@@ -32,19 +61,23 @@ class HttpTransport:
             req = urllib.request.Request(url, data=data, method=method, headers=h)
             self._last = time.monotonic()
             try:
-                with urllib.request.urlopen(req, timeout=self.timeout) as r:
+                with self._opener.open(req, timeout=self.timeout) as r:
                     raw = r.read()
                     return r.status, dict(r.headers), (json.loads(raw) if raw else None)
             except urllib.error.HTTPError as e:
                 raw = e.read()
+                if 300 <= e.code < 400:
+                    raise AdapterError("redirect_refused", e.code)
                 if e.code in (429, 403) and attempt < self.max_retries and (e.code == 429 or e.headers.get("Retry-After")):
-                    self._sleep(min(float(e.headers.get("Retry-After") or 2 ** attempt), 120))
+                    self._sleep(retry_after_seconds(e.headers.get("Retry-After"), attempt))
                     continue
                 try:
                     return e.code, dict(e.headers), (json.loads(raw) if raw else None)
                 except ValueError:
                     return e.code, dict(e.headers), None
             except (urllib.error.URLError, OSError) as e:
+                if method == "POST" and not _pre_send(e):
+                    raise AdapterError("network_ambiguous_write")   # the issue may already exist: never blind-retry a create
                 if attempt < self.max_retries:
                     self._sleep(2 ** attempt)
                     continue

@@ -73,6 +73,52 @@ class TestAdapters(unittest.TestCase):
         self.assertIsNone(registry.make("evil.example", lambda v, h: Fake(), hosts))
         self.assertIsInstance(registry.make("github.com", lambda v, h: Fake(), hosts), GitHub)
 
+class TestTransport(unittest.TestCase):
+    def mk(self, outcomes):
+        from issue_sync.adapters import base
+        import urllib.error, io
+        tr = base.HttpTransport("tok-abcdefgh", min_interval=0, sleep=lambda s: None)
+        calls = []
+        class Op:
+            def open(_, req, timeout=None):
+                calls.append(req.full_url); o = outcomes.pop(0)
+                if isinstance(o, Exception): raise o
+                return o
+        tr._opener = Op(); return tr, calls
+    def test_https_only(self):
+        from issue_sync.adapters import base
+        tr, _ = self.mk([])
+        with self.assertRaises(base.AdapterError): tr("GET", "http://api.github.com/x", {}, None)
+    def test_redirect_refused(self):
+        from issue_sync.adapters import base
+        import urllib.error, io
+        tr, calls = self.mk([urllib.error.HTTPError("https://a/x", 302, "f", {"Location": "https://evil/"}, io.BytesIO(b""))])
+        with self.assertRaises(base.AdapterError) as c: tr("GET", "https://api.github.com/x", {}, None)
+        self.assertEqual(c.exception.code, "redirect_refused")
+    def test_redirect_handler_returns_none(self):
+        from issue_sync.adapters import base
+        self.assertIsNone(base._NoRedirect().redirect_request(None, None, 302, "m", {}, "https://evil/"))
+    def test_post_not_retried_on_ambiguous_network_error(self):
+        from issue_sync.adapters import base
+        import urllib.error
+        tr, calls = self.mk([urllib.error.URLError(TimeoutError("t"))])
+        with self.assertRaises(base.AdapterError) as c: tr("POST", "https://api.github.com/x", {}, {})
+        self.assertEqual(c.exception.code, "network_ambiguous_write"); self.assertEqual(len(calls), 1)
+    def test_get_retried_and_post_retried_when_pre_send(self):
+        from issue_sync.adapters import base
+        import urllib.error, io
+        class R:
+            status = 200; headers = {}
+            def read(self): return b"{}"
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+        tr, calls = self.mk([urllib.error.URLError(TimeoutError("t")), R()]); self.assertEqual(tr("GET", "https://x/a", {}, None)[0], 200); self.assertEqual(len(calls), 2)
+        tr, calls = self.mk([urllib.error.URLError(ConnectionRefusedError()), R()]); self.assertEqual(tr("POST", "https://x/a", {}, {})[0], 200); self.assertEqual(len(calls), 2)
+    def test_retry_after_forms(self):
+        from issue_sync.adapters.base import retry_after_seconds as r
+        self.assertEqual(r("5", 0), 5.0); self.assertEqual(r(None, 3), 8.0); self.assertEqual(r("garbage", 2), 4.0); self.assertEqual(r("999", 0), 120.0)
+        self.assertEqual(r("Wed, 21 Oct 2015 07:28:00 GMT", 0), 0.0)
+
 class TestCredentials(unittest.TestCase):
     def kf(self, text, mode=0o600):
         d = tempfile.mkdtemp(); p = os.path.join(d, "k.sh")
