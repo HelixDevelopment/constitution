@@ -1,9 +1,9 @@
 schema_version: 1
-generated_at: '2026-11-24T15:29:03.801278+00:00'
+generated_at: '2026-11-24T16:09:06.443912+00:00'
 generated_from:
   source: constitution/Constitution.md
-  commit: 1fe6383ef2b0a05f56c550565cb9bae883c12cd4
-  source_sha256: 18dc01f337219197ce400a90946e82fe101abf2a2d61e60e62696371ac47e917
+  commit: c5a70b98c84bfe11dc71e5ffc3ce6883239eb146
+  source_sha256: ba1adfbcd80b82d8189d5c4ab5e24d248ace83950fcc9d811cbd9234184f5517
 groups:
 - name: anti-bluff-and-evidence
   path: constitution/groups/anti-bluff-and-evidence.md
@@ -19,7 +19,7 @@ groups:
   anchor_count: 27
 - name: git-and-data-safety
   path: constitution/groups/git-and-data-safety.md
-  anchor_count: 26
+  anchor_count: 27
 - name: governance-and-constitution-meta
   path: constitution/groups/governance-and-constitution-meta.md
   anchor_count: 41
@@ -8129,6 +8129,39 @@ anchors:
   - 11.4.50
   - 11.4.6
   - 11.4.66
+- id: 11.4.299
+  title: '— Merged is not delivered until pushed: after every merge into `main`, in
+    the project root and in every own-org submodule touched, the merged `main` is
+    fast-forward pushed to EVERY declared upstream and read back per upstream with
+    `git ls-remote` before the work is reported done or the parent pointer moves;
+    a partial push is a defect; a blocked push is reported BLOCKED, never bypassed
+    (User mandate, 2026-11-24)'
+  group: git-and-data-safety
+  location: constitution/groups/git-and-data-safety.md
+  classification: universal
+  propagation_gate: null
+  binds_principle: []
+  cross_references:
+  - '1.1'
+  - 11.4.10
+  - 11.4.113
+  - 11.4.17
+  - 11.4.201
+  - 11.4.205
+  - 11.4.227
+  - 11.4.288
+  - 11.4.297
+  - 11.4.299
+  - 11.4.31
+  - 11.4.35
+  - 11.4.36
+  - 11.4.6
+  - 11.4.66
+  - 11.4.71
+  - 11.4.75
+  - 11.4.88
+  - '2.1'
+  - '9.2'
 - id: '12.1'
   title: Forbidden operations — directly OR indirectly
   group: host-and-resource-safety
