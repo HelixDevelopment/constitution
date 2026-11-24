@@ -4,7 +4,7 @@
 # "upstreams" of a throwaway work repository (the tool's own logic is under test here; the live proof of a real merge is
 # the per-upstream `git ls-remote` read-back the anchor demands, not this test). Every case states its expected exit code;
 # a verifier that returned 0 on a behind/diverged/unreachable/empty state would be the PASS-bluff the anchor forbids.
-# Cases M1..M26, L1..L5. Exit 0 all as expected · 1 a case differed · 2 environment fault.
+# Cases M1..M27, L1..L5 (the RESULT line prints the real expectation count). No case force-pushes: "behind" upstreams are RECREATED (rw). Exit 0 all as expected · 1 a case differed · 2 environment fault.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); V="$HERE/../sync/verify_upstream_parity.sh"; P="$HERE/../sync/push_all_upstreams.sh"
 [ -x "$V" ] && [ -x "$P" ] || { echo "tools missing" >&2; exit 2; }
@@ -18,31 +18,33 @@ mk() { # mk <dir>: work repo with 2 commits on main, 3 bare upstreams at c2 as r
   echo 2 >> "$d/f"; git -C "$d" commit -qam c2; C2=$(git -C "$d" rev-parse HEAD)
   for r in a b c; do git init -q --bare -b main "$d.$r.git"; git -C "$d" remote add $r "$d.$r.git"; git -C "$d" push -q $r main; done; }
 W="$T/w"
+rw() { # rw <a|b|c|bare-path> <ref>: make that bare upstream carry ONLY <ref> as main by RECREATING it -- never a force push (§11.4.113)
+  local b="$1"; case "$b" in */*) ;; *) b="$W.$b.git";; esac; rm -rf "${b:?}"; git init -q --bare -b main "$b"; git -C "$W" push -q "$b" "$2:refs/heads/main"; }
 nb() { git init -q -b main "$1"; echo "$2" > "$1/f"; git -C "$1" add f; git -C "$1" commit -qm i; }
 mk "$W"; bash "$V" --repo "$W" --quiet >/dev/null; expect "M1 all upstreams current -> 0" 0 $?
-git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; bash "$V" --repo "$W" --quiet >/dev/null; expect "M2 one upstream behind -> 1" 1 $?
-git -C "$W" push -q b main -f 2>/dev/null; git -C "$W" remote set-url c "$T/nonexistent.git"; bash "$V" --repo "$W" --quiet >/dev/null; expect "M3 one unreachable, rest current -> 2" 2 $?
-git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; bash "$V" --repo "$W" --quiet >/dev/null; expect "M4 behind + unreachable -> 1 (1 outranks 2)" 1 $?
-mk "$W"; git -C "$W" checkout -q -b side "$C1"; echo x > "$W/g"; git -C "$W" add g; git -C "$W" commit -qm side; git -C "$W" push -q a side:main -f 2>/dev/null; git -C "$W" checkout -q main
+rw b "$C1"; bash "$V" --repo "$W" --quiet >/dev/null; expect "M2 one upstream behind -> 1" 1 $?
+rw b main; git -C "$W" remote set-url c "$T/nonexistent.git"; bash "$V" --repo "$W" --quiet >/dev/null; expect "M3 one unreachable, rest current -> 2" 2 $?
+rw b "$C1"; bash "$V" --repo "$W" --quiet >/dev/null; expect "M4 behind + unreachable -> 1 (1 outranks 2)" 1 $?
+mk "$W"; git -C "$W" checkout -q -b side "$C1"; echo x > "$W/g"; git -C "$W" add g; git -C "$W" commit -qm side; rw a side; git -C "$W" checkout -q main
 bash "$V" --repo "$W" --quiet >/dev/null; expect "M5 diverged upstream -> 1" 1 $?
 mk "$W"; git -C "$W" remote remove c; mkdir -p "$W/upstreams"; printf '#!/bin/bash\nexport UPSTREAMABLE_REPOSITORY="%s"\n' "$W.c.git" > "$W/upstreams/c.sh"
-git -C "$W" push -q "$W.c.git" "$C1:refs/heads/main" -f 2>/dev/null; bash "$V" --repo "$W" --quiet >/dev/null; expect "M6 recipe-only upstream behind -> 1" 1 $?
+rw "$W.c.git" "$C1"; bash "$V" --repo "$W" --quiet >/dev/null; expect "M6 recipe-only upstream behind -> 1" 1 $?
 mv "$W/upstreams/c.sh" "$W/upstreams/c.sh.disabled"; bash "$V" --repo "$W" --quiet >/dev/null; expect "M7 disabled recipe not enumerated -> 0" 0 $?
 mk "$W"; git init -q --bare -b main "$T/extra.git"; git -C "$W" remote set-url --add --push a "$W.a.git"; git -C "$W" remote set-url --add --push a "$T/extra.git"
 bash "$V" --repo "$W" --quiet >/dev/null; expect "M8 second push URL of one remote (empty) -> 1 (get-url --all trap)" 1 $?
 mkdir "$T/e"; git -C "$T/e" init -q -b main; echo 1 > "$T/e/f"; git -C "$T/e" add f; git -C "$T/e" commit -qm c; bash "$V" --repo "$T/e" --quiet >/dev/null; expect "M9 no upstream declared -> 2" 2 $?
-mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null
+mk "$W"; rw b "$C1"
 printf '.\t%s\tmirror fed by snapshot, recorded decision\n' "$W.b.git" > "$T/ex.tsv"; bash "$V" --repo "$W" --exempt "$T/ex.tsv" --quiet >/dev/null; expect "M10 exempt with reason -> 0" 0 $?
 printf '.\t%s\t\n' "$W.b.git" > "$T/ex.tsv"; bash "$V" --repo "$W" --exempt "$T/ex.tsv" --quiet >/dev/null; expect "M11 empty-reason exemption on a really BEHIND upstream -> 1 (1 outranks 2)" 1 $?
-git -C "$W" push -q b main -f 2>/dev/null; bash "$V" --repo "$W" --exempt "$T/ex.tsv" --quiet >/dev/null; expect "M11b empty-reason exemption on a CURRENT upstream -> 2" 2 $?
-git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null
+rw b main; bash "$V" --repo "$W" --exempt "$T/ex.tsv" --quiet >/dev/null; expect "M11b empty-reason exemption on a CURRENT upstream -> 2" 2 $?
+rw b "$C1"
 mk "$W"; echo 3 >> "$W/f"; git -C "$W" commit -qam c3; C3=$(git -C "$W" rev-parse HEAD); bash "$V" --repo "$W" --sha "$C3" --quiet >/dev/null; expect "M12 merged sha newer than every upstream -> 1" 1 $?
-mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null
+mk "$W"; rw b "$C1"
 bash "$P" --repo "$W" --sha "$C2" >/dev/null; expect "M13a dry-run reports the owed push -> 1" 1 $?
 [ "$(git -C "$W.b.git" rev-parse main)" = "$C1" ] && expect "M13b dry-run changed nothing" 0 0 || expect "M13b dry-run changed nothing" 0 1
 bash "$P" --repo "$W" --sha "$C2" --apply >/dev/null; expect "M13c --apply fast-forwards, read-back -> 0" 0 $?
 [ "$(git -C "$W.b.git" rev-parse main)" = "$C2" ] && expect "M13d upstream b now at merged sha" 0 0 || expect "M13d upstream b now at merged sha" 0 1
-git -C "$W" checkout -q -b side "$C1"; echo y > "$W/h"; git -C "$W" add h; git -C "$W" commit -qm side2; SIDE=$(git -C "$W" rev-parse HEAD); git -C "$W" push -q a "$SIDE:refs/heads/main" -f 2>/dev/null; git -C "$W" checkout -q main
+git -C "$W" checkout -q -b side "$C1"; echo y > "$W/h"; git -C "$W" add h; git -C "$W" commit -qm side2; SIDE=$(git -C "$W" rev-parse HEAD); rw a "$SIDE"; git -C "$W" checkout -q main
 bash "$P" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1; rc=$?; expect "M14a diverged upstream -> not 0 (no force)" 1 $(( rc == 0 ? 0 : 1 ))
 [ "$(git -C "$W.a.git" rev-parse main)" = "$SIDE" ] && expect "M14b diverged upstream untouched" 0 0 || expect "M14b diverged upstream untouched" 0 1
 FORCE_RE='push.*(--force|force-with-lease|--mirror|--no-verify|[[:space:]]-[a-zA-Z]*f[a-zA-Z]*([[:space:]]|$)|["'"'"'[:space:]]\+|:\+)'
@@ -50,7 +52,7 @@ for mut in 'git push "$u" "+$SHA:refs/heads/$B"' 'git push -f "$u" "$SHA:refs/he
   printf '%s\n' "$mut" | grep -qE -- "$FORCE_RE" && expect "M15s force-regex flags seeded mutant: $mut" 0 0 || expect "M15s force-regex flags seeded mutant: $mut" 0 1; done
 if grep -nE -- "$FORCE_RE" "$P" | grep -vE '^[0-9]+:#' >/dev/null; then expect "M15 no force construct in push command" 0 1; else expect "M15 no force construct in push command" 0 0; fi
 # M16 a push refused by the remote (pre-receive hook) is reported BLOCKED, rc 1, upstream unchanged, never forced
-mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; printf '#!/bin/sh\nexit 1\n' > "$W.b.git/hooks/pre-receive"; chmod +x "$W.b.git/hooks/pre-receive"
+mk "$W"; rw b "$C1"; printf '#!/bin/sh\nexit 1\n' > "$W.b.git/hooks/pre-receive"; chmod +x "$W.b.git/hooks/pre-receive"
 o=$(bash "$P" --repo "$W" --sha "$C2" --apply 2>&1); rc=$?; expect "M16a refused push -> rc 1" 1 $rc
 printf '%s' "$o" | grep -q '^BLOCKED' && expect "M16b BLOCKED line printed" 0 0 || expect "M16b BLOCKED line printed" 0 1
 [ "$(git -C "$W.b.git" rev-parse main)" = "$C1" ] && expect "M16c refused upstream unchanged" 0 0 || expect "M16c refused upstream unchanged" 0 1
@@ -86,17 +88,17 @@ bash "$P" --repo "$T/top/outer/inner" --sha "$LS" --exempt "$T/ex3.tsv" --apply 
 REALGIT=$(command -v git); SH="$T/shim"; mkdir -p "$SH"
 printf '#!/bin/sh\ncase " $* " in *" push "*) printf "%%s\\n" "$*" >> "$SHIMLOG";; esac\nexec %s "$@"\n' "$REALGIT" > "$SH/git"; chmod +x "$SH/git"
 forceseen() { grep -qE -- '(^| )(\+|--force|--force-with-lease|--mirror|--no-verify)( |$|[^ ]*:)|(^| )-[a-zA-Z]*f[a-zA-Z]*( |$)|:\+|[ ]\+[^ ]' "$1"; }
-mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; export SHIMLOG="$T/shim.log"; : > "$SHIMLOG"
+mk "$W"; rw b "$C1"; export SHIMLOG="$T/shim.log"; : > "$SHIMLOG"
 PATH="$SH:$PATH" bash "$P" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1; expect "M21a shimmed --apply read-back -> 0" 0 $?
 [ -s "$SHIMLOG" ] && expect "M21b the shim saw a real push argv" 0 0 || expect "M21b the shim saw a real push argv" 0 1
 forceseen "$SHIMLOG" && expect "M21c no force construct in recorded push argv" 0 1 || expect "M21c no force construct in recorded push argv" 0 0
 sed 's#git -C "$REPO" push "$url" "$SHA:refs/heads/$BRANCH"#RS="+$SHA:refs/heads/$BRANCH"; git -C "$REPO" push "$url" "$RS"#' "$P" > "$T/mut_push_all.sh"; sed -i 's#^HERE=.*#HERE="'"$HERE/../sync"'"#' "$T/mut_push_all.sh"
-mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; : > "$SHIMLOG"
+mk "$W"; rw b "$C1"; : > "$SHIMLOG"
 PATH="$SH:$PATH" bash "$T/mut_push_all.sh" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1
 forceseen "$SHIMLOG" && expect "M21d seeded variable-held + mutant IS flagged by the runtime check" 0 0 || expect "M21d seeded variable-held + mutant IS flagged by the runtime check" 0 1
 # M21e seeded clustered-short-flag mutant (-qf) is flagged by the runtime check as well
 sed 's#git -C "$REPO" push "$url"#git -C "$REPO" push -qf "$url"#' "$P" > "$T/mut_qf.sh"; sed -i 's#^HERE=.*#HERE="'"$HERE/../sync"'"#' "$T/mut_qf.sh"
-mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; : > "$SHIMLOG"
+mk "$W"; rw b "$C1"; : > "$SHIMLOG"
 PATH="$SH:$PATH" bash "$T/mut_qf.sh" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1
 forceseen "$SHIMLOG" && expect "M21e seeded -qf cluster mutant IS flagged" 0 0 || expect "M21e seeded -qf cluster mutant IS flagged" 0 1
 # M22 --fleet run from a NESTED root keys exemptions like --repo: a top-level row (key ".") must NOT exempt a nested repo's mirror
@@ -112,19 +114,25 @@ bash "$V" --fleet "$T/n0/nsub" --exempt "$T/ex4.tsv" --quiet >/dev/null 2>&1; ex
 mk "$W"; for r in a b c; do git -C "$W" remote remove $r; done; git -C "$W" remote add a "$W.a.git"
 printf '.\t%s\treason\n' "$W.a.git" > "$T/ex5.tsv"; o=$(bash "$V" --repo "$W" --exempt "$T/ex5.tsv" 2>&1); rc=$?; expect "M23a all upstreams exempt -> 2" 2 $rc
 printf '%s' "$o" | grep -q 'every upstream carries' && expect "M23b no false all-carry sentence" 0 1 || expect "M23b no false all-carry sentence" 0 0
-git -C "$W" push -q a "$C1:refs/heads/main" -f 2>/dev/null; printf '.\t/\treason\n' > "$T/ex5.tsv"; bash "$V" --repo "$W" --exempt "$T/ex5.tsv" --quiet >/dev/null 2>&1; expect "M23c behind upstream + '/' exemption -> not 0" 1 $(( $? == 0 ? 0 : 1 ))
+rw a "$C1"; printf '.\t/\treason\n' > "$T/ex5.tsv"; bash "$V" --repo "$W" --exempt "$T/ex5.tsv" --quiet >/dev/null 2>&1; expect "M23c behind upstream + '/' exemption -> not 0" 1 $(( $? == 0 ? 0 : 1 ))
 # M24 an option without its value is a usage error (2), not a hang
 timeout 5 bash "$V" --repo >/dev/null 2>&1; expect "M24a verify: --repo without value -> 2" 2 $?
 timeout 5 bash "$P" --repo w --sha >/dev/null 2>&1; expect "M24b push_all: --sha without value -> 2" 2 $?
 # M25 breadth: a row naming a different/shorter string must NOT hide a BEHIND upstream while another upstream is checked
-mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null
+mk "$W"; rw b "$C1"
 for sub in '.git' 'http' "$T" "$(basename "$W").b" ; do printf '.\t%s\treason\n' "$sub" > "$T/ex6.tsv"; bash "$V" --repo "$W" --exempt "$T/ex6.tsv" --quiet >/dev/null 2>&1; expect "M25 substring row '$sub' does not exempt a BEHIND upstream -> 1" 1 $?; done
 # M26 blocked-push text, 1-outranks-2, exact ref match
-mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; printf '#!/bin/sh\necho REFUSAL-TEXT-X >&2\nexit 1\n' > "$W.b.git/hooks/pre-receive"; chmod +x "$W.b.git/hooks/pre-receive"
+mk "$W"; rw b "$C1"; printf '#!/bin/sh\necho REFUSAL-TEXT-X >&2\nexit 1\n' > "$W.b.git/hooks/pre-receive"; chmod +x "$W.b.git/hooks/pre-receive"
 o=$(bash "$P" --repo "$W" --sha "$C2" --apply 2>&1); printf '%s' "$o" | grep '^BLOCKED' | grep -q 'REFUSAL-TEXT-X' && expect "M26a BLOCKED line carries the refusal text" 0 0 || expect "M26a BLOCKED line carries the refusal text" 0 1
-mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; printf '#!/bin/sh\nmv "$PWD" "$PWD.gone"\nexit 1\n' > "$W.b.git/hooks/pre-receive"; chmod +x "$W.b.git/hooks/pre-receive"
+mk "$W"; rw b "$C1"; printf '#!/bin/sh\nmv "$PWD" "$PWD.gone"\nexit 1\n' > "$W.b.git/hooks/pre-receive"; chmod +x "$W.b.git/hooks/pre-receive"
 bash "$P" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1; expect "M26b refused push whose upstream then reads back UNREACHABLE (verifier 2) -> 1 (1 outranks 2)" 1 $?
 mk "$W"; git -C "$W" push -q b "$C2:refs/heads/x/refs/heads/main" 2>/dev/null; git -C "$W.b.git" update-ref -d refs/heads/main; bash "$V" --repo "$W" --quiet >/dev/null 2>&1; expect "M26c suffix-only ref refs/heads/x/refs/heads/main is NOT main -> 1" 1 $?
+# M27 expected commit is the checked-out HEAD, not a stale-or-ahead local refs/heads/main (worktree/submodule pin vs local main)
+mk "$W"; echo 3 >> "$W/f"; git -C "$W" commit -qam c3; git -C "$W" checkout -q --detach "$C2"
+bash "$V" --repo "$W" --quiet >/dev/null; expect "M27a local main ahead of the pinned HEAD, upstreams at HEAD -> 0 (old order: false BEHIND, rc 1)" 0 $?
+sed 's#rev-parse --verify -q "HEAD^{commit}" 2>/dev/null || git -C "$dir" rev-parse --verify -q "refs/heads/$BRANCH^{commit}"#rev-parse --verify -q "refs/heads/$BRANCH^{commit}" 2>/dev/null || git -C "$dir" rev-parse --verify -q "HEAD^{commit}"#' "$V" > "$T/mut_order.sh"
+cmp -s "$V" "$T/mut_order.sh" && expect "M27b seeded reverted-order mutant differs from the tool" 0 1 || expect "M27b seeded reverted-order mutant differs from the tool" 0 0
+o=$(bash "$T/mut_order.sh" --repo "$W" 2>&1); printf '%s' "$o" | grep -q 'BEHIND' && expect "M27c reverted-order mutant IS flagged (reports the false BEHIND)" 0 0 || expect "M27c reverted-order mutant IS flagged (reports the false BEHIND)" 0 1
 # ---- verify_constitution_latest.sh (the "constitution is latest + nested submodules current" check) ----
 L="$HERE/../sync/verify_constitution_latest.sh"; 
 nb "$T/nest" n; git init -q --bare -b main "$T/nest.git"; git -C "$T/nest" push -q "$T/nest.git" main
