@@ -17,6 +17,11 @@ class T(unittest.TestCase):
                            ("google-key", "AIza" + "B"*35), ("sendgrid-key", "SG." + "a"*22 + "." + "b"*22),
                            ("url-credentials", "https://user:pass@host.example/x"), ("url-credentials", "postgres://u:pw@db/x")]:
             self.assertIn(kind, self.kinds(text), kind)
+    def test_json_quoted_and_llm_keys(self):
+        for kind, text in [("assignment-secret", '{"password": "hunter2hunter2"}'), ("assignment-secret", '"api_key": "abcdefgh12345"'),
+                           ("assignment-secret", "'token': 'abcdefgh12345'"), ("llm-key", "sk-ant-" + "a"*30), ("llm-key", "sk-" + "b"*30),
+                           ("npm-token", "npm_" + "c"*36), ("aws-key", "ASIA" + "D"*16)]:
+            self.assertIn(kind, self.kinds(text), text)
     def test_personal_data(self):
         self.assertIn("email", self.kinds("mail someone@example.org now"))
         self.assertIn("phone", self.kinds("call +7 495 123-45-67"))
