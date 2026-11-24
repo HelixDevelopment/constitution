@@ -54,6 +54,11 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
     if not cfg["enabled"]:
         print("disabled (default OFF): nothing to do", file=out)
         return 0
+    if a.cmd == "status":      # offline: no network, no write
+        from . import offline_status
+        r = offline_status.status(a.db)
+        print(json.dumps(r), file=out)
+        return 1 if r["pending"] else 0
     if a.cmd == "apply" and not (a.apply and cfg["mode"] == "apply"):
         print("apply refused: needs --apply AND mode: apply with a recorded apply_decision in the config (dry-run default)", file=out)
         return 2

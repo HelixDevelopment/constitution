@@ -1,0 +1,18 @@
+# Docs Chain context template for the workable-items Issues mirror (anchor §11.4.300(F)).
+# Copy into a consumer's .docs_chain/contexts/issues-sync.yaml (data only; the engine stays in the constitution submodule).
+# The database is the upstream node; the status documents, exports and the tracker mirror are downstream nodes of ONE sync.
+# The tracker node is a transform that calls the constitution's scripts: `plan` always, `apply` only when .workable-items-sync.yaml has mode: apply.
+context: issues-sync
+description: workable_items.db -> status docs, exports and the Issues mirror of every declared upstream (§11.4.93, §11.4.106, §11.4.300)
+nodes:
+  workable_items_db:   { kind: sqlite,   path: docs/workable_items.db }
+  issues_md:           { kind: markdown, path: docs/Issues.md,  derived_from: [workable_items_db] }
+  fixed_md:            { kind: markdown, path: docs/Fixed.md,   derived_from: [workable_items_db] }
+  issues_summary_md:   { kind: markdown, path: docs/Issues_Summary.md, derived_from: [workable_items_db] }
+  fixed_summary_md:    { kind: markdown, path: docs/Fixed_Summary.md,  derived_from: [workable_items_db] }
+  issues_mirror:
+    kind: transform
+    derived_from: [workable_items_db]
+    run: "bash submodules/constitution/scripts/issue_sync.sh plan --config .workable-items-sync.yaml --db docs/workable_items.db"
+    verify: "bash submodules/constitution/scripts/verify_issues_sync.sh --config .workable-items-sync.yaml --db docs/workable_items.db"
+    verify_rc: { 0: in-sync, 1: stale, 2: cannot-determine-never-a-pass }
