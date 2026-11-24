@@ -575,6 +575,7 @@ scripts/gates/cm_covenant_114_296_propagation_mutation_test.sh	sh	entry	heavy	ba
 scripts/gates/cm_covenant_114_297_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_298_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_299_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_300_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_decisions_override_valid_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
 scripts/gates/cm_decisions_wizard_safety_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh

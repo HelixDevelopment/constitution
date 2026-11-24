@@ -384,7 +384,8 @@ ID_RANGE_GROUPS = [
                                         (229, 229), (235, 236), (260, 261), (264, 267),
                                         (279, 281), (285, 286),  # 279-281, 285-286 added 2026-10-23 — Jev decision-layer: detection, wiring, bootstrap, auto-tuning, dependency submodules
                                         (293, 293),  # 293 added 2026-11-03 — §11.4.293 scope discipline + image no-worse proof; sibling of 40/235/236
-                                        (298, 298)]),  # 298 added 2026-11-07 — §11.4.298 release gate per product (live run on connected hardware, closed gate state); sibling of 40/236/293
+                                        (298, 298),
+                                        (300, 300)]),  # 300 added 2026-11-24 — §11.4.300 workable-items issue mirror (default-OFF, DB truth, visibility by owning repo); sibling of 93/106/296. 298 note: 298 added 2026-11-07 — §11.4.298 release gate per product (live run on connected hardware, closed gate state); sibling of 40/236/293
 ]
 
 EXPLICIT_ID_GROUPS = {
