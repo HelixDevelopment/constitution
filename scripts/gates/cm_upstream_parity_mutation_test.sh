@@ -127,13 +127,12 @@ o=$(bash "$P" --repo "$W" --sha "$C2" --apply 2>&1); printf '%s' "$o" | grep '^B
 mk "$W"; rw b "$C1"; printf '#!/bin/sh\nmv "$PWD" "$PWD.gone"\nexit 1\n' > "$W.b.git/hooks/pre-receive"; chmod +x "$W.b.git/hooks/pre-receive"
 bash "$P" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1; expect "M26b refused push whose upstream then reads back UNREACHABLE (verifier 2) -> 1 (1 outranks 2)" 1 $?
 mk "$W"; git -C "$W" push -q b "$C2:refs/heads/x/refs/heads/main" 2>/dev/null; git -C "$W.b.git" update-ref -d refs/heads/main; bash "$V" --repo "$W" --quiet >/dev/null 2>&1; expect "M26c suffix-only ref refs/heads/x/refs/heads/main is NOT main -> 1" 1 $?
-# M27 expected commit is the checked-out HEAD, not a stale local refs/heads/main (worktree/submodule: local main lags the pin)
-mk "$W"; echo 3 >> "$W/f"; git -C "$W" commit -qam c3; C3=$(git -C "$W" rev-parse HEAD)
-for r in a b c; do git -C "$W" push -q $r main; done; git -C "$W" update-ref refs/heads/main "$C2"; git -C "$W" checkout -q --detach "$C3"
-bash "$V" --repo "$W" --quiet >/dev/null; expect "M27a stale local main, HEAD at the upstream tip -> 0 (no false AHEAD)" 0 $?
+# M27 expected commit is the checked-out HEAD, not a stale-or-ahead local refs/heads/main (worktree/submodule pin vs local main)
+mk "$W"; echo 3 >> "$W/f"; git -C "$W" commit -qam c3; git -C "$W" checkout -q --detach "$C2"
+bash "$V" --repo "$W" --quiet >/dev/null; expect "M27a local main ahead of the pinned HEAD, upstreams at HEAD -> 0 (old order: false BEHIND, rc 1)" 0 $?
 sed 's#rev-parse --verify -q "HEAD^{commit}" 2>/dev/null || git -C "$dir" rev-parse --verify -q "refs/heads/$BRANCH^{commit}"#rev-parse --verify -q "refs/heads/$BRANCH^{commit}" 2>/dev/null || git -C "$dir" rev-parse --verify -q "HEAD^{commit}"#' "$V" > "$T/mut_order.sh"
 cmp -s "$V" "$T/mut_order.sh" && expect "M27b seeded reverted-order mutant differs from the tool" 0 1 || expect "M27b seeded reverted-order mutant differs from the tool" 0 0
-o=$(bash "$T/mut_order.sh" --repo "$W" 2>&1); printf '%s' "$o" | grep -q 'AHEAD' && expect "M27c reverted-order mutant IS flagged (reports the false AHEAD)" 0 0 || expect "M27c reverted-order mutant IS flagged (reports the false AHEAD)" 0 1
+o=$(bash "$T/mut_order.sh" --repo "$W" 2>&1); printf '%s' "$o" | grep -q 'BEHIND' && expect "M27c reverted-order mutant IS flagged (reports the false BEHIND)" 0 0 || expect "M27c reverted-order mutant IS flagged (reports the false BEHIND)" 0 1
 # ---- verify_constitution_latest.sh (the "constitution is latest + nested submodules current" check) ----
 L="$HERE/../sync/verify_constitution_latest.sh"; 
 nb "$T/nest" n; git init -q --bare -b main "$T/nest.git"; git -C "$T/nest" push -q "$T/nest.git" main
