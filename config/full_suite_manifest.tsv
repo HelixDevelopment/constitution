@@ -606,6 +606,7 @@ scripts/gates/cm_installer_script_modes_mutation_test.sh	sh	member	heavy	-	tests
 scripts/gates/cm_installer_snippets_consistent_mutation_test.sh	sh	member	heavy	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 scripts/gates/cm_installer_truncation_safe_mutation_test.sh	sh	member	heavy	-	tests/install/run_all.sh	auto: run by tests/install/run_all.sh
 scripts/gates/cm_instrument_trap_scan_mutation_test.sh	sh	entry	heavy	sh	-	auto
+scripts/gates/cm_issue_sync_template_default_off_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_jev_bootstrap_idempotent_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_jev_detection_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_jev_token_reduction_mutation_test.sh	sh	entry	heavy	bash	-	auto
@@ -682,6 +683,9 @@ scripts/hooks/test_guard_nul_regression.sh	sh	entry	default	bash	-	auto
 scripts/hooks/test_guard_track_branch_label.sh	sh	entry	default	bash	-	auto
 scripts/hooks/test_guard_work_track_binding.sh	sh	entry	default	bash	-	auto
 scripts/hooks/test_label_sync_hooks.sh	sh	entry	default	bash	-	auto
+scripts/issue_sync/tests/test_config.py	py	entry	default	python3	-	auto
+scripts/issue_sync/tests/test_redact.py	py	entry	default	python3	-	auto
+scripts/issue_sync/tests/test_visibility.py	py	entry	default	python3	-	auto
 scripts/label-sync	go	entry	default	go-test	-	auto: Go module with *_test.go
 scripts/label-sync/adapters/tests/fake_openai.py	py	excluded	-	-	-	reason: fake: unit-class fake server used by cm_label_sync_adapters gate tests (section 11.4.289(C)(2))
 scripts/label-sync/adapters/tests/test_adapters.sh	sh	entry	default	bash	-	auto
