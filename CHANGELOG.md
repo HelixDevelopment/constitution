@@ -1,5 +1,9 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+#### Post-v73.4 amendment — 2026-11-24 (not a release)
+
+- §11.4.288 amendment note: landing on `main` is complete only when the landed tip is contained in `main` of every upstream in the declared upstream set of every own repository touched (including pin-bump commits); MIRROR-LAG / UNREACHABLE reporting, bounded retry, escalation, removal only by recorded operator decision. Deferral `OWED-GATE-186` (`CM-LANDING-ALL-UPSTREAMS-READBACK`) registered, not implemented. Carriers CLAUDE.md, AGENTS.md, QWEN.md, GEMINI.md in lockstep.
+
 ## helixconstitution-v73.4 — 2026-11-18 — PROVISIONAL pre-release after v73.3: §11.4.294–§11.4.298, workable-items state columns (schema v8), full-suite runner with a clean manifest, ownership redesign waves 1 and 2, the pull-request delivery and release-gate anchors, the CM-KILLPG-PGID-GUARD gate back to PASS (PROVISIONAL, CON-226), vehicles landed by pull requests merged PROVISIONAL (several on NO-GO)
 
 **Status: PROVISIONAL PRE-RELEASE (§11.4.290), release class pre-release, tag `helixconstitution-v73.4`.** Previous tag: `helixconstitution-v73.3` (tag object `e915eef70f7ed70a811b348113a3686d05e07a72`, commit `aa5ae0a3cd21b3aa1184f47a46dd0fecd6a30ca2`, 2026-11-03). Content base: `788af2d9593ba90df3e48ccd7e56ff0e941da9f9`, the release branch (`main` plus the release-prep commits; reachable from `main` once the release pull request is merged) (759 commits after helixconstitution-v73.3, 185 of them merges; `git diff --shortstat`: 7816 files changed, 835020 insertions(+), 5495 deletions(-)). The release commit adds this entry, the README badge row it regenerates, and nothing else.
