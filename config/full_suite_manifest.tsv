@@ -1083,3 +1083,4 @@ tests/workable_items/test_secret_canon.py	py	entry	default	python3	-	auto
 tests/workable_items/test_secret_frontend.py	py	entry	default	python3	-	auto
 tests/workable_items/test_secret_shapes.py	py	entry	default	python3	-	auto
 tests/workable_items/test_secret_shapes_r11.py	py	entry	default	python3	-	auto
+scripts/issue_sync/tests/test_adapters.py	py	entry	default	python3	-	auto
