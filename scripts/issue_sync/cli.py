@@ -59,7 +59,7 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
     if a.cmd == "apply" and not (a.apply and cfg["mode"] == "apply"):
         print("apply refused: needs --apply AND mode: apply with a recorded apply_decision in the config (dry-run default)", file=out)
         return 2
-    if not a.target or not a.owner_repo:
+    if not a.owner_repo or (a.cmd != "status" and not a.target):
         print("cannot determine: --target and --owner-repo are required", file=out)
         return 2
     if any(t.count("/") < 2 for t in a.target) or a.owner_repo.count("/") < 2 or (a.db_repo and a.db_repo.count("/") < 2):
@@ -93,6 +93,11 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
         else:
             foreign += 1
     items = routed
+    if a.cmd == "status":      # offline: no network, no write; only items this repository owns
+        from . import offline_status
+        r = offline_status.status(a.db, items=items)
+        print(json.dumps(r), file=out)
+        return 1 if r["pending"] or unroutable else 0
     if a.only_open:
         items = [i for i in items if not engine.is_closed(i["status"])]
     if a.limit:
