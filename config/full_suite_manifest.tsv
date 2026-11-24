@@ -1079,3 +1079,4 @@ tests/workable_items/test_secret_canon.py	py	entry	default	python3	-	auto
 tests/workable_items/test_secret_frontend.py	py	entry	default	python3	-	auto
 tests/workable_items/test_secret_shapes.py	py	entry	default	python3	-	auto
 tests/workable_items/test_secret_shapes_r11.py	py	entry	default	python3	-	auto
+scripts/gates/cm_issue_sync_template_default_off_mutation_test.sh	sh	entry	heavy	bash	-	auto

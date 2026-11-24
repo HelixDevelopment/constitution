@@ -1,0 +1,17 @@
+# .workable-items-sync.yaml -- consumer declaration for the workable-items Issues mirror (anchor §11.4.300).
+# The constitution ships the engine (scripts/issue_sync/); a consumer carries ONLY this file and never copies the engine.
+# DEFAULT IS OFF: this template MUST ship `enabled: false` (gate CM-ISSUE-SYNC-TEMPLATE-DEFAULT-OFF).
+enabled: false            # a project turns the mirror on by setting true in ITS OWN tracked copy
+scope:
+  recursive: false        # true: walk own-org submodules (fleet derived from .gitmodules + helix-deps.yaml); third-party never synced
+mode: dry-run             # dry-run | apply; apply needs apply_decision (a tracked recorded operator decision)
+# apply_decision: docs/governance/OPERATOR-DECISION-ISSUE-SYNC-APPLY.md
+trackers: []              # [] = derive per repo from declared upstreams/*.sh and remotes; or a list of hosts, e.g. [github.com, gitlab.com]
+visibility_policy: owning-repo   # the only value allowed: an item goes only to the trackers of its owning repository
+interval_hours: 24        # 1..24; the verifier and apply cadence never exceeds 24 hours
+inbound:                  # §11.4.296 intake; engine-owned issues (hidden footer) are never re-imported
+  enabled: false
+  assignees: []
+docs_chain:
+  context: issues-sync
+token_vars: {}            # host -> [variable NAMES]; NAMES only, never values; defaults come from config/forge/hosts.tsv
