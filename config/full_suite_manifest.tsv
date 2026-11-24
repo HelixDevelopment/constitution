@@ -574,6 +574,7 @@ scripts/gates/cm_covenant_114_295_propagation_mutation_test.sh	sh	entry	heavy	ba
 scripts/gates/cm_covenant_114_296_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_297_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_covenant_114_298_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_covenant_114_299_propagation_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_dangerous_combination_fail_closed_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_decisions_override_valid_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
 scripts/gates/cm_decisions_wizard_safety_mutation_test.sh	sh	member	heavy	-	tests/decisions/run_all.sh	auto: run by tests/decisions/run_all.sh
@@ -644,6 +645,7 @@ scripts/gates/cm_sync_upstreams_ff_only_mutation_test.sh	sh	member	heavy	-	tests
 scripts/gates/cm_test_mock_pid_explicit_int.sh	sh	excluded	-	-	-	reason: gate: a gate, not a test; its paired test is cm_test_mock_pid_explicit_int_mutation_test.sh
 scripts/gates/cm_test_mock_pid_explicit_int_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_track_branch_label_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_upstream_parity_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_unchallenged_capability_blocks_release_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_unreferenced_gate_bound_or_retired_mutation_test.sh	sh	entry	heavy	sh	-	auto
 scripts/gates/cm_user_manual_per_component_mutation_test.sh	sh	entry	heavy	bash	-	auto

@@ -28,6 +28,7 @@
 **R21 (2026-11-07, §11.4.297):** `OWED-GATE-182` (`CM-PR-LANDING-READBACK`), `OWED-GATE-183` (`CM-PR-EVIDENCE-RESOLVES-FROM-TIP`) and `OWED-GATE-184` (`CM-SUBMODULE-PIN-MIRROR-PARITY`) registered in `gate_ledger_deferrals.tsv` in the same change that named them in §11.4.297; section after the §11.4.296 section.
 
 **R22 (2026-11-07, §11.4.298):** `OWED-GATE-185` (`CM-RELEASE-GATE-PER-PRODUCT`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.298; section after the §11.4.297 section.
+**R23 (2026-11-24, §11.4.299):** `OWED-GATE-186` (`CM-UPSTREAM-PARITY-AFTER-MERGE`) registered in `gate_ledger_deferrals.tsv` in the same change that named it in §11.4.299.
 
 **R23 (2026-11-07, §11.4.297 audit fixes):** the `OWED-GATE-182` contract now also requires a source-correctness GO recorded for the merged head and the remote base tip, fetched right before the merge, to be an ancestor of the merged head (§11.4.297(C)(2)(a) and (g)); two paired mutations added to match. No row added or removed.
 
@@ -1096,6 +1097,11 @@ The item-level gate named in §11.4.298 is registered as a deferral in the same 
   - **Must assert:** (per §11.4.298(A) to (F)) every deployment and every tag of a deployable build carries one machine-written gate record per covered product; each state is computed from the live-run record and the §11.4.293 comparison record it names; the live run re-ran every baseline test on connected hardware of that product identified from the target; only `RELEASABLE` products are deployed or released; no `BLOCKED-NO-HARDWARE` build carries a tag of any class; a multi-product release reports no blocked or refused product as covered
   - **Blocked on:** the products, artifact kinds, hardware, harness, suites and records are consuming-project DATA; the constitution ships no flashing, deployment or comparison tool
   - **Paired §1.1 mutation:** an emulator run in place of the connected target, one baseline test dropped from the new run, one product's verdict reused for another, a `BLOCKED-NO-BASELINE` build deployed, a build tagged with no live run; the gate MUST FAIL
+
+- **OWED-GATE-186** — `CM-UPSTREAM-PARITY-AFTER-MERGE`
+  - **Must assert:** (per §11.4.299(A) to (D)) every pull request or merge a consuming project reports as landed or done carries a per-upstream `git ls-remote` read-back whose tip equals or contains the merged sha for every declared upstream; a submodule pin bump follows the submodule's own read-back; a BLOCKED or UNREACHABLE upstream is reported and never counted done
+  - **Blocked on:** the delivery tooling, the upstream declarations and the exemption data are consuming-project DATA; the constitution ships the read-only instruments `scripts/sync/verify_upstream_parity.sh` and `scripts/sync/verify_constitution_latest.sh` and the guarded helper `scripts/sync/push_all_upstreams.sh`, not the project's delivery hook
+  - **Paired §1.1 mutation:** a behind upstream, a diverged upstream, a recipe-only upstream, a second push URL of one remote, an unreachable upstream, an empty declaration, an exemption without a reason and a not-latest constitution each MUST make the verifier non-zero (`scripts/gates/cm_upstream_parity_mutation_test.sh`, cases M1 to M15 and L1 to L5)
 
 ### Follow-up: duplicate deferral IDs accepted by the ledger ratchet (recorded 2026-10-28, not a gate)
 
