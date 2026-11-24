@@ -105,7 +105,9 @@ check_repo() {  # $1 = absolute dir, $2 = display name
     say "CANNOT-DETERMINE  $name  no upstream is declared (no push URL, no enabled upstreams/*.sh recipe)"; F2=$((F2+1)); return
   fi
   sha_exp="$SHA"
-  [ -z "$sha_exp" ] && sha_exp=$(git -C "$dir" rev-parse --verify -q "refs/heads/$BRANCH^{commit}" 2>/dev/null || git -C "$dir" rev-parse --verify -q HEAD 2>/dev/null)
+  # expected commit = the checked-out HEAD (the gitlink pin in a submodule, the merged tip in a fresh worktree); the local
+  # refs/heads/$BRANCH is only a fallback because it is stale in worktrees/submodules (false AHEAD/BEHIND findings)
+  [ -z "$sha_exp" ] && sha_exp=$(git -C "$dir" rev-parse --verify -q "HEAD^{commit}" 2>/dev/null || git -C "$dir" rev-parse --verify -q "refs/heads/$BRANCH^{commit}" 2>/dev/null)
   if [ -z "$sha_exp" ]; then say "CANNOT-DETERMINE  $name  no local $BRANCH tip and no HEAD"; F2=$((F2+1)); return; fi
   say "== $name  branch=$BRANCH sha=${sha_exp:0:12}"
   local n=0 chk=0 tmpd; tmpd=$(mktemp -d) || { F2=$((F2+1)); return; }
