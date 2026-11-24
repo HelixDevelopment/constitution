@@ -19,8 +19,8 @@ for _v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJ
 set -u
 ROOT=""; SP=submodules/constitution; BR=main; NESTED=1; TO=25; Q=0
 while [ $# -gt 0 ]; do case "$1" in
-  --root) ROOT="${2:-}"; shift 2;; --path) SP="${2:-}"; shift 2;; --branch) BR="${2:-}"; shift 2;;
-  --no-nested-remote) NESTED=0; shift;; --timeout) TO="${2:-25}"; shift 2;; --quiet) Q=1; shift;;
+  --root) ROOT="${2:-}"; [ $# -ge 2 ] || { echo "verify_constitution_latest: option needs a value" >&2; exit 2; }; shift 2;; --path) SP="${2:-}"; [ $# -ge 2 ] || { echo "verify_constitution_latest: option needs a value" >&2; exit 2; }; shift 2;; --branch) BR="${2:-}"; [ $# -ge 2 ] || { echo "verify_constitution_latest: option needs a value" >&2; exit 2; }; shift 2;;
+  --no-nested-remote) NESTED=0; shift;; --timeout) TO="${2:-25}"; [ $# -ge 2 ] || { echo "verify_constitution_latest: option needs a value" >&2; exit 2; }; shift 2;; --quiet) Q=1; shift;;
   -h|--help) sed -n '2,19p' "$0"; exit 0;; *) echo "unknown argument: $1" >&2; exit 2;; esac; done
 [ -n "$ROOT" ] || { echo "--root required" >&2; exit 2; }
 F1=0; F2=0; say() { [ "$Q" = 1 ] || printf '%s\n' "$*"; }
@@ -39,9 +39,10 @@ elif [ "$TIP" = "$HEAD_SHA" ]; then say "CURRENT   constitution == upstream $BR 
 elif ! git -C "$D" cat-file -e "$TIP^{commit}" 2>/dev/null; then say "DIFFERS   constitution ${HEAD_SHA:0:12} upstream ${TIP:0:12} (not in object store; fetch to classify)"; F1=$((F1+1))
 elif git -C "$D" merge-base --is-ancestor "$HEAD_SHA" "$TIP"; then say "BEHIND    constitution ${HEAD_SHA:0:12} upstream ${TIP:0:12} (fast-forward owed)"; F1=$((F1+1))
 else say "AHEAD     constitution ${HEAD_SHA:0:12} carries commits upstream ${TIP:0:12} lacks"; F1=$((F1+1)); fi
-ST=$(git -C "$D" submodule status --recursive 2>"${TMPDIR:-/tmp}/vcl.$$.err"); src=$?; n=0; bad=0
-if [ "$src" != 0 ]; then say "CANNOT-DETERMINE  recursive submodule status failed (rc=$src): $(head -2 "${TMPDIR:-/tmp}/vcl.$$.err" | tr '\n' ' ')"; F2=$((F2+1)); fi
-rm -f "${TMPDIR:-/tmp}/vcl.$$.err"
+VCLERR=$(mktemp) || exit 2
+ST=$(git -C "$D" submodule status --recursive 2>"$VCLERR"); src=$?; n=0; bad=0
+if [ "$src" != 0 ]; then say "CANNOT-DETERMINE  recursive submodule status failed (rc=$src): $(head -2 "$VCLERR" | tr '\n' ' ')"; F2=$((F2+1)); fi
+rm -f "$VCLERR"
 while IFS= read -r l; do [ -n "$l" ] || continue; n=$((n+1)); case "${l:0:1}" in
   -) say "UNINITIALISED  ${l:1}"; F1=$((F1+1)); bad=$((bad+1));; +) say "NOT-AT-PIN      ${l:1}"; F1=$((F1+1)); bad=$((bad+1));; U) say "CONFLICT        ${l:1}"; F1=$((F1+1)); bad=$((bad+1));; esac; done <<< "$ST"
 say "NESTED   $n submodule row(s), $bad not initialised/at pin"

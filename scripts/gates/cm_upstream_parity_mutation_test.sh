@@ -4,7 +4,7 @@
 # "upstreams" of a throwaway work repository (the tool's own logic is under test here; the live proof of a real merge is
 # the per-upstream `git ls-remote` read-back the anchor demands, not this test). Every case states its expected exit code;
 # a verifier that returned 0 on a behind/diverged/unreachable/empty state would be the PASS-bluff the anchor forbids.
-# Cases M1..M20, L1..L5. Exit 0 all as expected · 1 a case differed · 2 environment fault.
+# Cases M1..M24, L1..L5. Exit 0 all as expected · 1 a case differed · 2 environment fault.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd); V="$HERE/../sync/verify_upstream_parity.sh"; P="$HERE/../sync/push_all_upstreams.sh"
 [ -x "$V" ] && [ -x "$P" ] || { echo "tools missing" >&2; exit 2; }
@@ -80,6 +80,37 @@ printf 'outer/inner\t%s\tsnapshot-fed mirror, recorded decision\n' "$T/leaf.b.gi
 bash "$V" --fleet "$T/top" --exempt "$T/ex3.tsv" --quiet >/dev/null 2>&1; expect "M20a --fleet honours nested exemption -> 0" 0 $?
 bash "$P" --repo "$T/top/outer/inner" --sha "$LS" --exempt "$T/ex3.tsv" --apply >/dev/null 2>&1; expect "M20b push_all honours nested exemption -> 0" 0 $?
 [ "$(git -C "$T/leaf.b.git" rev-parse main)" != "$LS" ] && expect "M20c nested exempt mirror NOT pushed" 0 0 || expect "M20c nested exempt mirror NOT pushed" 0 1
+# M21 RUNTIME no-force proof: a git shim on PATH records every push argv; a real --apply must push, and no argv may carry a
+# force construct (leading +, --force*, -f, --mirror, --no-verify). A SEEDED mutant that builds the + refspec in a variable
+# (invisible to the static M15 grep) MUST be flagged by the same runtime check.
+REALGIT=$(command -v git); SH="$T/shim"; mkdir -p "$SH"
+printf '#!/bin/sh\ncase " $* " in *" push "*) printf "%%s\\n" "$*" >> "$SHIMLOG";; esac\nexec %s "$@"\n' "$REALGIT" > "$SH/git"; chmod +x "$SH/git"
+forceseen() { grep -qE -- '(^| )(\+|--force|--force-with-lease|--mirror|--no-verify|-f)( |$|[^ ]*:)|:\+|[ ]\+[^ ]' "$1"; }
+mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; export SHIMLOG="$T/shim.log"; : > "$SHIMLOG"
+PATH="$SH:$PATH" bash "$P" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1; expect "M21a shimmed --apply read-back -> 0" 0 $?
+[ -s "$SHIMLOG" ] && expect "M21b the shim saw a real push argv" 0 0 || expect "M21b the shim saw a real push argv" 0 1
+forceseen "$SHIMLOG" && expect "M21c no force construct in recorded push argv" 0 1 || expect "M21c no force construct in recorded push argv" 0 0
+sed 's#git -C "$REPO" push "$url" "$SHA:refs/heads/$BRANCH"#RS="+$SHA:refs/heads/$BRANCH"; git -C "$REPO" push "$url" "$RS"#' "$P" > "$HERE/../sync/.mut_push_all.$$.sh"
+mk "$W"; git -C "$W" push -q b "$C1:refs/heads/main" -f 2>/dev/null; : > "$SHIMLOG"
+PATH="$SH:$PATH" bash "$HERE/../sync/.mut_push_all.$$.sh" --repo "$W" --sha "$C2" --apply >/dev/null 2>&1; rm -f "$HERE/../sync/.mut_push_all.$$.sh"
+forceseen "$SHIMLOG" && expect "M21d seeded variable-held + mutant IS flagged by the runtime check" 0 0 || expect "M21d seeded variable-held + mutant IS flagged by the runtime check" 0 1
+# M22 --fleet run from a NESTED root keys exemptions like --repo: a top-level row (key ".") must NOT exempt a nested repo's mirror
+nb "$T/n1" a; for r in a b; do git init -q --bare -b main "$T/n1.$r.git"; git -C "$T/n1" remote add $r "$T/n1.$r.git"; git -C "$T/n1" push -q $r main; done
+echo 2 >> "$T/n1/f"; git -C "$T/n1" commit -qam n2; git -C "$T/n1" push -q a main
+nb "$T/n0" z; git -C "$T/n0" submodule add -q "$T/n1.a.git" nsub; git -C "$T/n0/nsub" remote add b "$T/n1.b.git"; git -C "$T/n0/nsub" fetch -q origin; git -C "$T/n0/nsub" checkout -q -B main origin/main; git -C "$T/n0" commit -qm s
+git init -q --bare -b main "$T/n0.a.git"; git -C "$T/n0" remote add a "$T/n0.a.git"; git -C "$T/n0" push -q a main
+printf '.\t%s\twrong-key row\n' "$T/n1.b.git" > "$T/ex4.tsv"
+bash "$V" --fleet "$T/n0/nsub" --exempt "$T/ex4.tsv" --quiet >/dev/null 2>&1; expect "M22a nested --fleet: top-level key does not exempt -> 1" 1 $?
+printf 'nsub\t%s\tright-key row\n' "$T/n1.b.git" > "$T/ex4.tsv"
+bash "$V" --fleet "$T/n0/nsub" --exempt "$T/ex4.tsv" --quiet >/dev/null 2>&1; expect "M22b nested --fleet: path key exempts -> 0" 0 $?
+# M23 every upstream exempt -> nothing checked -> 2, never the all-carry 0 ; a 1-char substring exemption is refused
+mk "$W"; for r in a b c; do git -C "$W" remote remove $r; done; git -C "$W" remote add a "$W.a.git"
+printf '.\t%s\treason\n' "$W.a.git" > "$T/ex5.tsv"; o=$(bash "$V" --repo "$W" --exempt "$T/ex5.tsv" 2>&1); rc=$?; expect "M23a all upstreams exempt -> 2" 2 $rc
+printf '%s' "$o" | grep -q 'every upstream carries' && expect "M23b no false all-carry sentence" 0 1 || expect "M23b no false all-carry sentence" 0 0
+git -C "$W" push -q a "$C1:refs/heads/main" -f 2>/dev/null; printf '.\t/\treason\n' > "$T/ex5.tsv"; bash "$V" --repo "$W" --exempt "$T/ex5.tsv" --quiet >/dev/null 2>&1; expect "M23c behind upstream + '/' exemption -> not 0" 1 $(( $? == 0 ? 0 : 1 ))
+# M24 an option without its value is a usage error (2), not a hang
+timeout 5 bash "$V" --repo >/dev/null 2>&1; expect "M24a verify: --repo without value -> 2" 2 $?
+timeout 5 bash "$P" --repo w --sha >/dev/null 2>&1; expect "M24b push_all: --sha without value -> 2" 2 $?
 # ---- verify_constitution_latest.sh (the "constitution is latest + nested submodules current" check) ----
 L="$HERE/../sync/verify_constitution_latest.sh"; 
 nb "$T/nest" n; git init -q --bare -b main "$T/nest.git"; git -C "$T/nest" push -q "$T/nest.git" main

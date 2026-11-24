@@ -38,14 +38,14 @@ BRANCH=main; SHA=""; REPO=""; FLEET=""; EXEMPT=""; TIMEOUT=25; QUIET=0
 OWN=(); SKIP=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --repo) REPO="${2:-}"; shift 2 ;;
-    --fleet) FLEET="${2:-}"; shift 2 ;;
-    --branch) BRANCH="${2:-}"; shift 2 ;;
-    --sha) SHA="${2:-}"; shift 2 ;;
-    --exempt) EXEMPT="${2:-}"; shift 2 ;;
-    --own-org) OWN+=("${2:-}"); shift 2 ;;
-    --skip) SKIP+=("${2:-}"); shift 2 ;;
-    --timeout) TIMEOUT="${2:-25}"; shift 2 ;;
+    --repo) REPO="${2:-}"; [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
+    --fleet) FLEET="${2:-}"; [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
+    --branch) BRANCH="${2:-}"; [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
+    --sha) SHA="${2:-}"; [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
+    --exempt) EXEMPT="${2:-}"; [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
+    --own-org) OWN+=("${2:-}"); [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
+    --skip) SKIP+=("${2:-}"); [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
+    --timeout) TIMEOUT="${2:-25}"; [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
     --quiet) QUIET=1; shift ;;
     -h|--help) sed -n '2,38p' "$0"; exit 0 ;;
     *) echo "verify_upstream_parity: unknown argument: $1" >&2; exit 2 ;;
@@ -71,6 +71,7 @@ exempt_reason() {
     [ "$p" = "$rel" ] || continue
     case "$url" in *"$s"*)
       [ -n "${r// /}" ] || return 3
+      [ "${#s}" -ge 4 ] || return 3   # a substring this short would exempt (nearly) every upstream
       printf '%s' "$r"; return 0 ;;
     esac
   done < "$EXEMPT"
@@ -107,10 +108,10 @@ check_repo() {  # $1 = absolute dir, $2 = display name
   [ -z "$sha_exp" ] && sha_exp=$(git -C "$dir" rev-parse --verify -q "refs/heads/$BRANCH^{commit}" 2>/dev/null || git -C "$dir" rev-parse --verify -q HEAD 2>/dev/null)
   if [ -z "$sha_exp" ]; then say "CANNOT-DETERMINE  $name  no local $BRANCH tip and no HEAD"; F2=$((F2+1)); return; fi
   say "== $name  branch=$BRANCH sha=${sha_exp:0:12}"
-  local n=0 tmpd; tmpd=$(mktemp -d) || { F2=$((F2+1)); return; }
+  local n=0 chk=0 tmpd; tmpd=$(mktemp -d) || { F2=$((F2+1)); return; }
   while read -r u; do
     [ -n "$u" ] || continue; n=$((n+1))
-    ( timeout "$TIMEOUT" git -C "$dir" ls-remote "$u" "refs/heads/$BRANCH" > "$tmpd/$n.out" 2> "$tmpd/$n.err"; echo $? > "$tmpd/$n.rc" ) &
+    ( GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes" timeout "$TIMEOUT" git -C "$dir" ls-remote "$u" "refs/heads/$BRANCH" > "$tmpd/$n.out" 2> "$tmpd/$n.err"; echo $? > "$tmpd/$n.rc" ) &
     printf '%s\n' "$u" > "$tmpd/$n.url"
   done <<< "$uniq"
   wait
@@ -122,8 +123,9 @@ check_repo() {  # $1 = absolute dir, $2 = display name
     else
       case $? in 3) say "  BAD-EXEMPTION $shown  (empty reason; evaluated as not exempt, undetermined)"; F2=$((F2+1)) ;; esac
     fi
+    chk=$((chk+1))
     if [ "$rc" != 0 ]; then say "  UNREACHABLE  $shown  (ls-remote rc=$rc)"; F2=$((F2+1)); continue; fi
-    tip=$(awk '{print $1}' "$tmpd/$i.out" | head -1)
+    tip=$(awk -v r="refs/heads/$BRANCH" '$2==r{print $1; exit}' "$tmpd/$i.out")
     if [ -z "$tip" ]; then say "  NO-BRANCH    $shown  (answered, no refs/heads/$BRANCH)"; F1=$((F1+1)); continue; fi
     if [ "$tip" = "$sha_exp" ]; then say "  CURRENT      $shown  $tip"
     elif ! git -C "$dir" cat-file -e "$tip^{commit}" 2>/dev/null; then say "  DIFFERS      $shown  tip $tip not in the local object store (direction unknown; fetch to classify)"; F1=$((F1+1))
@@ -132,6 +134,7 @@ check_repo() {  # $1 = absolute dir, $2 = display name
     else say "  DIVERGED     $shown  tip $tip and $sha_exp are not ancestors of each other"; F1=$((F1+1)); fi
   done
   rm -rf "${tmpd:?}"
+  if [ "$chk" = 0 ] && [ "$n" -gt 0 ]; then say "CANNOT-DETERMINE  $name  every declared upstream is exempt or refused: nothing was checked"; F2=$((F2+1)); fi
 }
 
 is_own() {  # $1 url ; with no --own-org every submodule is own
@@ -156,7 +159,9 @@ walk() {  # $1 abs dir, $2 display name
 
 if [ -n "$FLEET" ]; then
   ROOT=$(cd "$FLEET" 2>/dev/null && pwd) || { echo "verify_upstream_parity: --fleet root not found" >&2; exit 2; }
-  walk "$ROOT" "."
+  OUT="$ROOT"; while :; do SUP=$(git -C "$OUT" rev-parse --show-superproject-working-tree 2>/dev/null); [ -n "$SUP" ] || break; OUT="$SUP"; done
+  if [ "$OUT" != "$ROOT" ]; then FKEY="${ROOT#"$OUT"/}"; else FKEY="."; fi   # same key rule as --repo
+  walk "$ROOT" "$FKEY"
 else
   ROOT=$(cd "$REPO" 2>/dev/null && pwd) || { echo "verify_upstream_parity: --repo not found" >&2; exit 2; }
   OUT="$ROOT"; while :; do SUP=$(git -C "$OUT" rev-parse --show-superproject-working-tree 2>/dev/null); [ -n "$SUP" ] || break; OUT="$SUP"; done

@@ -14,8 +14,8 @@ set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) || exit 2
 REPO=""; SHA=""; BRANCH=main; EXEMPT=""; APPLY=0
 while [ $# -gt 0 ]; do case "$1" in
-  --repo) REPO="${2:-}"; shift 2;; --sha) SHA="${2:-}"; shift 2;; --branch) BRANCH="${2:-}"; shift 2;;
-  --exempt) EXEMPT="${2:-}"; shift 2;; --apply) APPLY=1; shift;;
+  --repo) REPO="${2:-}"; [ $# -ge 2 ] || { echo "push_all_upstreams: option needs a value" >&2; exit 2; }; shift 2;; --sha) SHA="${2:-}"; [ $# -ge 2 ] || { echo "push_all_upstreams: option needs a value" >&2; exit 2; }; shift 2;; --branch) BRANCH="${2:-}"; [ $# -ge 2 ] || { echo "push_all_upstreams: option needs a value" >&2; exit 2; }; shift 2;;
+  --exempt) EXEMPT="${2:-}"; [ $# -ge 2 ] || { echo "push_all_upstreams: option needs a value" >&2; exit 2; }; shift 2;; --apply) APPLY=1; shift;;
   -h|--help) sed -n '2,12p' "$0"; exit 0;;
   *) echo "push_all_upstreams: unknown argument: $1" >&2; exit 2;; esac; done
 [ -n "$REPO" ] && [ -n "$SHA" ] || { echo "push_all_upstreams: --repo and --sha are required" >&2; exit 2; }
@@ -29,12 +29,13 @@ while read -r word url _; do
   [ "$word" = BEHIND ] || continue
   case "$url" in -*) echo "BLOCKED  refused URL beginning with -"; BLOCK=1; continue;; esac
   if [ "$APPLY" = 1 ]; then
-    if git -C "$REPO" push "$url" "$SHA:refs/heads/$BRANCH" >/dev/null 2>&1; then echo "PUSHED   $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')"
-    else echo "BLOCKED  $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')  (push refused; never forced)"; BLOCK=1; fi
+    perr=$(git -C "$REPO" push "$url" "$SHA:refs/heads/$BRANCH" 2>&1 >/dev/null); prc=$?
+    if [ "$prc" = 0 ]; then echo "PUSHED   $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')"
+    else echo "BLOCKED  $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')  (push refused; never forced): $(printf '%s' "$perr" | tr '\n' ' ' | sed -E 's#(://)[^/@]*@#\1#g' | cut -c1-300)"; BLOCK=1; fi
   else echo "WOULD-PUSH  $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')"; fi
 done < <(grep -E '^[[:space:]]+BEHIND[[:space:]]' <<<"$out")
 [ "$APPLY" = 1 ] || { echo "DRY-RUN: nothing pushed (use --apply)"; exit "$rc"; }
 echo "-- read-back --"
 bash "$HERE/verify_upstream_parity.sh" --repo "$REPO" --branch "$BRANCH" --sha "$SHA" "${EX[@]}"; rc2=$?
-[ "$BLOCK" = 1 ] && [ "$rc2" = 0 ] && rc2=1
+[ "$BLOCK" = 1 ] && rc2=1   # a refused push is a finding: 1 outranks 2
 exit "$rc2"
