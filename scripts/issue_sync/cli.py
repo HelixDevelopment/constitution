@@ -62,13 +62,16 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
     if not a.target or not a.owner_repo:
         print("cannot determine: --target and --owner-repo are required", file=out)
         return 2
+    if any(t.count("/") < 2 for t in a.target) or a.owner_repo.count("/") < 2 or (a.db_repo and a.db_repo.count("/") < 2):
+        print("cannot determine: --target/--owner-repo/--db-repo must be HOST/OWNER/REPO", file=out)
+        return 2
     owner_repo = vis.canonical_repo("ssh://git@%s/%s.git" % tuple(a.owner_repo.split("/", 1)))
     db_repo = vis.canonical_repo("ssh://git@%s/%s.git" % tuple((a.db_repo or a.owner_repo).split("/", 1)))
     hosts = registry.load_hosts()
     try:
         con = store.open_db(a.db, write=(a.cmd == "apply"))
         items = store.load_items(con)
-        prefixes, third, known = store.load_sub_projects(con)
+        prefixes, third, parents, has_table = store.load_sub_projects(con)
     except (sqlite3.Error, OSError) as e:
         print("cannot determine: workable-items DB unreadable (%s)" % type(e).__name__, file=out)
         return 2
@@ -80,7 +83,7 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
         pfx = i["atm_id"].split("-", 1)[0].upper()
         if pfx in own:
             o = own[pfx]
-        elif pfx in known or not known:
+        elif pfx in parents or not has_table:
             o = db_repo                       # the parent / the DB's own repository (or a DB with no sub_projects table)
         else:
             unroutable += 1
@@ -117,7 +120,11 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout):
             continue
         acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues)
         if a.cmd == "apply":
-            ensure = store.ensure_map(con)
+            try:
+                store.ensure_map(con)
+            except sqlite3.Error as e:
+                print("cannot determine: DB not writable (%s)" % type(e).__name__, file=out)
+                return 2
             now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             def done(act, issue, h, leg=leg):
                 store.record(con, act["item"], leg.id, leg.host, "%s/%s" % (leg.owner, leg.repo), issue, h, now)

@@ -126,6 +126,20 @@ class TestRouting(unittest.TestCase):
             rc = cli.run(["verify", "--db", mkdb(ROWS), "--config", cfgfile(), "--target", "github.com/o/r", "--owner-repo", "github.com/o/r"], transport_factory=lambda v, h: f, out=out)
             self.assertEqual(rc, 2); self.assertEqual(f.writes, 0)
         finally: GitHub.capabilities = old
+    def test_subprojects_problems_never_fail_open(self):
+        c = cfgfile("enabled: true\nmode: apply\napply_decision: d.md\n")
+        def go(db):
+            f = FakeGitHub(); out = io.StringIO()
+            rc = cli.run(["apply", "--apply", "--db", db, "--config", c, "--target", "github.com/o/r", "--owner-repo", "github.com/o/r"], transport_factory=lambda v, h: f, out=out)
+            return rc, f
+        row = [("WSP-1", "Task", "Queued", "priv", "", "private item description here ok", None, None, "Issues")]
+        d = tempfile.mkdtemp(); p = os.path.join(d, "w.db"); k = sqlite3.connect(p)   # sub_projects without a url column
+        k.execute("CREATE TABLE items (atm_id,type,status,title,severity,description,forensic_anchor,body_md,current_location)"); k.execute("INSERT INTO items VALUES (?,?,?,?,?,?,?,?,?)", row[0])
+        k.execute("CREATE TABLE sub_projects (prefix, class)"); k.execute("INSERT INTO sub_projects VALUES ('WSP','owned')"); k.commit(); k.close()
+        rc, f = go(p); self.assertEqual((rc, f.issues), (2, []))
+        rc, f = go(mkdb(row, [("WSP", "workshop", "private", "operator", "", "", "x")])); self.assertEqual(f.issues, []); self.assertEqual(rc, 2)
+    def test_malformed_repo_args_are_2(self):
+        self.assertEqual(cli.run(["plan", "--db", mkdb(ROWS), "--config", cfgfile(), "--target", "nonsense", "--owner-repo", "github.com/o/r"], transport_factory=lambda v, h: FakeGitHub(), out=io.StringIO()), 2)
     def test_bad_db_is_2(self):
         out = io.StringIO()
         for p in ["/nonexistent/x.db", "x.db?mode=rwc"]:

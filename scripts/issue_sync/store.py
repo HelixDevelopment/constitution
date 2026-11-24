@@ -28,13 +28,16 @@ def load_items(con):
 
 
 def load_sub_projects(con):
-    """-> (prefix -> url for prefixes with their own repo, third-party prefixes, every known prefix)."""
-    try:
-        rows = con.execute("SELECT prefix, class, url FROM sub_projects").fetchall()
-    except sqlite3.OperationalError:
-        return {}, set(), set()
+    """-> (prefix -> url for prefixes with their own repo, third-party prefixes, parent prefixes, table_present). Only a MISSING table is tolerated;
+    any other error (missing column, lock, I/O) propagates so routing can never fail open."""
+    has = con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sub_projects'").fetchone()
+    if not has:
+        return {}, set(), set(), False
+    rows = con.execute("SELECT prefix, class, url FROM sub_projects").fetchall()
+    if not rows:                      # an empty map carries no routing information: same as no table (the DB's own repo owns everything)
+        return {}, set(), set(), False
     return ({r["prefix"]: r["url"] for r in rows if r["url"]}, {r["prefix"] for r in rows if r["class"] == "third-party"},
-            {r["prefix"] for r in rows})
+            {r["prefix"] for r in rows if r["class"] == "parent" and not r["url"]}, True)
 
 
 def ensure_map(con):
