@@ -71,6 +71,13 @@ def main():
     class NoAuth(FakeGitHub):
         def __call__(self, m, u, h, b): return 404, {}, None
     results.append(("token unset (repo invisible)", 2, _run(db, cfg, NoAuth()), None)); results[-1] = results[-1][:3] + (results[-1][2] == 2,)
+    # a private-prefix item must never be written to the public owner's tracker (routing by sub_projects)
+    rows3 = ROWS + [("WSP-1", "Task", "Queued", "priv", "", "private item description here ok", None, None, "Issues")]
+    subs = [("WSP", "workshop", "owned", "operator", "git@github.com:o/workshop.git", "", "x")]
+    f3, db3 = FakeGitHub(), mkdb(rows3, subs)
+    _run(db3, cfg, f3, cmd="apply", extra=["--apply"])
+    leaked = any("WSP-1" in i["title"] for i in f3.issues)
+    results.append(("private-prefix item routed to public tracker", 0, 1 if leaked else 0, not leaked))
     bad = 0
     for name, exp, rc, ok in results:
         print("%s %-55s expected rc %s got rc %s" % ("OK  " if ok else "FAIL", name, exp, rc))

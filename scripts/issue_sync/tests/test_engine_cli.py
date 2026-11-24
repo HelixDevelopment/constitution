@@ -105,4 +105,35 @@ class TestCli(unittest.TestCase):
         rc = cli.run(["plan", "--db", mkdb(ROWS), "--config", cfgfile(), "--target", "codeberg.org/o/r", "--owner-repo", "codeberg.org/o/r"], transport_factory=lambda v, h: G(), out=out)
         self.assertEqual(rc, 2); self.assertIn("unconfirmed", out.getvalue())
 
+class TestRouting(unittest.TestCase):
+    def test_private_prefix_never_reaches_public_owner_but_reaches_its_own(self):
+        rows = [("VSC-1", "Task", "Queued", "pub", "", "public item description here ok", None, None, "Issues"),
+                ("WSP-1", "Task", "Queued", "priv", "", "private item description here ok", None, None, "Issues"),
+                ("ZZZ-1", "Task", "Queued", "unknown", "", "unmapped prefix description ok", None, None, "Issues")]
+        subs = [("VSC", ".", "parent", "operator", "", "", "x"), ("WSP", "workshop", "owned", "operator", "git@github.com:o/workshop.git", "", "x")]
+        db = mkdb(rows, subs); c = cfgfile("enabled: true\nmode: apply\napply_decision: d.md\n")
+        f = FakeGitHub(); out = io.StringIO()
+        rc = cli.run(["apply", "--apply", "--db", db, "--config", c, "--target", "github.com/o/r", "--owner-repo", "github.com/o/r"], transport_factory=lambda v, h: f, out=out)
+        self.assertEqual([i["title"][:7] for i in f.issues], ["[VSC-1]"]); self.assertIn("unroutable", out.getvalue()); self.assertEqual(rc, 2)
+        g = FakeGitHub(private=True)
+        cli.run(["apply", "--apply", "--db", db, "--config", c, "--target", "github.com/o/workshop", "--owner-repo", "github.com/o/workshop", "--db-repo", "github.com/o/r"], transport_factory=lambda v, h: g, out=io.StringIO())
+        self.assertEqual([i["title"][:7] for i in g.issues], ["[WSP-1]"])
+    def test_leg_that_cannot_list_is_unconfirmed_and_never_creates(self):
+        from issue_sync.adapters.github import GitHub
+        old = GitHub.capabilities; GitHub.capabilities = dict(old, can_list=False)
+        try:
+            f = FakeGitHub(); out = io.StringIO()
+            rc = cli.run(["verify", "--db", mkdb(ROWS), "--config", cfgfile(), "--target", "github.com/o/r", "--owner-repo", "github.com/o/r"], transport_factory=lambda v, h: f, out=out)
+            self.assertEqual(rc, 2); self.assertEqual(f.writes, 0)
+        finally: GitHub.capabilities = old
+    def test_bad_db_is_2(self):
+        out = io.StringIO()
+        for p in ["/nonexistent/x.db", "x.db?mode=rwc"]:
+            self.assertEqual(cli.run(["verify", "--db", p, "--config", cfgfile(), "--target", "github.com/o/r", "--owner-repo", "github.com/o/r"], transport_factory=lambda v, h: FakeGitHub(), out=out), 2)
+    def test_db_path_with_hash_is_read_exactly(self):
+        import shutil
+        d = tempfile.mkdtemp(); p = os.path.join(d, "a#b%20.db"); shutil.copy(mkdb(ROWS), p)
+        f = FakeGitHub(); rc = cli.run(["plan", "--db", p, "--config", cfgfile(), "--target", "github.com/o/r", "--owner-repo", "github.com/o/r"], transport_factory=lambda v, h: f, out=io.StringIO())
+        self.assertEqual(rc, 0)
+
 if __name__ == "__main__": unittest.main()

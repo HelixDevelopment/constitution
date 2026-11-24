@@ -9,7 +9,8 @@ FIELDS = "atm_id, type, status, title, severity, description, current_location"
 
 
 def open_db(path, write=False):
-    uri = "file:%s?mode=%s" % (path, "rwc" if write else "ro")
+    import pathlib
+    uri = pathlib.Path(path).resolve().as_uri() + "?mode=" + ("rw" if write else "ro")   # escaped; a missing DB is an error, never created here
     con = sqlite3.connect(uri, uri=True)
     con.row_factory = sqlite3.Row
     return con
@@ -27,11 +28,13 @@ def load_items(con):
 
 
 def load_sub_projects(con):
+    """-> (prefix -> url for prefixes with their own repo, third-party prefixes, every known prefix)."""
     try:
         rows = con.execute("SELECT prefix, class, url FROM sub_projects").fetchall()
     except sqlite3.OperationalError:
-        return {}, set()
-    return {r["prefix"]: r["url"] for r in rows if r["url"]}, {r["prefix"] for r in rows if r["class"] == "third-party"}
+        return {}, set(), set()
+    return ({r["prefix"]: r["url"] for r in rows if r["url"]}, {r["prefix"] for r in rows if r["class"] == "third-party"},
+            {r["prefix"] for r in rows})
 
 
 def ensure_map(con):
