@@ -29,7 +29,7 @@ while read -r word url _; do
   [ "$word" = BEHIND ] || continue
   case "$url" in -*) echo "BLOCKED  refused URL beginning with -"; BLOCK=1; continue;; esac
   if [ "$APPLY" = 1 ]; then
-    perr=$(git -C "$REPO" push "$url" "$SHA:refs/heads/$BRANCH" 2>&1 >/dev/null); prc=$?
+    perr=$(GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh} -o BatchMode=yes" git -C "$REPO" push "$url" "$SHA:refs/heads/$BRANCH" 2>&1 >/dev/null); prc=$?
     if [ "$prc" = 0 ]; then echo "PUSHED   $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')"
     else echo "BLOCKED  $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')  (push refused; never forced): $(printf '%s' "$perr" | tr '\n' ' ' | sed -E 's#(://)[^/@]*@#\1#g' | cut -c1-300)"; BLOCK=1; fi
   else echo "WOULD-PUSH  $(printf '%s' "$url" | sed -E 's#(://)[^/@]*@#\1#')"; fi

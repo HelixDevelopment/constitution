@@ -45,7 +45,7 @@ while [ $# -gt 0 ]; do
     --exempt) EXEMPT="${2:-}"; [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
     --own-org) OWN+=("${2:-}"); [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
     --skip) SKIP+=("${2:-}"); [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
-    --timeout) TIMEOUT="${2:-25}"; [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
+    --timeout) TIMEOUT="${2:-25}"; case "$TIMEOUT" in ''|*[!0-9]*|0) echo "verify_upstream_parity: --timeout must be a positive integer" >&2; exit 2;; esac; [ $# -ge 2 ] || { echo "verify_upstream_parity: option needs a value" >&2; exit 2; }; shift 2 ;;
     --quiet) QUIET=1; shift ;;
     -h|--help) sed -n '2,38p' "$0"; exit 0 ;;
     *) echo "verify_upstream_parity: unknown argument: $1" >&2; exit 2 ;;
@@ -69,11 +69,11 @@ exempt_reason() {
   while IFS=$'\t' read -r p s r; do
     case "$p" in ''|'#'*) continue ;; esac
     [ "$p" = "$rel" ] || continue
-    case "$url" in *"$s"*)
+    # exact match on the NORMALISED url (never a substring class): one row exempts exactly one declared mirror
+    if [ "$(norm "$url")" = "$(norm "$s")" ]; then
       [ -n "${r// /}" ] || return 3
-      [ "${#s}" -ge 4 ] || return 3   # a substring this short would exempt (nearly) every upstream
-      printf '%s' "$r"; return 0 ;;
-    esac
+      printf '%s' "$r"; return 0
+    fi
   done < "$EXEMPT"
   return 1
 }
