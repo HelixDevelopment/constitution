@@ -1,0 +1,4 @@
+# config/forge/issue_sync_proven.tsv -- hosts whose issue WRITE verbs (create/update/close/reopen/label) are PROVEN (anchor §11.4.300(G)).
+# Columns (TAB separated): host<TAB>evidence-path   (evidence = a recorded live create + read-back under docs/qa/, relative to this repository root).
+# A host is write-capable only when its row exists AND the evidence file exists. EMPTY by design: no live write has been performed on any host,
+# so every write leg is UNCONFIRMED and `issue_sync apply` refuses to write. Add a row ONLY together with the recorded evidence file.

@@ -49,8 +49,8 @@ def index_issues(issues):
         k, _ = key_of(i)
         if k:
             idx.setdefault(k, []).append(i)
-    for v in idx.values():
-        v.sort(key=lambda x: x["number"])
+    for v in idx.values():       # footer-keyed (engine-owned) issues first: an unkeyed title match never shadows ours
+        v.sort(key=lambda x: (0 if FOOTER.search(x.get("body") or "") else 1, x["number"]))
     return idx
 
 
@@ -75,16 +75,19 @@ class Leg:
         return None
 
 
-def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None):
+def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None, known_ids=None):
     """Return a list of actions for one leg. Action: {op, item, number?, reason?}. ops: create update close reopen noop
-    blocked unconfirmed duplicate orphan. `issues` is the leg's full issue listing (state=all)."""
+    blocked unconfirmed duplicate orphan anomaly. `issues` is the leg's full issue listing (state=all). `known_ids` = every item id this
+    repository owns (default: the ids in `items`); a filtered run (--only-open/--limit) passes the unfiltered set so out-of-scope items'
+    issues are not reported as orphans."""
     if issues is None:     # the leg's issues cannot be listed: nothing may be planned from an assumed-empty listing
         r = leg.unconfirmed_reason(["can_list"]) or "capability-unverified:can_list"
         return [{"op": "unconfirmed", "item": it["atm_id"], "reason": r} for it in items]
     acts = []
-    ok, why = vis.allowed_target(owner_repo, (leg.host, leg.owner, leg.repo), owner_vis, leg.visibility)
+    target = vis.canonical_repo("ssh://git@%s/%s/%s.git" % (leg.host, leg.owner, leg.repo))   # same canonical form as the owner (case, nested groups)
+    ok, why = vis.allowed_target(owner_repo, target, owner_vis, leg.visibility)
     idx = index_issues(issues)
-    known = set()
+    known = set(known_ids or ())
     for it in items:
         aid = it["atm_id"]
         known.add(aid)
@@ -93,7 +96,7 @@ def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None):
             continue
         res = pl.prepare(it, fingerprint_set)
         if res["verdict"] == "BLOCKED":
-            acts.append({"op": "blocked", "item": aid, "reason": "redaction:" + ",".join(sorted({h["kind"] for h in res["hits"]}))})
+            acts.append({"op": "blocked", "item": res["item"], "reason": "redaction:" + ",".join(sorted({h["kind"] for h in res["hits"]}))})
             continue
         h, want_closed = res["hash"], is_closed(res["payload"]["status"])
         found = idx.get(aid, [])
@@ -105,6 +108,10 @@ def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None):
             acts.append({"op": "unconfirmed", "item": aid, "reason": r} if r else {"op": "create", "item": aid, "closed": want_closed})
             continue
         cur = found[0]
+        if not FOOTER.search(cur.get("body") or ""):
+            # a human-made issue whose title merely starts with '[ID]': never adopted or overwritten (adoption is item C7), reported instead
+            acts.append({"op": "anomaly", "item": aid, "number": cur["number"], "reason": "unkeyed-title-match"})
+            continue
         _, cur_hash = key_of(cur)
         want_title, want_body = render(res["payload"], h)
         if cur_hash != h or cur["title"] != want_title or (cur.get("body") or "").strip() != want_body.strip() \
@@ -128,7 +135,7 @@ def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None):
     return acts
 
 
-def apply_leg(items, leg, actions, doc_path_for=lambda it: None, on_done=None, apply=False):
+def apply_leg(items, leg, actions, doc_path_for=lambda it: None, on_done=None, apply=False, fingerprint_set=None):
     """Execute create/update/close/reopen actions. Dry-run (apply=False) performs NO write and returns the same list marked dry. Resumable:
     each action is idempotent through the footer key; on_done(action, issue) checkpoints the map after every successful write."""
     by_id = {i["atm_id"]: i for i in items}
@@ -141,7 +148,7 @@ def apply_leg(items, leg, actions, doc_path_for=lambda it: None, on_done=None, a
             out.append(dict(a, done=False, dry=True))
             continue
         it = by_id[a["item"]]
-        res = pl.prepare(it)
+        res = pl.prepare(it, fingerprint_set)
         if res["verdict"] != "OK":                      # re-gate immediately before the write
             out.append(dict(a, done=False, error="redaction-regate"))
             continue
@@ -165,10 +172,10 @@ def apply_leg(items, leg, actions, doc_path_for=lambda it: None, on_done=None, a
     return out
 
 
-def verify_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None):
+def verify_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None, known_ids=None):
     """-> (rc, findings). 1 drift, 2 cannot determine, 0 in sync; precedence 1 over 2 over 0. Reads only."""
-    acts = plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set)
-    drift = [a for a in acts if a["op"] in ("create", "update", "close", "reopen", "duplicate", "orphan")]
+    acts = plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set, known_ids)
+    drift = [a for a in acts if a["op"] in ("create", "update", "close", "reopen", "duplicate", "orphan", "anomaly")]
     und = [a for a in acts if a["op"] in ("blocked", "unconfirmed")]
     if drift:
         return 1, drift + und

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-11-24 |
-| Last modified | 2026-11-24T20:00:00Z |
-| Status | active, PROVISIONAL (GitHub and GitLab write paths implemented and proven only against a test double; Gitea family, GitVerse and GitFlic legs UNCONFIRMED until a live create and read-back) |
+| Last modified | 2026-11-25T09:00:00Z |
+| Status | active, PROVISIONAL (NO host has a proven write path: every write verb of every host is UNCONFIRMED and `apply` refuses to write until `config/forge/issue_sync_proven.tsv` lists the host together with a recorded live create and read-back; the engine is proven only against test doubles) |
 | Status summary | Reference, operator guide and FAQ for `scripts/issue_sync.sh`, `scripts/verify_issues_sync.sh` and `scripts/issue_sync/`. |
 | Authority | Anchor 11.4.300; 11.4.93, 11.4.106, 11.4.156, 11.4.289, 11.4.296, 11.4.299, 11.4.257 govern. |
 | Scope | Universal (11.4.17): a consuming project supplies its declaration and its tokens (by variable NAME) as DATA. |
@@ -25,16 +25,16 @@
 
 ## 1. What it does
 
-The workable-items SQLite database (11.4.93) is the source of truth. The engine mirrors each item, one way, to the Issues of the repository that owns it, on every declared upstream whose repository exists and has Issues enabled. A tracker edit never changes an item; the next run resets the tracker. Only `atm_id`, `type`, `status`, `title`, `severity` and `description` are sent. Verbatim operator quotes, long bodies, reproduction evidence and test diaries are never sent.
+The workable-items SQLite database (11.4.93) is the source of truth. The engine mirrors each item, one way, to the Issues of the repository that owns it, on every declared upstream whose repository exists and has Issues enabled. A tracker edit never changes an item; the next run resets the tracker. Only `atm_id`, `type`, `status`, `title`, `severity` and `description` are sent. Mirror issues are the carve-out of §11.4.300(H): they are exempt from the §11.4.296 scope ruling only while they carry the hidden footer; an issue without the footer is never created, adopted, commented, labelled, changed or closed (an unkeyed issue whose title starts with `[ID]` is reported as an anomaly and counts as drift). Verbatim operator quotes, long bodies, reproduction evidence and test diaries are never sent.
 
 ## 2. Turning it on (default OFF)
 
-Copy `templates/workable-items-sync.yaml.template` to `.workable-items-sync.yaml` at the repository root and set `enabled: true`. The template ships `enabled: false` (gate `CM-ISSUE-SYNC-TEMPLATE-DEFAULT-OFF`). `mode` stays `dry-run`; `apply` needs `apply_decision`, a tracked recorded operator decision. An invalid declaration is treated as OFF with errors, never as ON. Token variables are named in `token_vars` (names only) or default from `config/forge/hosts.tsv`; values are read from the environment, then parsed (never sourced) from `~/api_keys.sh`, which must be mode 0600 and owned by you.
+Copy `templates/workable-items-sync.yaml.template` to `.workable-items-sync.yaml` at the repository root and set `enabled: true`. The template ships `enabled: false` (gate `CM-ISSUE-SYNC-TEMPLATE-DEFAULT-OFF`). `mode` stays `dry-run`; `apply` needs `apply_decision`: a RELATIVE path (no `..`) of an existing, non-empty, git-tracked file in the repository that holds the config (checked at apply time; a string alone is refused). The config is read by a strict loader: a duplicate key and a YAML 1.1 bare boolean (`yes`, `on`) are errors, so an invalid declaration is never ON. `trackers` holds bare host names only. Hooks take the effective mode from the same validator (`python3 -m issue_sync.mode FILE`). An invalid declaration is treated as OFF with errors, never as ON. Token variables are named in `token_vars` (names only) or default from `config/forge/hosts.tsv`; values are read from the environment, then parsed (never sourced) from `~/api_keys.sh`, which must be mode 0600 and owned by you.
 
 ## 3. Commands and exit codes
 
 ```
-scripts/issue_sync.sh plan   --config .workable-items-sync.yaml --db docs/workable_items.db --owner-repo H/O/R --target H/O/R [--target ...] [--only-open] [--limit N] [--json]
+scripts/issue_sync.sh plan   --config .workable-items-sync.yaml --db docs/workable_items.db --owner-repo H/O/R [--db-repo H/O/R] --target H/O/R [--target ...] [--only-open] [--limit N] [--private-corpus FILE] [--json]
 scripts/issue_sync.sh apply  ... --apply          # writes only with --apply AND mode: apply
 scripts/issue_sync.sh status ...                  # offline: pending changes versus issue_sync_map
 scripts/verify_issues_sync.sh ...                 # read-only verifier
@@ -42,15 +42,17 @@ scripts/verify_issues_sync.sh --prove-failure     # paired mutations over a test
 python3 -m issue_sync.live_probe H/O/R ...        # read-only repo existence, visibility, issues-enabled
 ```
 
+`--db-repo` is REQUIRED when the DB has parent prefixes (the parent's items go to the repo you name, never to whichever `--owner-repo` was passed). A DB with no routing data (no or empty `sub_projects`) is routed only when ALL its items share ONE prefix; otherwise nothing is sent. `--private-corpus FILE` (repeatable, also `ISSUE_SYNC_PRIVATE_CORPUS`) fingerprints a private corpus whose 8-word shingles may never appear in an outgoing title or description; an unreadable or empty corpus is exit 2. Independently of any corpus, each item's own `forensic_anchor` and `body_md` text is fingerprinted against its outgoing fields. `--only-open` and `--limit` verify only part of the items: they never create orphans, but a partial verify is not a statement about the rest. `verify` with no routed item is exit 2, never 0.
+
 Exit: 0 in sync (or disabled), 1 drift (item ids and trackers named), 2 cannot determine (no token, host unreachable, capability unverified, visibility undetermined, redaction stop, quota). 2 is never a pass; precedence 1 over 2 over 0.
 
 ## 4. Visibility and redaction rules
 
-The owning repository is probed itself; an item goes only to trackers of that repository (any host mirror of the same owner and name). Private to public is refused; undetermined visibility on either side blocks; third-party prefixes (`sub_projects.class = third-party`) are never synced. Every payload is scanned before every write for secret shapes (GitHub, GitLab, AWS, Slack, Stripe, Google, SendGrid, npm and LLM keys, JWT, private keys, URL credentials, quoted assignments), personal data (email, phone), operator-quote markers and, optionally, fingerprints of a private corpus. A hit is a hard stop that names the item by id and the kind only.
+The owning repository is probed itself; an item goes only to trackers of that repository (any host mirror of the same owner and name). Private to public is refused; GitLab `internal` (readable by every signed-in user) and any unknown visibility value are undetermined, never private; undetermined visibility on either side blocks; third-party prefixes (`sub_projects.class = third-party`) are never synced. Every payload is scanned before every write for secret shapes (GitHub, GitLab, AWS, Slack, Stripe, Google, SendGrid, npm and LLM keys, JWT, private keys, URL credentials, quoted assignments), personal data (email, phone), operator-quote markers and, optionally, fingerprints of a private corpus. A hit is a hard stop that names the item by id and the kind only.
 
 ## 5. Identity, idempotency and resume
 
-Each issue has the title prefix `[ID] ` and a hidden footer `<!-- workable-item: ID | sha256: HASH -->`; the issue number is never the identity. A second run with unchanged items makes no write. Create, update, close (completed or not-planned for Obsolete where the host supports it) and reopen are decided from the listing with `state=all`. A run interrupted at any point is resumed by running it again: the footer key prevents duplicates. Duplicate keys and keyed issues without an item are reported as drift (rc 1) and are never deleted automatically.
+Each issue has the title prefix `[ID] ` and a hidden footer `<!-- workable-item: ID | sha256: HASH -->`; the issue number is never the identity. A second run with unchanged items makes no write. Create, update, close (completed or not-planned for Obsolete where the host supports it) and reopen are decided from the listing with `state=all`. Label semantics: the engine sets the issue's WHOLE label set on create and on every update (GitHub PATCH and GitLab PUT replace the set), so a label added by hand is removed by the next sync that updates the issue; the DB is the truth. A run interrupted at any point is resumed by running it again: the footer key prevents duplicates. Duplicate keys and keyed issues without an item are reported as drift (rc 1) and are never deleted automatically.
 
 ## 6. Hooks, Docs Chain and schedule
 
@@ -74,6 +76,8 @@ Issues assigned to a declared account enter through 11.4.296, once. An issue car
 **Why is a leg UNCONFIRMED?** The host's write API is not proven by a live create and read-back (Gitea family, GitVerse, GitFlic), the repository does not exist there, or Issues are disabled. It is never counted in sync.
 
 **Can a tracker edit change an item?** No. The next run resets it.
+
+**Why does apply refuse on GitHub and GitLab?** Their write verbs are declared but UNPROVEN: nothing may write until a live create and read-back is recorded and the host is listed in `config/forge/issue_sync_proven.tsv` (host, evidence path; the host must be a declared forge host and the evidence file must exist and carry a line starting `LIVE-CREATE-READBACK-RECORDED`). The read-only probe (`live_probe`) proves reads only and prints `writes=UNCONFIRMED`.
 
 **Does it print my token?** No. Tokens are used only in a request header to the origin named in `hosts.tsv`; redirects are refused.
 

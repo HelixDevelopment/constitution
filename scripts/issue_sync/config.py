@@ -4,6 +4,33 @@ import re
 import yaml
 from . import redact
 
+
+class _StrictLoader(yaml.SafeLoader):
+    """SafeLoader that (1) refuses a duplicate mapping key (plain safe_load lets the last one win silently) and (2) reads only true/false as
+    booleans: YAML 1.1 yes/no/on/off/y/n stay STRINGS, so `enabled: yes` is a validation error, never a silent ON."""
+
+
+_StrictLoader.yaml_implicit_resolvers = {k: [(t, r) for t, r in v if t != "tag:yaml.org,2002:bool"] for k, v in yaml.SafeLoader.yaml_implicit_resolvers.items()}
+_StrictLoader.add_implicit_resolver("tag:yaml.org,2002:bool", re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$"), list("tTfF"))
+
+
+def _no_dup_mapping(loader, node, deep=False):
+    loader.flatten_mapping(node)
+    seen = set()
+    for knode, _ in node.value:
+        key = loader.construct_object(knode, deep=True)
+        try:
+            dup = key in seen
+            seen.add(key)
+        except TypeError:
+            raise yaml.constructor.ConstructorError(None, None, "unhashable mapping key", knode.start_mark)
+        if dup:
+            raise yaml.constructor.ConstructorError(None, None, "duplicate key", knode.start_mark)
+    return yaml.SafeLoader.construct_mapping(loader, node, deep)
+
+
+_StrictLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _no_dup_mapping)
+
 DEFAULTS = {
     "enabled": False, "scope": {"recursive": False}, "mode": "dry-run", "trackers": [], "visibility_policy": "owning-repo",
     "interval_hours": 24, "inbound": {"enabled": False, "assignees": []}, "docs_chain": {"context": "issues-sync"}, "token_vars": {},
@@ -38,12 +65,17 @@ def validate(raw):
         errs.append("scope must be {recursive: bool}")
     if cfg["mode"] not in ("dry-run", "apply"):
         errs.append("mode must be dry-run or apply")
-    if cfg["mode"] == "apply" and cfg["enabled"] is True:
-        ad = cfg.get("apply_decision")
+    if "apply_decision" in cfg or (cfg["mode"] == "apply" and cfg["enabled"] is True):
+        ad = cfg.get("apply_decision")      # type-checked in EVERY mode, not only when apply is on
         if not isinstance(ad, str) or not ad.strip():
-            errs.append("mode apply requires apply_decision (path of the tracked recorded operator decision)")
+            errs.append("apply_decision must be a non-empty string (relative path of the tracked recorded operator decision)" if "apply_decision" in cfg
+                        else "mode apply requires apply_decision (path of the tracked recorded operator decision)")
+        elif ad.startswith(("/", "\\")) or re.match(r"^[A-Za-z]:", ad) or "\x00" in ad or ".." in re.split(r"[\\/]+", ad):
+            errs.append("apply_decision must be a relative path inside the repository (no absolute path, no '..')")
     if not (isinstance(cfg["trackers"], list) and all(isinstance(t, str) and t for t in cfg["trackers"])):
         errs.append("trackers must be a list of non-empty strings")
+    elif any(not re.match(r"^[A-Za-z0-9][A-Za-z0-9.-]*$", t) or redact.scan({"v": t}) for t in cfg["trackers"]):
+        errs.append("trackers must be bare host names (no URL, no credentials)")
     if cfg["visibility_policy"] != "owning-repo":
         errs.append("visibility_policy must be owning-repo")
     ih = cfg["interval_hours"]
@@ -76,9 +108,11 @@ def load(path):
     """Return (config, errors). A missing file is the default-OFF config with no errors."""
     try:
         with open(path) as f:
-            raw = yaml.safe_load(f)
+            raw = yaml.load(f, Loader=_StrictLoader)
     except FileNotFoundError:
         return _merge(DEFAULTS, {}), []
+    except yaml.constructor.ConstructorError as e:
+        return _merge(DEFAULTS, {}), ["cannot read config: %s" % (e.problem or "invalid YAML")]
     except (OSError, yaml.YAMLError) as e:
         return _merge(DEFAULTS, {}), ["cannot read config: %s" % type(e).__name__]
     if raw is None:

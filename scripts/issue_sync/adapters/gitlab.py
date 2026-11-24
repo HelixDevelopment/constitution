@@ -6,7 +6,9 @@ from .base import Adapter, AdapterError
 class GitLab(Adapter):
     provider = "gitlab"
     api_base = "https://gitlab.com/api/v4"
-    capabilities = {"can_list": True, "can_create": True, "can_update": True, "can_close": True, "can_reopen": True, "can_label": True, "not_planned": False}
+    # Reads proven by the read-only probe; writes UNCONFIRMED until proven (see GitHub adapter and issue_sync_proven.tsv).
+    capabilities = {"can_list": True, "can_create": False, "can_update": False, "can_close": False, "can_reopen": False, "can_label": False, "not_planned": False}
+    write_capabilities = {"can_create": True, "can_update": True, "can_close": True, "can_reopen": True, "can_label": True}
     auth_header = staticmethod(lambda t: {"PRIVATE-TOKEN": t})
 
     @staticmethod
@@ -24,8 +26,8 @@ class GitLab(Adapter):
             return {"exists": False, "private": None, "issues_enabled": None}
         if st != 200 or not isinstance(js, dict):
             raise AdapterError("unexpected_status_%s" % st, st)
-        vis = js.get("visibility")
-        return {"exists": True, "private": (vis != "public") if vis else None, "issues_enabled": js.get("issues_access_level") not in (None, "disabled") if "issues_access_level" in js else None}
+        vis = js.get("visibility")   # 'internal' (any signed-in user) and unknown values are undetermined, never private
+        return {"exists": True, "private": {"private": True, "public": False}.get(vis), "issues_enabled": js.get("issues_access_level") not in (None, "disabled") if "issues_access_level" in js else None}
 
     def list_issues(self, owner, repo):
         out, page = [], 1
@@ -41,6 +43,7 @@ class GitLab(Adapter):
         return self.norm(js)
 
     def update_issue(self, owner, repo, number, title, body, labels):
+        # NOTE: `labels` REPLACES the issue's whole label set (mirror semantics: the DB is truth).
         js, _ = self._call("PUT", "/projects/%s/issues/%d" % (self._p(owner, repo), number), {"title": title, "description": body, "labels": ",".join(labels)})
         return self.norm(js)
 

@@ -11,7 +11,7 @@ class Gitea(Adapter):
 
     def __init__(self, transport, api_base=None, proven=False):
         super().__init__(transport, api_base)
-        self.capabilities = dict(Adapter.capabilities, can_list=True)
+        self.capabilities = dict(Adapter.capabilities, can_list=True)   # reads proven by the probe; writes only through `proven`
         if proven:
             self.capabilities.update(can_create=True, can_update=True, can_close=True, can_reopen=True, can_label=True)
 
@@ -26,7 +26,7 @@ class Gitea(Adapter):
             return {"exists": False, "private": None, "issues_enabled": None}
         if st != 200 or not isinstance(js, dict):
             raise AdapterError("unexpected_status_%s" % st, st)
-        return {"exists": True, "private": js.get("private"), "issues_enabled": js.get("has_issues")}
+        return {"exists": True, "private": None if js.get("internal") else js.get("private"), "issues_enabled": js.get("has_issues")}
 
     def list_issues(self, owner, repo):
         out, page = [], 1

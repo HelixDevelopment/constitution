@@ -5,7 +5,7 @@ import sqlite3
 MAP_DDL = """CREATE TABLE IF NOT EXISTS issue_sync_map (
   atm_id TEXT NOT NULL, tracker TEXT NOT NULL, host TEXT NOT NULL, repo TEXT NOT NULL, issue_number INTEGER, issue_url TEXT,
   content_hash TEXT, last_synced_at TEXT, state TEXT, last_error TEXT, PRIMARY KEY (atm_id, tracker, host, repo))"""
-FIELDS = "atm_id, type, status, title, severity, description, current_location"
+FIELDS = "atm_id, type, status, title, severity, description, current_location, forensic_anchor, body_md"
 
 
 def open_db(path, write=False):

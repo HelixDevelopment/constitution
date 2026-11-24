@@ -6,7 +6,10 @@ class GitHub(Adapter):
     provider = "github"
     api_base = "https://api.github.com"
     default_headers = {"Accept": "application/vnd.github+json", "Content-Type": "application/json", "X-GitHub-Api-Version": "2022-11-28"}
-    capabilities = {"can_list": True, "can_create": True, "can_update": True, "can_close": True, "can_reopen": True, "can_label": True, "not_planned": True}
+    # Reads are proven by the recorded read-only live probe; every write verb is UNCONFIRMED until a recorded live create + read-back
+    # lists this host in config/forge/issue_sync_proven.tsv (then `proven=True` enables write_capabilities).
+    capabilities = {"can_list": True, "can_create": False, "can_update": False, "can_close": False, "can_reopen": False, "can_label": False, "not_planned": False}
+    write_capabilities = {"can_create": True, "can_update": True, "can_close": True, "can_reopen": True, "can_label": True, "not_planned": True}
 
     @staticmethod
     def norm(j):
@@ -19,7 +22,8 @@ class GitHub(Adapter):
             return {"exists": False, "private": None, "issues_enabled": None}
         if st != 200 or not isinstance(js, dict):
             raise AdapterError("unexpected_status_%s" % st, st)
-        return {"exists": True, "private": js.get("private"), "issues_enabled": js.get("has_issues")}
+        priv = None if js.get("visibility") == "internal" else js.get("private")   # internal = readable by every org member: not 'private'
+        return {"exists": True, "private": priv, "issues_enabled": js.get("has_issues")}
 
     def list_issues(self, owner, repo):
         out, page = [], 1
@@ -35,6 +39,7 @@ class GitHub(Adapter):
         return self.norm(js)
 
     def update_issue(self, owner, repo, number, title, body, labels):
+        # NOTE: `labels` REPLACES the issue's whole label set (mirror semantics: the DB is truth, a hand-added label is removed on the next sync).
         js, _ = self._call("PATCH", "/repos/%s/%s/issues/%d" % (owner, repo, number), {"title": title, "body": body, "labels": labels})
         return self.norm(js)
 

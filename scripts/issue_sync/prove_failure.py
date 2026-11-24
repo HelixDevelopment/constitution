@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 from . import cli
-from .tests_support import FakeGitHub, mkdb, cfgfile
+from .tests_support import FakeGitHub, FakeGitLab, mkdb, cfgfile, applycfg, PROVEN
 
 ROWS = [("A-1", "Bug", "Queued", "first", "High", "first description text here ok", "Q", "B", "Issues"),
         ("A-2", "Task", "Completed (→ Fixed.md)", "second", "", "second description text here ok", None, None, "Fixed"),
@@ -19,13 +19,13 @@ ROWS = [("A-1", "Bug", "Queued", "first", "High", "first description text here o
 
 def _run(db, cfg, f, owner="github.com/o/r", target="github.com/o/r", cmd="verify", extra=()):
     out = io.StringIO()
-    rc = cli.run([cmd, "--db", db, "--config", cfg, "--target", target, "--owner-repo", owner, *extra], transport_factory=lambda v, h: f, out=out)
+    rc = cli.run([cmd, "--db", db, "--config", cfg, "--target", target, "--owner-repo", owner, *extra], proven_hosts=PROVEN, transport_factory=lambda v, h: f, out=out)
     return rc
 
 
 def scenario(mutate, expect, name, results):
     f, db = FakeGitHub(), mkdb(ROWS)
-    cfg = cfgfile("enabled: true\nmode: apply\napply_decision: d.md\n")
+    cfg = applycfg()
     assert _run(db, cfg, f, cmd="apply", extra=["--apply"]) == 0
     mutate(f, db)
     rc = _run(db, cfg, f)
@@ -50,7 +50,7 @@ def m_rate(f, db): f.always = 429
 def main():
     results = []
     f, db = FakeGitHub(), mkdb(ROWS)
-    cfg = cfgfile("enabled: true\nmode: apply\napply_decision: d.md\n")
+    cfg = applycfg()
     assert _run(db, cfg, f, cmd="apply", extra=["--apply"]) == 0
     results.append(("CONTROL in-sync", 0, _run(db, cfg, f), None))
     results[-1] = results[-1][:3] + (results[-1][2] == 0,)
@@ -59,10 +59,27 @@ def main():
                           (m_corrupt_hash, 1, "footer hash corrupted"), (m_db_status, 1, "DB status change without sync"), (m_orphan, 1, "keyed issue with no item"),
                           (m_label, 1, "labels stripped"), (m_canary, 2, "redaction canary in description (hard stop, never a pass)")]:
         scenario(fn, exp, name, results)
-    # private owner -> public target must be refused and never a pass
-    f2, db2 = FakeGitHub(private=False), mkdb(ROWS)
-    results.append(("private owner mirrored to public tracker", 2, _run(db2, cfg, f2, owner="github.com/o/priv", target="github.com/o/pub"), None))
-    results[-1] = results[-1][:3] + (results[-1][2] != 0 and f2.writes == 0,)
+    # visibility/ownership cases run the REAL apply path against two doubles (GitHub owner, GitLab mirror) with DIFFERENT per-repo visibility;
+    # the case passes only when the verdict is the expected rc, NO double saw a write and the report names the expected reason.
+    def two_hosts(name, owner, target, gh, gl, reason, proven=PROVEN, cmd="apply", extra=("--apply",), conf=None):
+        out = io.StringIO()
+        rc = cli.run([cmd, "--db", mkdb(ROWS), "--config", conf or applycfg(), "--target", target, "--owner-repo", owner, *extra], proven_hosts=proven,
+                     transport_factory=lambda v, h: gl if h == "gitlab.com" else gh, out=out)
+        ok = rc == 2 and gh.writes == 0 and gl.writes == 0 and reason in out.getvalue()
+        results.append((name, 2, rc, ok))
+    two_hosts("private owner mirrored to PUBLIC tracker (same repo name)", "github.com/o/r", "gitlab.com/o/r", FakeGitHub(private=True), FakeGitLab("public"), "private-to-public")
+    two_hosts("owner mirrored to a DIFFERENT repo (both public)", "github.com/o/r", "gitlab.com/o/other", FakeGitHub(private=False), FakeGitLab("public"), "not-owning-repo")
+    two_hosts("target visibility undetermined", "github.com/o/r", "gitlab.com/o/r", FakeGitHub(private=False), FakeGitLab(None), "visibility-undetermined")
+    two_hosts("private owner to GitLab 'internal' tracker", "github.com/o/r", "gitlab.com/o/r", FakeGitHub(private=True), FakeGitLab("internal"), "visibility-undetermined")
+    two_hosts("write verbs unproven (no host listed as proven)", "github.com/o/r", "gitlab.com/o/r", FakeGitHub(private=False), FakeGitLab("public"), "capability-unverified", proven=set())
+    two_hosts("apply_decision names no tracked file", "github.com/o/r", "gitlab.com/o/r", FakeGitHub(private=False), FakeGitLab("public"), "apply refused",
+              conf=cfgfile("enabled: true\nmode: apply\napply_decision: docs/NOPE.md\n"))
+    # a DB without routing data and with several prefixes must route NOTHING (never the whole DB to the owner)
+    rowsx = ROWS + [("WSP-1", "Task", "Queued", "priv", "", "private item description here ok", None, None, "Issues")]
+    dbx = mkdb(rowsx); sqlite3.connect(dbx).execute("DROP TABLE sub_projects").connection.commit()
+    fx = FakeGitHub(); rcx = cli.run(["apply", "--apply", "--db", dbx, "--config", cfg, "--target", "github.com/o/r", "--owner-repo", "github.com/o/r"],
+                                     proven_hosts=PROVEN, transport_factory=lambda v, h: fx, out=io.StringIO())
+    results.append(("routing data missing, several prefixes", 2, rcx, rcx == 2 and not fx.issues))
     # host answers 429 to everything -> could not determine, not a pass
     class Always429(FakeGitHub):
         def __call__(self, m, u, h, b): return 429, {}, None

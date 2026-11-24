@@ -8,3 +8,4 @@ git.m3w.org/Helix/constitution exists=True private=True issues_enabled=True auth
 gitverse.ru/helixdevelopment/HelixConstitution exists=True private=False issues_enabled=True auth=token:GITVERSE_TOKEN caps=can_list
 gitflic.ru/helixdevelopment/helixconstitution UNDETERMINED capability_unverified:repo_info (auth=found)
 # GitFlic: UNDETERMINED by design (no verified endpoint). Codeberg/m3w/GitVerse: reads proven, write capabilities UNCONFIRMED (no live create+read-back performed; none permitted in this task).
+# Correction 2026-11-25: the 'caps=' column above listed the DECLARED write verbs of GitHub and GitLab; those verbs were never proven by any live create, and the engine now reports every write verb UNCONFIRMED (config/forge/issue_sync_proven.tsv is empty). Only reads are evidenced by this probe.
