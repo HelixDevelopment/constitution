@@ -28,11 +28,12 @@ PROVEN_TSV = os.path.join(os.path.dirname(__file__), "..", "..", "config", "forg
 EVIDENCE_MARKER = "LIVE-CREATE-READBACK-RECORDED"
 
 
-def _has_readback(path):
-    """The evidence file must say, in a line of its own, that a live create AND a read-back were recorded for the host (a read-only probe does not)."""
+def _has_readback(path, host):
+    """The evidence file must say, in a line of its own that starts with the marker and NAMES the host, that a live create AND a read-back were
+    recorded for that host (a read-only probe does not; a marker for another host does not)."""
     try:
         with open(path, errors="replace") as f:
-            return any(line.strip().startswith(EVIDENCE_MARKER) for line in f)
+            return any(l.startswith(EVIDENCE_MARKER) and host in l.split()[1:] for l in (x.strip() for x in f))
     except OSError:
         return False
 
@@ -49,7 +50,7 @@ def load_proven(path=PROVEN_TSV, root=None):
                     continue
                 c = line.rstrip("\n").split("\t")
                 ev = os.path.realpath(os.path.join(root, c[1])) if len(c) >= 2 and c[1] else None
-                if ev and ev.startswith(os.path.realpath(root) + os.sep) and os.path.isfile(ev) and c[0] in load_hosts() and _has_readback(ev):
+                if ev and ev.startswith(os.path.realpath(root) + os.sep) and os.path.isfile(ev) and c[0] in load_hosts() and _has_readback(ev, c[0]):
                     proven.add(c[0])
     except OSError:
         pass
