@@ -18,7 +18,7 @@ PY
 }
 I="$W/r/scripts/issue_sync"
 fresh; want "CLEAN passes" 0
-fresh; mut "$I/pipeline.py" '        bad, und = guard_conflicts(rest, **kw)' '        bad, und = [], False' && want "P1 conflict guard removed" 1
+fresh; mut "$I/pipeline.py" '        bad, und = guard_conflicts(rest, ack, **kw)' '        bad, und = [], False' && want "P1 conflict guard removed" 1
 fresh; mut "$I/inbound.py" 'return "%stext\n%s\n%s" % (f, text, f)' 'return text' && want "P2 tracker text not fenced" 1
 fresh; mut "$I/inbound.py" '    if hits:
         return "[withheld' '    if False:
