@@ -38,7 +38,7 @@ AGENTS.md, consumed via the Constitution git submodule) into Pi.
 
 ## Usage
 
-- `pi-constitution:doctor` — run a full Constitution governance audit.
+- `pi-constitution-doctor` — run a full Constitution governance audit.
 - Any bash command touching `submodules/constitution`, `Constitution.md`,
   `CLAUDE.md`, or `AGENTS.md` is guarded: if the submodule is missing, Pi
   prompts via a typed collaboration packet before proceeding.

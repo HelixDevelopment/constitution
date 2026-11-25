@@ -4,12 +4,19 @@
 // Pi so every agent session starts with governance context and any
 // Constitution-relevant operation is validated against the §11.4 mandate set.
 //
-// Imports typed schemas from the Pi extension runtime; keeps every cross-boundary
-// payload validated before action and before persistence (best-practices-pi-extension
-// rule 1). Failures are routed through $triage-error with a deterministic catalog
-// code (rule 5). Status is emitted as pi.agent_status.v1 (rule 2).
+// Uses only the documented Pi ExtensionAPI:
+// - ctx.cwd (string property, not pi.cwd())
+// - ctx.ui.setStatus / ctx.ui.confirm for status + peer gating
+// - pi.registerTool for the pi-constitution:doctor custom tool
+// - pi.exec for shell commands
+// - pi.sendMessage for session messages
+// - pi.on("session_start") / pi.on("tool_call") lifecycle hooks
+//
+// Failures are reported via validated data (ctx.ui.setStatus + sendMessage),
+// not model prose (best-practices-pi-extension rule 2).
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"
+import type { ExtensionAPI, TSchema, Static } from "@earendil-works/pi-coding-agent"
+import { Type } from "@sinclair/typebox"
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent"
 
 const PLUGIN_NAME = "pi-constitution"
@@ -26,52 +33,23 @@ const MANDATE_SECTIONS = ["§11.4.26", "§11.4.28", "§11.4.31", "§11.4.32"] as
 
 // --- Typed schemas (boundary validation) -------------------------------------
 
-// triage-error catalog codes we emit.
+// triage-error catalog codes we emit (deterministic codes per rule 5).
 type ConstitutionTriageCode =
   | "constitution_submodule_missing"
   | "constitution_governance_file_missing"
   | "constitution_mandate_section_missing"
   | "constitution_pointer_stale"
-  | "constitution_unclassified"
 
-// Structured question/answer packet for collaboration (rule 4: peer-gated).
-interface ConstitutionCollabQuestion {
-  schema: "pi-constitution.collab_question.v1"
-  question_id: string
-  triage: { code: ConstitutionTriageCode; layer: "extension"; cause: string }
-  question: string
-  required_response_schema: "pi-constitution.collab_answer.v1"
-  allowed_answers: ["SUFFICIENT", "NEEDS_FIX"]
-}
-
-interface ConstitutionCollabAnswer {
-  schema: "pi-constitution.collab_answer.v1"
-  question_id: string
-  answer: "SUFFICIENT" | "NEEDS_FIX"
-  reason: string
-}
-
-// pi.agent_status.v1 payload (rule 2: shame-compatible status from validated data).
-interface ConstitutionStatus {
-  version: string
-  plugin: string
-  submodule: string
-  submodule_present: boolean
-  submodule_head: string | null
-  governance_files: Record<string, { present: boolean }>
-  mandate_sections: Record<string, { present: boolean }>
-  verified: string[]
-  errors: { code: ConstitutionTriageCode; message: string }[]
-}
+// pi-constitution:doctor tool parameters.
+const DoctorParams = Type.Object({
+  detail: Type.Optional(Type.Boolean()),
+})
+type DoctorParams = Static<typeof DoctorParams>
 
 // --- Helpers -----------------------------------------------------------------
 
-function projectRoot(pi: ExtensionAPI): string {
-  return pi.cwd()
-}
-
-function constitutionPath(pi: ExtensionAPI): string {
-  return `${projectRoot(pi)}/${CONSTITUTION_SUBMODULE}`
+function constitutionPath(ctx: { cwd: string }): string {
+  return `${ctx.cwd}/${CONSTITUTION_SUBMODULE}`
 }
 
 async function readFileSafe(pi: ExtensionAPI, path: string): Promise<string | null> {
@@ -88,48 +66,179 @@ async function runCommand(
   pi: ExtensionAPI,
   cmd: string,
   args: string[],
-  opts?: { timeout?: number }
+  timeout = 10_000
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-  const result = await pi.exec(cmd, args, { timeout: opts?.timeout ?? 10_000 })
+  const result = await pi.exec(cmd, args, { timeout })
   return { code: result.code, stdout: result.stdout, stderr: result.stderr }
 }
 
-function triageCodeFor(code: ConstitutionTriageCode): string {
-  return `constitution_${code}`
+// --- Audit: validate the Constitution submodule and governance files ---------
+
+interface GovernanceFileInfo {
+  present: boolean
+  path: string
+}
+
+interface MandateSectionInfo {
+  present: boolean
+  foundIn: string[]
+}
+
+interface AuditResult {
+  submodulePresent: boolean
+  submoduleHead: string | null
+  governanceFiles: Record<string, GovernanceFileInfo>
+  mandateSections: Record<string, MandateSectionInfo>
+  verified: string[]
+  errors: { code: ConstitutionTriageCode; message: string }[]
+}
+
+async function auditConstitution(
+  pi: ExtensionAPI,
+  ctx: { cwd: string }
+): Promise<AuditResult> {
+  const errors: { code: ConstitutionTriageCode; message: string }[] = []
+  const verified: string[] = []
+  const cPath = constitutionPath(ctx)
+
+  // 1. Submodule presence.
+  const subResult = await runCommand(pi, "test", ["-d", cPath])
+  const submodulePresent = subResult.code === 0
+  if (submodulePresent) verified.push(`Constitution submodule present at ${cPath}`)
+  else {
+    errors.push({
+      code: "constitution_submodule_missing",
+      message: `Constitution submodule not found at ${cPath}. Run: git submodule update --init ${CONSTITUTION_SUBMODULE}`,
+    })
+    return {
+      submodulePresent: false,
+      submoduleHead: null,
+      governanceFiles: {},
+      mandateSections: Object.fromEntries(MANDATE_SECTIONS.map((s) => [s, { present: false, foundIn: [] }])),
+      verified,
+      errors,
+    }
+  }
+
+  // 2. Submodule HEAD.
+  const headResult = await runCommand(pi, "git", ["-C", cPath, "rev-parse", "HEAD"])
+  const submoduleHead = headResult.code === 0 ? headResult.stdout.trim() : null
+  if (submoduleHead) verified.push(`Constitution submodule HEAD: ${submoduleHead.slice(0, 12)}`)
+
+  // 3. Governance files presence + mandate section awareness.
+  const governanceFiles: Record<string, GovernanceFileInfo> = {}
+  const mandateSections: Record<string, MandateSectionInfo> = Object.fromEntries(
+    MANDATE_SECTIONS.map((s) => [s, { present: false, foundIn: [] }])
+  )
+
+  for (const file of GOVERNANCE_FILES) {
+    const filePath = `${cPath}/${file}`
+    const content = await readFileSafe(pi, filePath)
+    const present = content !== null
+    governanceFiles[file] = { present, path: filePath }
+    if (present) {
+      verified.push(`Governance file present: ${file}`)
+      for (const section of MANDATE_SECTIONS) {
+        const info = mandateSections[section]
+        if (content.includes(section)) {
+          info.present = true
+          info.foundIn.push(file)
+        }
+      }
+    } else {
+      errors.push({
+        code: "constitution_governance_file_missing",
+        message: `Governance file missing: ${filePath}`,
+      })
+    }
+  }
+
+  // 4. Mandate section coverage report.
+  for (const section of MANDATE_SECTIONS) {
+    const info = mandateSections[section]
+    if (info.present) verified.push(`Mandate section referenced: ${section} (in ${info.foundIn.join(", ")})`)
+    else {
+      errors.push({
+        code: "constitution_mandate_section_missing",
+        message: `Mandate section ${section} not found in any governance file`,
+      })
+    }
+  }
+
+  return {
+    submodulePresent: true,
+    submoduleHead,
+    governanceFiles,
+    mandateSections,
+    verified,
+    errors,
+  }
+}
+
+function formatAudit(result: AuditResult): string {
+  const lines: string[] = []
+  lines.push(`## pi-constitution audit`)
+  lines.push(`- Submodule: ${result.submodulePresent ? "present" : "MISSING"}`)
+  if (result.submoduleHead) lines.push(`- Submodule HEAD: ${result.submoduleHead.slice(0, 12)}`)
+  for (const [file, info] of Object.entries(result.governanceFiles)) {
+    lines.push(`- Governance ${file}: ${info.present ? "present" : "MISSING"}`)
+  }
+  for (const [section, info] of Object.entries(result.mandateSections)) {
+    lines.push(`- Mandate ${section}: ${info.present ? `present (${info.foundIn.join(", ")})` : "MISSING"}`)
+  }
+  if (result.errors.length > 0) {
+    lines.push("")
+    lines.push(`### Errors (${result.errors.length})`)
+    for (const err of result.errors) {
+      lines.push(`- [${err.code}] ${err.message}`)
+    }
+  } else {
+    lines.push("")
+    lines.push("Constitution governance is healthy.")
+  }
+  return lines.join("\n")
 }
 
 // --- Extension entrypoint ----------------------------------------------------
 
 export default async function (pi: ExtensionAPI): Promise<void> {
-  const root = projectRoot(pi)
-  const cPath = constitutionPath(pi)
-
   // --- session_start: validate Constitution submodule presence ----------------
-  pi.on("session_start", async () => {
-    const status = await auditConstitution(pi, root, cPath)
+  pi.on("session_start", async (_event, ctx) => {
+    const result = await auditConstitution(pi, ctx)
 
-    // Emit shame-compatible status from validated data.
-    pi.status({
-      plugin: PLUGIN_NAME,
-      version: PLUGIN_VERSION,
-      answer:
-        status.submodule_present && status.errors.length === 0
-          ? "Constitution submodule bound and governance files present"
-          : `Constitution binding incomplete: ${status.errors.length} issue(s)`,
-      verified: status.verified,
-      errors: status.errors.map((e) => ({
-        code: triageCodeFor(e.code),
-        message: e.message,
-      })),
+    // Shame-compatible status from validated data (rule 2).
+    ctx.ui.setStatus(
+      "constitution",
+      result.errors.length === 0
+        ? `Constitution bound (${result.submoduleHead?.slice(0, 12) ?? "?"})`
+        : `Constitution: ${result.errors.length} issue(s)`
+    )
+
+    // Report result as a session message so it's visible in the transcript.
+    pi.sendMessage({
+      customType: "pi-constitution.audit",
+      content: formatAudit(result),
+      display: true,
+      details: {
+        plugin: PLUGIN_NAME,
+        version: PLUGIN_VERSION,
+        errorCount: result.errors.length,
+        verifiedCount: result.verified.length,
+      },
     })
 
-    // Report each failure through triage-error with a deterministic code.
-    for (const err of status.errors) {
-      await pi.triageError?.({
-        code: triageCodeFor(err.code),
-        cause: `Constitution governance: ${err.message}`,
-        layer: "extension",
-        next_command: `pi plugin:pi-constitution doctor --submodule ${CONSTITUTION_SUBMODULE}`,
+    // Surface each failure as a deterministic triage code.
+    for (const err of result.errors) {
+      pi.sendMessage({
+        customType: "pi-constitution.triage",
+        content: `Constitution triage: ${err.code} — ${err.message}`,
+        display: true,
+        details: {
+          code: err.code,
+          layer: "extension",
+          cause: err.message,
+          nextCommand: `pi-constitution-doctor`,
+        },
       })
     }
   })
@@ -142,144 +251,57 @@ export default async function (pi: ExtensionAPI): Promise<void> {
     if (typeof cmd !== "string" || cmd.trim() === "") return
 
     // Only intercept commands that reference the Constitution submodule or
-    // governance files, so we don't add noise to unrelated operations.
+    // governance files.
     if (
       !cmd.includes(CONSTITUTION_SUBMODULE) &&
       !cmd.includes("Constitution.md") &&
+      !cmd.includes("CLAUDE.md") &&
+      !cmd.includes("AGENTS.md") &&
       !cmd.includes("pi-constitution")
     ) {
       return
     }
 
     // Validate the submodule is present before allowing the operation.
-    const submoduleResult = await runCommand(pi, "test", ["-d", cPath])
-    if (submoduleResult.code !== 0) {
-      const question: ConstitutionCollabQuestion = {
-        schema: "pi-constitution.collab_question.v1",
-        question_id: `constitution-${Date.now()}`,
-        triage: {
-          code: "constitution_submodule_missing",
-          layer: "extension",
-          cause: `Constitution submodule not present at ${cPath}; cannot safely run: ${cmd}`,
+    const cPath = constitutionPath(ctx)
+    const subResult = await runCommand(pi, "test", ["-d", cPath])
+    if (subResult.code !== 0) {
+      // Peer-gate: ask the user whether to proceed or abort.
+      const proceed = await ctx.ui.confirm(
+        "Constitution submodule missing",
+        `Constitution submodule not present at ${cPath}.\n\nCommand: ${cmd}\n\nProceed anyway (risking governance drift)?`,
+        { blockedKind: "permission" }
+      )
+      if (!proceed) {
+        return { block: true, reason: `Constitution submodule missing at ${cPath}; bind it first (git submodule update --init ${CONSTITUTION_SUBMODULE})` }
+      }
+    }
+  })
+
+  // --- Custom tool: pi-constitution:doctor ----------------------------------
+  pi.registerTool({
+    name: "pi-constitution-doctor",
+    label: "Constitution Doctor",
+    description: "Run a full Constitution governance audit: submodule presence, governance files, mandate sections.",
+    parameters: DoctorParams,
+    execute: async (_toolCallId, params, _signal, _onUpdate, ctx) => {
+      const result = await auditConstitution(pi, ctx)
+      return {
+        isError: result.errors.length > 0,
+        content: [{ type: "text", text: formatAudit(result) }],
+        structuredContent: {
+          plugin: PLUGIN_NAME,
+          version: PLUGIN_VERSION,
+          submodulePresent: result.submodulePresent,
+          submoduleHead: result.submoduleHead,
+          errorCount: result.errors.length,
+          verifiedCount: result.verified.length,
+          errors: result.errors,
+          governanceFiles: result.governanceFiles,
+          mandateSections: result.mandateSections,
+          verified: result.verified,
         },
-        question:
-          "Constitution submodule is missing. Proceed with the operation anyway (risking governance drift), or abort and bind the submodule first?",
-        required_response_schema: "pi-constitution.collab_answer.v1",
-        allowed_answers: ["SUFFICIENT", "NEEDS_FIX"],
       }
-
-      const answer = await pi.ask?.<ConstitutionCollabAnswer>(question)
-      if (!answer || answer.answer !== "SUFFICIENT") {
-        event.blocked = true
-        event.input.command = `# BLOCKED by pi-constitution: ${question.triage.cause}`
-        return
-      }
-    }
+    },
   })
-
-  // --- Custom tool: pi plugin:pi-constitution doctor -------------------------
-  pi.on("custom_tool", async (event) => {
-    if (event.input.name !== "pi-constitution:doctor") return
-
-    const status = await auditConstitution(pi, root, cPath)
-
-    pi.reply({
-      kind: "tool_result",
-      tool_name: "pi-constitution:doctor",
-      content: {
-        ...status,
-        summary:
-          status.errors.length === 0
-            ? "Constitution governance is healthy."
-            : `Constitution governance has ${status.errors.length} issue(s) requiring attention.`,
-      },
-    })
-  })
-}
-
-// --- Audit: validate the Constitution submodule and governance files ---------
-
-async function auditConstitution(
-  pi: ExtensionAPI,
-  root: string,
-  cPath: string
-): Promise<ConstitutionStatus> {
-  const errors: { code: ConstitutionTriageCode; message: string }[] = []
-  const verified: string[] = []
-
-  // 1. Submodule presence.
-  const subResult = await runCommand(pi, "test", ["-d", cPath])
-  const submodulePresent = subResult.code === 0
-  if (submodulePresent) verified.push(`Constitution submodule present at ${cPath}`)
-  else {
-    errors.push({
-      code: "constitution_submodule_missing",
-      message: `Constitution submodule not found at ${cPath}. Run: git submodule update --init ${CONSTITUTION_SUBMODULE}`,
-    })
-    return {
-      version: PLUGIN_VERSION,
-      plugin: PLUGIN_NAME,
-      submodule: CONSTITUTION_SUBMODULE,
-      submodule_present: false,
-      submodule_head: null,
-      governance_files: {},
-      mandate_sections: {},
-      verified,
-      errors,
-    }
-  }
-
-  // 2. Submodule HEAD (pointer staleness check against parent).
-  const headResult = await runCommand(pi, "git", ["-C", cPath, "rev-parse", "HEAD"])
-  const submoduleHead = headResult.code === 0 ? headResult.stdout.trim() : null
-  if (submoduleHead) verified.push(`Constitution submodule HEAD: ${submoduleHead.slice(0, 12)}`)
-
-  // 3. Governance files presence + mandate section awareness.
-  const governanceFiles: Record<string, { present: boolean }> = {}
-  const mandateSections: Record<string, { present: boolean }> = {}
-
-  for (const file of GOVERNANCE_FILES) {
-    const filePath = `${cPath}/${file}`
-    const content = await readFileSafe(pi, filePath)
-    const present = content !== null
-    governanceFiles[file] = { present }
-    if (present) {
-      verified.push(`Governance file present: ${file}`)
-      // Check for mandate sections.
-      for (const section of MANDATE_SECTIONS) {
-        const already = mandateSections[section] ?? { present: false }
-        if (content.includes(section)) already.present = true
-        mandateSections[section] = already
-      }
-    } else {
-      errors.push({
-        code: "constitution_governance_file_missing",
-        message: `Governance file missing: ${filePath}`,
-      })
-    }
-  }
-
-  // 4. Mandate section coverage report.
-  for (const section of MANDATE_SECTIONS) {
-    const info = mandateSections[section] ?? { present: false }
-    if (info.present) verified.push(`Mandate section referenced: ${section}`)
-    else {
-      errors.push({
-        code: "constitution_mandate_section_missing",
-        message: `Mandate section ${section} not found in any governance file`,
-      })
-    }
-  }
-
-  return {
-    version: PLUGIN_VERSION,
-    plugin: PLUGIN_NAME,
-    submodule: CONSTITUTION_SUBMODULE,
-    submodule_present: true,
-    submodule_head: submoduleHead,
-    governance_files: governanceFiles,
-    mandate_sections: mandateSections,
-    verified,
-    errors,
-  }
 }
