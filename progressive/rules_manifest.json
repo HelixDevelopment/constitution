@@ -369,7 +369,7 @@
   },
   "§11.4.151": {
    "file": "progressive/rules/11.4.151.md",
-   "hash": "sha256:c3a16f432da491f8b95d4e0386a799dedac38413ff1e6d89086cf31670a5f748",
+   "hash": "sha256:1ee4199e66949d76a30e06f9ceb9099e25bac3773a78d1c0d65a436e38b0510f",
    "line_end": 9711,
    "line_start": 9691
   },
@@ -1870,5 +1870,5 @@
  },
  "schema_version": 1,
  "source": "Constitution.md",
- "source_sha256": "d72bd3b452365777877afd0f43562376ccf58dfc4da9c048aae100c93adf41d1"
+ "source_sha256": "fbcc519647e77b666e312ea138c2a2ef28c74dfcfa3db6e5594221da1c8d06d8"
 }
