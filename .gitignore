@@ -40,6 +40,10 @@ scripts/workable-items/docs/
 
 docs/research/decisions_models
 
+# Local empty runtime DB artifacts (0-byte placeholders; not tracked)
+db.sqlite
+rt.db
+
 # SQLite WAL sidecars of the TRACKED workable-items database (anchor 11.4.95: docs/workable_items.db itself is tracked and is
 # never ignored; its transient sidecars are ignored). Opening the database in any process creates them (WAL mode), and a
 # worktree-wide `git add -A` committed both on 2026-11-06 (844ab543). Test: tests/gates/test_workable_items_db_sidecars_ignored.sh
