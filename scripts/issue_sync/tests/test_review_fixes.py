@@ -35,8 +35,9 @@ class TestB1CapabilitiesUnconfirmed(unittest.TestCase):
             self.assertTrue(a.capabilities["can_list"])
             self.assertFalse(any(v for k, v in a.capabilities.items() if k != "can_list"), cls.__name__)
             self.assertTrue(cls(lambda *x: None, proven=True).capabilities["can_create"])
-    def test_default_registry_proves_no_host(self):
-        self.assertEqual(registry.load_proven(), set())
+    def test_default_registry_proves_only_hosts_with_recorded_live_evidence(self):
+        # 2026-11-25: exactly the hosts with a recorded live create+read-back under docs/qa/issue_sync/; github.com, gitverse.ru, gitflic.ru stay UNCONFIRMED
+        self.assertEqual(registry.load_proven(), {"gitlab.com", "codeberg.org", "git.m3w.org"})
     def test_proven_row_needs_existing_evidence_file(self):
         d = tempfile.mkdtemp(); t = os.path.join(d, "p.tsv")
         open(t, "w").write("github.com\tdocs/qa/none.txt\ngitlab.com\n")
