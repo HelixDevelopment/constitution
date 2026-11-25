@@ -42,7 +42,9 @@ def _pre_send(err):
 
 class HttpTransport:
     """Real transport. The token is placed in a header here only; never logged. Honors Retry-After on 429/403-secondary."""
-    def __init__(self, token, min_interval=1.0, max_retries=4, sleep=time.sleep, timeout=30):
+    def __init__(self, token, min_interval=1.0, max_retries=4, sleep=time.sleep, timeout=30, auth_header=None):
+        if auth_header is not None:      # a host whose API wants a different scheme (GitFlic: `token`); default stays Bearer
+            self.auth_header = auth_header
         self._token, self.min_interval, self.max_retries, self._sleep, self.timeout = token, min_interval, max_retries, sleep, timeout
         self._last = 0.0
         self._opener = urllib.request.build_opener(_NoRedirect)

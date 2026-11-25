@@ -72,6 +72,29 @@ class TestCli(unittest.TestCase):
         db = mkdb(ROWS); out = io.StringIO()
         rc = cli.run(["plan", "--db", db, "--config", cfgfile(), "--target", "github.com/o/pub", "--owner-repo", "github.com/o/priv"], proven_hosts=PROVEN, transport_factory=lambda v, h: f, out=out)
         self.assertEqual(rc, 2); self.assertIn("not-owning-repo", out.getvalue()); self.assertEqual(f.writes, 0)
+    def _mirror_run(self, cfgtext, target, owner, fake):
+        out = io.StringIO()
+        rc = cli.run(["plan", "--db", mkdb(ROWS), "--config", cfgfile(cfgtext), "--target", target, "--owner-repo", owner], proven_hosts=PROVEN, transport_factory=lambda v, h: fake, out=out)
+        return rc, out.getvalue()
+    def test_declared_mirror_under_another_owner_is_accepted(self):
+        f = FakeGitHub(private=False)
+        rc, out = self._mirror_run("enabled: true\nmode: dry-run\nmirrors:\n  github.com/p/r: github.com/o/r\n", "github.com/o/r", "github.com/o/r", f)
+        self.assertEqual(f.writes, 0); self.assertNotIn("not-owning-repo", out); self.assertIn("p/r", out)     # the declared mirror leg is planned, not blocked
+        self.assertIn('"create": 2', out)
+    def test_undeclared_or_other_owner_mirror_is_still_blocked(self):
+        f = FakeGitHub(private=False)
+        rc, out = self._mirror_run("enabled: true\nmode: dry-run\n", "github.com/p/r", "github.com/o/r", f)
+        self.assertEqual(rc, 2); self.assertIn("not-owning-repo", out)
+        f = FakeGitHub(private=False)      # declared as the mirror of a DIFFERENT owning repository: no effect for this owner
+        rc, out = self._mirror_run("enabled: true\nmode: dry-run\nmirrors:\n  github.com/p/r: github.com/x/other\n", "github.com/p/r", "github.com/o/r", f)
+        self.assertEqual(rc, 2); self.assertIn("not-owning-repo", out)
+    def test_declared_mirror_never_lets_private_reach_public(self):
+        class Split(FakeGitHub):
+            def __call__(self, m, url, h, body):
+                self.private = "/repos/o/r" in url and "/issues" not in url        # owner private, mirror public
+                return super().__call__(m, url, h, body)
+        f = Split(); rc, out = self._mirror_run("enabled: true\nmode: dry-run\nmirrors:\n  github.com/p/r: github.com/o/r\n", "github.com/o/r", "github.com/o/r", f)
+        self.assertIn("private-to-public", out); self.assertEqual(f.writes, 0)
     def test_undetermined_visibility_blocks(self):
         class NoPriv(FakeGitHub):
             def __call__(self, m, url, h, body):
