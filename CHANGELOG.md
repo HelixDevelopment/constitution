@@ -1,5 +1,9 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+#### Post-v73.4 amendment — 2026-11-25 (not a release): GitVerse list query fixed (§11.4.300(C))
+
+- `GitVerse.list_issues` no longer inherits the Gitea query: on api.gitverse.ru `limit=` is a VALIDATION_ERROR (400) and `type=issues` answers 403, which made every GitVerse verify leg UNDETERMINED. It now sends `state=all&per_page=50&page=N` (measured live, 200) and drops pull requests. Write verbs on GitVerse stay UNCONFIRMED.
+
 #### Post-v73.4 amendment — 2026-11-25 (not a release): GitFlic issue adapter proven; declared mirrors under another owner name (§11.4.300(C),(D),(G))
 
 - **GitFlic adapter** (`scripts/issue_sync/adapters/gitflic.py`) now lists, creates, edits, closes and reopens issues. Endpoints are from docs.gitflic.ru/latest/api/issue/: `GET/POST /project/{o}/{p}/issue`, and closing is `PUT .../issue/{localId}/edit` with `status.id` `COMPLETED` or `CLOSED` (reopen is `OPEN`); there is no separate close verb, which is why the 2026-11-25 raw probe wrongly reported none (it never sent a full PUT body). The API wants `Authorization: token <t>` (Bearer answers 403), so `HttpTransport` gained an optional `auth_header` and `registry.transport_auth(host)` supplies it from the adapter class; every other host keeps Bearer. Create and edit send `assignedUsers: []` (422 without it). Labels are by id on this host, so `can_label` stays False.
