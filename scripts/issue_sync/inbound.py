@@ -122,7 +122,9 @@ def collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees
 def reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None):
     """-> (records, undetermined). Record classes: missing-in-tracker, db-ahead, tracker-edited (CONFLICT), duplicate, orphan, anomaly.
     A keyed issue whose footer hash EQUALS the DB's current hash has not been touched by the DB since the last sync, so any visible difference
-    (title, body, labels, state) was made on the tracker: that is the conflict class. A footer hash that differs means the DB moved ahead."""
+    (title, body, labels, state) was made on the tracker: that is the conflict class. A footer hash that differs means the DB moved ahead, and the
+    issue is db-ahead only when its title, body, state and labels still equal what the engine last recorded (issue_sync_map.rendered_sha); anything
+    else (or no record, e.g. a row synced before the column existed) is a conflict, fail closed."""
     acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids)
     idx = engine.index_issues(issues or [])
     by_id = {i["atm_id"]: i for i in items}
@@ -173,7 +175,8 @@ def conflict_proposals(recs, issues, leg):
             continue
         iss = by_no[r["number"]]
         txt = "state: %s\nlabels: %s\nfields that differ from the database: %s\n\n%s" % (iss["state"], ",".join(iss["labels"]), ",".join(r["fields"]), iss.get("body") or "")
-        out.append({"tracker": leg.id, "number": r["number"], "kind": "conflict", "item": r["item"], "title": iss.get("title", ""), "text": txt,
+        lossy = any(m in sanitize_text(x)[0] for x in (txt, iss.get("title", "")) for m in ("[withheld", "[truncated"))
+        out.append({"lossy": lossy, "tracker": leg.id, "number": r["number"], "kind": "conflict", "item": r["item"], "title": iss.get("title", ""), "text": txt,
                     "sha": _sha(leg.id, r["number"], iss.get("title"), iss["state"], ",".join(iss["labels"]), iss.get("body"))})
     return out
 
@@ -218,7 +221,7 @@ def run_leg(cmd, items, leg, owner_vis, owner_repo, issues, fps, known_ids, cfg,
     for r in recs:               # tell the caller (and the apply guard) where each conflicting tracker version is, or must be, preserved
         c = next((p for p in cprops if p["number"] == r["number"]), None) if r["class"] == "tracker-edited" else None
         if c:
-            r["proposal"], r["captured"] = proposal_filename(c), existing_for(out_dir, c) is not None
+            r["proposal"], r["captured"], r["lossy"] = proposal_filename(c), existing_for(out_dir, c) is not None, c["lossy"]
     conflicts = len(cprops)
     if cmd == "reconcile":
         rc = 1 if recs else (2 if und else 0)

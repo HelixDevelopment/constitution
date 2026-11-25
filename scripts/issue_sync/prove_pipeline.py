@@ -193,6 +193,42 @@ def chk_forged_capture_not_accepted():
     return rc == 1 and f.issues[0]["title"] == "[A-1] HUMAN-EDIT"
 
 
+def chk_guard_holds_with_abbreviation():
+    f, db, c = _synced()
+    f.issues[0]["title"] = "[A-1] HUMAN-EDIT"
+    d = tempfile.mkdtemp()
+    rc, _ = _go("apply", f, db, c, "--ap", "--out-dir", d)
+    return rc == 1 and f.issues[0]["title"] == "[A-1] HUMAN-EDIT"
+
+
+def chk_label_state_edit_with_db_moved_is_conflict():
+    f, db, c = _synced()
+    f.issues[0]["labels"] = f.issues[0]["labels"] + ["human-label"]
+    f.issues[0]["state"] = "closed"
+    k = sqlite3.connect(db); k.execute("update items set title='first v2' where atm_id='A-1'"); k.commit()
+    rc, _ = _go("apply", f, db, c, "--apply", "--out-dir", tempfile.mkdtemp())
+    return rc == 1 and "human-label" in f.issues[0]["labels"]
+
+
+def chk_masked_undetermined_leg_refuses():
+    f, db, c = _synced()
+    f.issues[0]["title"] = "[A-1] HUMAN-EDIT"
+    rep = ['{"leg": "a", "records": []}', '{"leg": "b", "verdict": "UNDETERMINED", "reason": "x"}']
+    with mock.patch.object(pipeline, "_capture", lambda argv, **kw: (1, "\n".join(rep))):
+        bad, und = pipeline.guard_conflicts([])
+    return und is True
+
+
+def chk_lossy_capture_needs_ack():
+    f, db, c = _synced()
+    f.issues[0]["title"] = "[A-1] HUMAN-EDIT"
+    f.issues[0]["body"] += "\nmy key " + TOKEN
+    d = tempfile.mkdtemp()
+    _go("pull", f, db, c, "--write", "--out-dir", d)
+    rc, _ = _go("apply", f, db, c, "--apply", "--out-dir", d)
+    return rc == 1 and f.issues[0]["title"] == "[A-1] HUMAN-EDIT"
+
+
 CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_text), ("inbound text is inert data", chk_inbound_text_is_inert_data),
           ("conflict never silently applied", chk_conflict_never_silently_applied), ("conflict preserved then DB wins", chk_conflict_preserved_then_db_wins),
           ("token never printed", chk_token_never_printed), ("inbound secret withheld", chk_inbound_secret_withheld),
@@ -200,7 +236,9 @@ CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_tex
           ("reviewed proposal never overwritten", chk_reviewed_proposal_kept), ("proposal path confined", chk_path_confined),
           ("reconcile flags tracker edit as conflict", chk_reconcile_flags_tracker_edit_as_conflict),
           ("guard holds with --json", chk_guard_holds_with_json), ("DB moved + human edit is a conflict", chk_db_moved_and_edited_is_conflict),
-          ("forged capture not accepted", chk_forged_capture_not_accepted)]
+          ("forged capture not accepted", chk_forged_capture_not_accepted),
+          ("guard holds with abbreviated --apply", chk_guard_holds_with_abbreviation), ("label/state edit + DB moved is a conflict", chk_label_state_edit_with_db_moved_is_conflict),
+          ("masked undetermined leg refuses apply", chk_masked_undetermined_leg_refuses), ("lossy capture needs ack", chk_lossy_capture_needs_ack)]
 CHECK = dict(CHECKS)
 
 
@@ -256,6 +294,7 @@ def _blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, known_
         r["class"] = "db-ahead" if r["class"] == "tracker-edited" else r["class"]
     return recs, und
 _orig_reconcile = inbound.reconcile_leg
+_orig_cp = inbound.conflict_proposals
 
 def _stale_blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None):   # M11: the old rule: a conflict only when the DB did NOT move
     recs, und = _orig_reconcile(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered)
@@ -268,6 +307,17 @@ _real_guard = pipeline.guard_conflicts
 def _json_blind_guard(rest, **kw):                                                                   # M12: the guard reads the output with --json left in (multi-line JSON, nothing parsed)
     return _real_guard(list(rest) + [], **kw) if "--json" not in rest else ([], False)
 
+_orig_cmd_apply = pipeline.cmd_apply
+def _literal_guard_apply(rest, out, kw):                                                             # M14: the guard runs only when the literal string --apply is present
+    if "--apply" not in rest:
+        return pipeline.cli.run(["apply"] + rest, out=out, **kw)
+    return _orig_cmd_apply(rest, out, kw)
+
+def _unmasked_guard(rest, ack_lossy=False, **kw):                                                    # M15: per-leg UNDETERMINED lines ignored (aggregate rc only)
+    rc, text = pipeline._capture(["reconcile"] + [x for x in rest if x not in ("--apply", "--write", "--json")], **kw)
+    return [], rc == 2
+
+_orig_sanitize_keep = inbound.sanitize_text
 def _weak_existing(out_dir, rec):                                                                    # M13: any file of that name counts as a capture
     p = os.path.join(out_dir, inbound.proposal_filename(rec))
     return p if os.path.isfile(p) else None
@@ -285,6 +335,10 @@ MUTATIONS = [
     ("M11 DB-moved + human edit not a conflict (old rule)", "DB moved + human edit is a conflict", [mock.patch.object(inbound, "reconcile_leg", _stale_blind_reconcile)]),
     ("M12 guard blind to --json output", "guard holds with --json", [mock.patch.object(pipeline, "guard_conflicts", _json_blind_guard)]),
     ("M13 any same-named file counts as a capture", "forged capture not accepted", [mock.patch.object(inbound, "existing_for", _weak_existing)]),
+    ("M14 guard keyed on the literal --apply string", "guard holds with abbreviated --apply", [mock.patch.object(pipeline, "cmd_apply", _literal_guard_apply)]),
+    ("M15 label/state not in the recorded rendering", "label/state edit + DB moved is a conflict", [mock.patch.object(inbound.store if hasattr(inbound, "store") else __import__("issue_sync.store", fromlist=["x"]), "rendered_sha", lambda i: __import__("hashlib").sha256(((i.get("title") or "") + "\n" + (i.get("body") or "").strip()).encode()).hexdigest())]),
+    ("M16 per-leg UNDETERMINED ignored by the guard", "masked undetermined leg refuses apply", [mock.patch.object(pipeline, "guard_conflicts", _unmasked_guard)]),
+    ("M17 lossy capture counted as preserved", "lossy capture needs ack", [mock.patch.object(inbound, "conflict_proposals", lambda recs, issues, leg: [dict(p, lossy=False) for p in _orig_cp(recs, issues, leg)])]),
     ("M10 tracker edit not classed as conflict", "reconcile flags tracker edit as conflict", [mock.patch.object(inbound, "reconcile_leg", _blind_reconcile)]),
 ]
 

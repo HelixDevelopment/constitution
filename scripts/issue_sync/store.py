@@ -43,13 +43,14 @@ def load_sub_projects(con):
 def ensure_map(con):
     con.execute(MAP_DDL)
     if "rendered_sha" not in [r[1] for r in con.execute("PRAGMA table_info(issue_sync_map)").fetchall()]:
-        con.execute("ALTER TABLE issue_sync_map ADD COLUMN rendered_sha TEXT")     # sha of the tracker's title+body as last written by the engine (conflict detection)
+        con.execute("ALTER TABLE issue_sync_map ADD COLUMN rendered_sha TEXT")     # sha of the tracker's title, body, state and labels as last written by the engine (conflict detection)
     con.commit()
 
 
 def rendered_sha(issue):
     import hashlib
-    return hashlib.sha256(((issue.get("title") or "") + "\n" + (issue.get("body") or "").strip()).encode()).hexdigest()
+    return hashlib.sha256(((issue.get("title") or "") + "\n" + (issue.get("body") or "").strip() + "\n" + (issue.get("state") or "") + "\n"
+                           + ",".join(sorted(issue.get("labels") or []))).encode()).hexdigest()
 
 
 def load_rendered(con, tracker):
