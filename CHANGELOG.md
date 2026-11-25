@@ -1,5 +1,11 @@
 # Changelog — HelixDevelopment/HelixConstitution
 
+#### Post-v73.4 amendment — 2026-11-25 (not a release): §11.4.300 pipeline facade, inbound intake (C7) and the Docs Chain context fix
+
+- **`scripts/issues_sync_pipeline.sh` (new):** the single entry point of the bidirectional pipeline: `plan`, `apply`, `pull`, `reconcile`, `verify`, `run`, `init-context`, `--prove-failure`; dry-run default, exits 0/1/2, tokens never printed. Policy (operator decisions 2026-11-25): the database wins, inbound is reviewable proposal files (`docs/issues_sync/inbound/`), a conflicting tracker edit is reported and `apply` refuses to overwrite it until `pull --write` has preserved it. Tracker text is untrusted data (fenced, secret-scanned, capped, never executed). New modules `issue_sync/{inbound,pipeline,prove_pipeline,tests_support_inbound}.py`; `cli.py` gained `reconcile`/`pull` (one branch in the leg loop) and the GitHub adapter gained read-only `list_comments` plus `comments`/`assignees` in its normalised issue.
+- **Docs Chain (root cause, §11.4.102):** `templates/docs_chain/issues-sync.yaml` was not a valid context (unknown node fields, no `edges:`/`transforms:`: `docs_chain doctor` exit 4); rewritten as a valid DAG DB -> Issues.md/Fixed.md -> outbound plan -> inbound preview -> verify report and proven with the real `docs_chain doctor`/`sync`/`verify` and the real `workable-items` binary.
+- **Gates:** `CM-ISSUES-SYNC-PIPELINE-PROOF` (26 controls + 23 mutations, unit tests, template `doctor`) with paired mutation test `cm_issues_sync_pipeline_proof_mutation_test.sh` (P1-P8). Manual: `docs/manuals/issue_sync_manual.md` section 9. No anchor text and no carrier was changed (no new rule is added); a clause (I) naming the facade in §11.4.300 is a coordinated follow-up.
+
 #### Post-v73.4 amendment — 2026-11-25 (not a release): GitVerse list query fixed (§11.4.300(C))
 
 - `GitVerse.list_issues` no longer inherits the Gitea query: on api.gitverse.ru `limit=` is a VALIDATION_ERROR (400) and `type=issues` answers 403, which made every GitVerse verify leg UNDETERMINED. It now sends `state=all&per_page=50&page=N` (measured live, 200) and drops pull requests. Write verbs on GitVerse stay UNCONFIRMED.

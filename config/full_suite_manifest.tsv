@@ -1089,3 +1089,6 @@ scripts/issue_sync/tests/test_engine_cli.py	py	entry	default	python3	-	auto
 scripts/issue_sync/tests_support.py	py	entry	default	python3	-	auto
 scripts/hooks/test_issue_sync_hooks.sh	sh	entry	heavy	bash	-	auto
 scripts/issue_sync/tests/test_status.py	py	entry	default	python3	-	auto
+scripts/gates/cm_issues_sync_pipeline_proof_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/issue_sync/tests_pipeline/test_pipeline.py	py	entry	default	python3	-	auto
+scripts/issue_sync/tests_support_inbound.py	py	entry	default	python3	-	auto

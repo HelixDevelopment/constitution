@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 
-from . import config as cfgmod, credentials, redact, registry, store, engine, visibility as vis
+from . import config as cfgmod, credentials, redact, registry, store, engine, inbound, visibility as vis
 from .adapters.base import AdapterError, HttpTransport
 
 
@@ -71,7 +71,7 @@ def _fingerprints(paths):
 
 def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts=None):
     ap = argparse.ArgumentParser(prog="issue_sync")
-    ap.add_argument("cmd", choices=["plan", "apply", "verify", "status"])
+    ap.add_argument("cmd", choices=["plan", "apply", "verify", "status", "reconcile", "pull"])
     ap.add_argument("--config", default=".workable-items-sync.yaml")
     ap.add_argument("--db", default="docs/workable_items.db")
     ap.add_argument("--target", action="append", default=[])
@@ -82,6 +82,9 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
     ap.add_argument("--only-open", action="store_true", help="tier 1: skip items in a closed status")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--ack-lossy-capture", action="store_true", help="apply: accept a conflict proposal that had to withhold a secret shape or truncate text, after reading the tracker text")
+    ap.add_argument("--write", action="store_true", help="pull: write the proposal files (default: dry-run, nothing written)")
+    ap.add_argument("--out-dir", help="pull/apply: proposals directory (default: docs/issues_sync/inbound next to the config)")
     a = ap.parse_args(argv)
     cfg, errs = cfgmod.load(a.config)
     if errs:
@@ -163,6 +166,7 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
     owner_vis = owner_leg.visibility if owner_leg else "undetermined"
     mirror_of = {vis.canonical_repo("ssh://git@%s.git" % m): vis.canonical_repo("ssh://git@%s.git" % o) for m, o in cfg["mirrors"].items()}
     declared = {m for m, o in mirror_of.items() if o == owner_repo}            # only mirrors declared for THIS owning repository
+    is_decl = lambda lg: vis.canonical_repo("ssh://git@%s/%s/%s.git" % (lg.host, lg.owner, lg.repo)) in declared
     targets = list(a.target) + [m for m in cfg["mirrors"] if mirror_of[vis.canonical_repo("ssh://git@%s.git" % m)] == owner_repo and m not in a.target]
     legs = _legs(targets, hosts, tf, proven)
     for tid, leg, err in legs:
@@ -181,8 +185,37 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
             report.append({"leg": leg.id, "rc": r, "findings": f})
             rc = 1 if (r == 1 or rc == 1) else max(rc, r)
             continue
+        if a.cmd in ("reconcile", "pull"):     # C7: read-only toward trackers and the DB; `pull --write` writes only proposal files
+            od = a.out_dir or os.path.join(os.path.dirname(os.path.abspath(a.config)), inbound.PROPOSAL_DIR)
+            try:
+                rmap = store.load_rendered(con, leg.id)
+            except sqlite3.Error:
+                rmap = {}
+            try:
+                r, rep = inbound.run_leg(a.cmd, items, leg, owner_vis, owner_repo, issues, fps, all_ids, cfg, od, a.write, rmap, is_decl(leg))
+            except Exception as e:       # untrusted tracker text must never turn 'cannot determine' (2) into a crash
+                r, rep = 2, {"leg": leg.id, "verdict": "UNDETERMINED", "reason": "unexpected-%s" % type(e).__name__}
+            report.append(rep)
+            rc = 1 if (r == 1 or rc == 1) else max(rc, r)
+            continue
         acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids, vis.canonical_repo("ssh://git@%s/%s/%s.git" % (leg.host, leg.owner, leg.repo)) in declared)
         if a.cmd == "apply":
+            try:      # tracker-edit guard, for EVERY entry point: a human edit is never overwritten until its text is preserved as a proposal
+                rmap = store.load_rendered(con, leg.id)
+            except sqlite3.Error:
+                rmap = {}
+            od = a.out_dir or os.path.join(os.path.dirname(os.path.abspath(a.config)), inbound.PROPOSAL_DIR)
+            try:
+                bad = inbound.apply_guard(items, leg, owner_vis, owner_repo, issues, fps, all_ids, rmap, od, a.ack_lossy_capture, is_decl(leg)) if issues is not None else []
+            except Exception as e:       # fail closed: a guard that cannot decide stops the write
+                report.append({"leg": leg.id, "verdict": "UNDETERMINED", "reason": "guard-unexpected-%s" % type(e).__name__})
+                rc = 1 if rc == 1 else 2
+                continue
+            if bad:
+                report.append({"leg": leg.id, "verdict": "REFUSED", "reason": "tracker-edits-not-preserved", "items": ["%s #%s" % b for b in bad],
+                               "next": "run `pull --write` (saves each tracker version as a proposal; a lossy one also needs --ack-lossy-capture after you read it), then apply again"})
+                rc = 1
+                continue
             try:
                 store.ensure_map(con)
             except sqlite3.Error as e:

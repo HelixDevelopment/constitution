@@ -133,3 +133,7 @@ class Adapter:
 
     def ensure_labels(self, owner, repo, labels):
         return None
+
+    def list_comments(self, owner, repo, number):
+        """Read-only inbound verb (C7). None = this adapter cannot read comments (reported as comments-unsupported, never as 'no comments')."""
+        return None

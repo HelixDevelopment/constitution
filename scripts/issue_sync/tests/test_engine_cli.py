@@ -55,7 +55,10 @@ class TestCli(unittest.TestCase):
         f = FakeGitHub(); db = mkdb(ROWS); c = self.applycfg(); run(self.args("apply", db, c, "--apply"), f)
         f.issues[0]["title"] = "[A-1] hijacked"; f.issues[1]["state"] = "open"
         self.assertEqual(run(self.args("verify", db, c), f)[0], 0 if False else run(self.args("verify", db, c), f)[0])
-        run(self.args("apply", db, c, "--apply"), f); self.assertEqual(run(self.args("verify", db, c), f)[0], 0)
+        d = tempfile.mkdtemp()      # policy 2026-11-25: the DB wins, but only after the human edit is preserved as a proposal (apply refuses first)
+        self.assertEqual(run(self.args("apply", db, c, "--apply", "--out-dir", d), f)[0], 1)
+        run(self.args("pull", db, c, "--write", "--out-dir", d), f)
+        run(self.args("apply", db, c, "--apply", "--out-dir", d), f); self.assertEqual(run(self.args("verify", db, c), f)[0], 0)
         self.assertEqual(next(i for i in f.issues if i["title"].startswith("[A-2]"))["state"], "closed")
     def test_resume_after_failure_creates_no_duplicates(self):
         f = FakeGitHub(fail_after=1); db = mkdb(ROWS); c = self.applycfg()
