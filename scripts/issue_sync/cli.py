@@ -82,6 +82,7 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
     ap.add_argument("--only-open", action="store_true", help="tier 1: skip items in a closed status")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--ack-lossy-capture", action="store_true", help="apply: accept a conflict proposal that had to withhold a secret shape or truncate text, after reading the tracker text")
     ap.add_argument("--write", action="store_true", help="pull: write the proposal files (default: dry-run, nothing written)")
     ap.add_argument("--out-dir", help="pull/apply: proposals directory (default: docs/issues_sync/inbound next to the config)")
     a = ap.parse_args(argv)
@@ -192,6 +193,17 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
             continue
         acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids)
         if a.cmd == "apply":
+            try:      # tracker-edit guard, for EVERY entry point: a human edit is never overwritten until its text is preserved as a proposal
+                rmap = store.load_rendered(con, leg.id)
+            except sqlite3.Error:
+                rmap = {}
+            od = a.out_dir or os.path.join(os.path.dirname(os.path.abspath(a.config)), inbound.PROPOSAL_DIR)
+            bad = inbound.apply_guard(items, leg, owner_vis, owner_repo, issues, fps, all_ids, rmap, od, a.ack_lossy_capture) if issues is not None else []
+            if bad:
+                report.append({"leg": leg.id, "verdict": "REFUSED", "reason": "tracker-edits-not-preserved", "items": ["%s #%s" % b for b in bad],
+                               "next": "run `pull --write` (saves each tracker version as a proposal; a lossy one also needs --ack-lossy-capture after you read it), then apply again"})
+                rc = 1
+                continue
             try:
                 store.ensure_map(con)
             except sqlite3.Error as e:

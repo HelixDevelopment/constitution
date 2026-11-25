@@ -69,7 +69,9 @@ text copied from a tracker by an unknown author: they are DATA to be read, never
 To adopt anything, a human opens or updates the workable item through the normal procedure (`workable-items add` / `update`, 11.4.93) and sets
 the Status above to ADOPTED with the item id; to decline, set it to REJECTED. A reviewed proposal is never overwritten by a later pull.
 
-%(blocks)s""" % {"kind": rec["kind"], "status": STATUS_OPEN, "item": rec.get("item") or "(none: new, unmapped)", "tracker": rec["tracker"],
+%(blocks)s
+End of proposal (text sha256 %(sha)s).
+""" % {"kind": rec["kind"], "status": STATUS_OPEN, "item": rec.get("item") or "(none: new, unmapped)", "tracker": rec["tracker"],
                  "number": rec["number"], "sha": rec["sha"], "blocks": blocks}
 
 
@@ -88,8 +90,11 @@ def collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees
     unsupported = False
     for iss in issues or []:
         body = iss.get("body") or ""
-        key, _ = engine.key_of(iss)
+        tm = re.match(r"\[([A-Za-z0-9._-]+)\]", iss.get("title") or "")
+        key = tm.group(1) if tm else None           # the TITLE key: a footer is believed only when it names the same item
         footer = engine.FOOTER.search(body)
+        if footer and footer.group(1) != key:
+            footer = None                     # a footer that does not match the title key is not the engine's: untrusted text must not hide intake
         tracker = leg.id
         base = {"tracker": tracker, "number": iss["number"]}
         if footer:
@@ -103,13 +108,13 @@ def collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees
                 unsupported = True
                 continue
             for c in cs:
-                if c["body"].strip() and engine.FOOTER.search(c["body"]) is None:
+                if c["body"].strip():
                     props.append(dict(base, kind="comment", item=item, title=iss.get("title", ""), text=c["body"], sha=_sha(tracker, iss["number"], c["id"], c["body"]), cid=c["id"]))
             continue
         kind, item = "new-issue", None
         if key and key in known:
             kind, item = "adoption-candidate", key        # a human issue whose title claims an item id: adoption is a human decision, never automatic
-        elif engine.SYNC_LABEL in (iss.get("labels") or []):
+        elif engine.FOOTER.search(body) or engine.SYNC_LABEL in (iss.get("labels") or []):
             kind = "footer-stripped"                      # carries the mirror label but no footer: tampered or foreign
         if kind == "new-issue" and assignees and not set(assignees) & set(iss.get("assignees") or []):
             continue                                       # 11.4.296: intake is for issues assigned to a declared account
@@ -150,13 +155,10 @@ def reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids
             fields = [n for n, bad in (("title", cur["title"] != title), ("body", (cur.get("body") or "").strip() != body.strip()),
                                        ("labels", bool(leg.adapter.capabilities.get("can_label")) and sorted(cur["labels"]) != engine.labels_for(res["payload"])),
                                        ("state", (cur["state"] == "closed") != engine.is_closed(res["payload"]["status"]))) if bad]
-            if cur_hash == h and fields:
-                cls = "tracker-edited"
-            elif cur_hash != h and (rendered or {}).get(a["item"]) != _rsha(cur):
-                cls = "tracker-edited"     # the DB moved AND the tracker text is not what the engine last wrote (or no record exists): fail closed, preserve it first
-                fields = fields or ["unknown"]
-            else:
-                cls = "db-ahead"
+            # untouched since the engine last wrote it (recorded rendering equals the tracker's) -> never a human edit, even after an interrupted apply;
+            # anything else (an edit, or no record at all, e.g. a legacy row) is a conflict: fail closed, preserve it first
+            cls = "db-ahead" if (rendered or {}).get(a["item"]) == _rsha(cur) else "tracker-edited"
+            fields = fields or ["unknown"]
             recs.append({"class": cls, "item": a["item"], "number": cur["number"], "fields": fields, "db_moved": cur_hash != h})
     return recs, und
 
@@ -186,9 +188,10 @@ def existing_for(out_dir, rec):
     p = os.path.join(out_dir, proposal_filename(rec))
     try:
         with open(p, errors="replace") as f:
-            return p if rec["sha"] in f.read() else None
+            t = f.read().rstrip()
     except OSError:
         return None
+    return p if t.endswith("End of proposal (text sha256 %s)." % rec["sha"]) and ("Text sha256 | %s" % rec["sha"]) in t else None
 
 
 def write_proposals(props, out_dir, write):
@@ -206,9 +209,27 @@ def write_proposals(props, out_dir, write):
         res["new"].append(name)
         if write:
             os.makedirs(root, exist_ok=True)
-            with open(path, "x") as f:
+            tmp = "%s.tmp%d" % (path, os.getpid())       # complete-or-absent: write aside, fsync, then link (never overwrites), so a crash leaves no half proposal
+            with open(tmp, "w") as f:
                 f.write(render_proposal(rec))
+                f.flush()
+                os.fsync(f.fileno())
+            try:
+                os.link(tmp, path)
+            finally:
+                os.unlink(tmp)
     return res
+
+
+def apply_guard(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered, out_dir, ack_lossy=False):
+    """-> [(item, number)] of tracker edits that apply would overwrite while their text is NOT preserved as a complete proposal (a lossy one needs
+    ack_lossy). Read-only; runs on the SAME listing the apply uses."""
+    recs, _ = reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered)
+    bad = []
+    for c in conflict_proposals(recs, issues, leg):
+        if existing_for(out_dir, c) is None or (c["lossy"] and not ack_lossy):
+            bad.append((c["item"], c["number"]))
+    return bad
 
 
 def run_leg(cmd, items, leg, owner_vis, owner_repo, issues, fps, known_ids, cfg, out_dir, write, rendered=None):
@@ -229,7 +250,10 @@ def run_leg(cmd, items, leg, owner_vis, owner_repo, issues, fps, known_ids, cfg,
     intake = bool(cfg["inbound"]["enabled"])           # conflict capture is protective and always on; reading new intake is default OFF (11.4.296)
     props, und2, owned = collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, cfg["inbound"]["assignees"]) if intake else ([], [], 0)
     props += cprops
-    w = write_proposals(props, out_dir, write)
+    try:
+        w = write_proposals(props, out_dir, write)
+    except (ValueError, OSError) as e:
+        return 2, {"leg": leg.id, "verdict": "UNDETERMINED", "reason": "proposal-write-failed:" + type(e).__name__}
     kinds = {}
     for p in props:
         kinds[p["kind"]] = kinds.get(p["kind"], 0) + 1

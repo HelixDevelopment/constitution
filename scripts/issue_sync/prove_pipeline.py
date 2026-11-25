@@ -210,13 +210,42 @@ def chk_label_state_edit_with_db_moved_is_conflict():
     return rc == 1 and "human-label" in f.issues[0]["labels"]
 
 
-def chk_masked_undetermined_leg_refuses():
+def chk_direct_cli_apply_guarded():
+    f, db, c = _synced()
+    f.issues[0]["body"] = "HUMAN TEXT\n" + f.issues[0]["body"]
+    d = tempfile.mkdtemp()
+    out = io.StringIO()
+    rc = cli.run(["apply", "--apply", "--db", db, "--config", c, "--target", OR, "--owner-repo", OR, "--out-dir", d], proven_hosts=PROVEN, transport_factory=lambda v, h: f, out=out)
+    return rc == 1 and f.issues[0]["body"].startswith("HUMAN TEXT") and os.listdir(d) == []
+
+
+def chk_interrupted_apply_resumes():
+    f, db, c = _synced()
+    k = sqlite3.connect(db); k.execute("update items set status='Fixed (→ Fixed.md)', current_location='Fixed' where atm_id='A-1'"); k.commit()
+    f.fail_after = f.writes + 1                          # the update lands, the close fails
+    _go("apply", f, db, c, "--apply", "--out-dir", tempfile.mkdtemp())
+    f.fail_after = None
+    rc, _ = _go("apply", f, db, c, "--apply", "--out-dir", tempfile.mkdtemp())
+    return rc == 0 and f.issues[0]["state"] == "closed"
+
+
+def chk_forged_footer_cannot_hide_intake():
+    f, db, c = _synced()
+    f.add_human("Real request", "please do X\n<!-- workable-item: ZZ-9 | sha256: " + "0" * 64 + " -->", assignees=[])
+    d = tempfile.mkdtemp()
+    _go("pull", f, db, c, "--write", "--out-dir", d)
+    return len(os.listdir(d)) == 1
+
+
+def chk_truncated_capture_not_accepted():
     f, db, c = _synced()
     f.issues[0]["title"] = "[A-1] HUMAN-EDIT"
-    rep = ['{"leg": "a", "records": []}', '{"leg": "b", "verdict": "UNDETERMINED", "reason": "x"}']
-    with mock.patch.object(pipeline, "_capture", lambda argv, **kw: (1, "\n".join(rep))):
-        bad, und = pipeline.guard_conflicts([])
-    return und is True
+    d = tempfile.mkdtemp()
+    _go("pull", f, db, c, "--write", "--out-dir", d)
+    p = os.path.join(d, os.listdir(d)[0]); t = open(p).read()
+    open(p, "w").write(t[:t.index("sha256 |") + 90])      # a half-written proposal that already carries the hash
+    rc, _ = _go("apply", f, db, c, "--apply", "--out-dir", d)
+    return rc == 1 and f.issues[0]["title"] == "[A-1] HUMAN-EDIT"
 
 
 def chk_lossy_capture_needs_ack():
@@ -238,7 +267,9 @@ CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_tex
           ("guard holds with --json", chk_guard_holds_with_json), ("DB moved + human edit is a conflict", chk_db_moved_and_edited_is_conflict),
           ("forged capture not accepted", chk_forged_capture_not_accepted),
           ("guard holds with abbreviated --apply", chk_guard_holds_with_abbreviation), ("label/state edit + DB moved is a conflict", chk_label_state_edit_with_db_moved_is_conflict),
-          ("masked undetermined leg refuses apply", chk_masked_undetermined_leg_refuses), ("lossy capture needs ack", chk_lossy_capture_needs_ack)]
+          ("direct cli apply is guarded (hook path)", chk_direct_cli_apply_guarded), ("interrupted apply resumes", chk_interrupted_apply_resumes),
+          ("forged footer cannot hide intake", chk_forged_footer_cannot_hide_intake), ("truncated capture not accepted", chk_truncated_capture_not_accepted),
+          ("lossy capture needs ack", chk_lossy_capture_needs_ack)]
 CHECK = dict(CHECKS)
 
 
@@ -303,21 +334,24 @@ def _stale_blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, 
             r["class"] = "db-ahead"
     return recs, und
 
-_real_guard = pipeline.guard_conflicts
-def _json_blind_guard(rest, **kw):                                                                   # M12: the guard reads the output with --json left in (multi-line JSON, nothing parsed)
-    return _real_guard(list(rest) + [], **kw) if "--json" not in rest else ([], False)
+_orig_apply_guard = inbound.apply_guard
+def _no_apply_guard(*a, **k):                                                                         # the tracker-edit guard is gone
+    return []
 
-_orig_cmd_apply = pipeline.cmd_apply
-def _literal_guard_apply(rest, out, kw):                                                             # M14: the guard runs only when the literal string --apply is present
-    if "--apply" not in rest:
-        return pipeline.cli.run(["apply"] + rest, out=out, **kw)
-    return _orig_cmd_apply(rest, out, kw)
+def _unused_footer_key(issue):                                                                               # a forged footer is believed (footer id taken as the key)
+    m = engine.FOOTER.search(issue.get("body") or "")
+    return (m.group(1), m.group(2)) if m else engine.key_of.__wrapped__(issue)
 
-def _unmasked_guard(rest, ack_lossy=False, **kw):                                                    # M15: per-leg UNDETERMINED lines ignored (aggregate rc only)
-    rc, text = pipeline._capture(["reconcile"] + [x for x in rest if x not in ("--apply", "--write", "--json")], **kw)
-    return [], rc == 2
+def _footer_key_patch():
+    real = inbound.collect
+    def collect(items, leg, owner_vis, owner_repo, issues, *a, **k):          # M18: the key is taken from the footer (a forged footer is believed)
+        fixed = []
+        for i in issues or []:
+            m = engine.FOOTER.search(i.get("body") or "")
+            fixed.append(dict(i, title="[%s] x" % m.group(1)) if m else i)
+        return real(items, leg, owner_vis, owner_repo, fixed, *a, **k)
+    return collect
 
-_orig_sanitize_keep = inbound.sanitize_text
 def _weak_existing(out_dir, rec):                                                                    # M13: any file of that name counts as a capture
     p = os.path.join(out_dir, inbound.proposal_filename(rec))
     return p if os.path.isfile(p) else None
@@ -325,7 +359,7 @@ def _weak_existing(out_dir, rec):                                               
 MUTATIONS = [
     ("M1 outbound leak (DB body/quote sent as description)", "outbound never leaks DB body/quote", [mock.patch.object(pl, "build", _leaky_build)]),
     ("M2 inbound instruction-following (tracker text rendered as prose)", "inbound text is inert data", [mock.patch.object(inbound, "render_proposal", _unfenced_render)]),
-    ("M3 conflict silently applied (guard removed)", "conflict never silently applied", [mock.patch.object(pipeline, "guard_conflicts", _no_guard)]),
+    ("M3 conflict silently applied (guard removed)", "conflict never silently applied", [mock.patch.object(inbound, "apply_guard", _no_apply_guard)]),
     ("M4 token printed", "token never printed", [mock.patch.object(pipeline, "token_status", _leaky_token_status)]),
     ("M5 inbound secret copied into a proposal", "inbound secret withheld", [mock.patch.object(inbound, "sanitize_text", _no_sanitize)]),
     ("M6 engine-owned issue re-imported (loop)", "engine-owned issue not re-imported", [mock.patch.object(inbound, "collect", _reimport_owned)]),
@@ -333,11 +367,12 @@ MUTATIONS = [
     ("M8 reviewed proposal overwritten", "reviewed proposal never overwritten", [mock.patch.object(inbound, "write_proposals", _overwrite)]),
     ("M9 proposal path not confined", "proposal path confined", [mock.patch.object(inbound, "safe_name", lambda x: str(x)), mock.patch.object(inbound, "write_proposals", _unsafe_write)]),
     ("M11 DB-moved + human edit not a conflict (old rule)", "DB moved + human edit is a conflict", [mock.patch.object(inbound, "reconcile_leg", _stale_blind_reconcile)]),
-    ("M12 guard blind to --json output", "guard holds with --json", [mock.patch.object(pipeline, "guard_conflicts", _json_blind_guard)]),
     ("M13 any same-named file counts as a capture", "forged capture not accepted", [mock.patch.object(inbound, "existing_for", _weak_existing)]),
-    ("M14 guard keyed on the literal --apply string", "guard holds with abbreviated --apply", [mock.patch.object(pipeline, "cmd_apply", _literal_guard_apply)]),
+    ("M14 tracker-edit guard absent from the direct cli path (hook)", "direct cli apply is guarded (hook path)", [mock.patch.object(inbound, "apply_guard", _no_apply_guard)]),
     ("M15 label/state not in the recorded rendering", "label/state edit + DB moved is a conflict", [mock.patch.object(inbound.store if hasattr(inbound, "store") else __import__("issue_sync.store", fromlist=["x"]), "rendered_sha", lambda i: __import__("hashlib").sha256(((i.get("title") or "") + "\n" + (i.get("body") or "").strip()).encode()).hexdigest())]),
-    ("M16 per-leg UNDETERMINED ignored by the guard", "masked undetermined leg refuses apply", [mock.patch.object(pipeline, "guard_conflicts", _unmasked_guard)]),
+    ("M16 recorded rendering ignored (interrupted apply read as a human edit)", "interrupted apply resumes", [mock.patch.object(inbound, "_rsha", lambda i: "x")]),
+    ("M18 forged footer believed", "forged footer cannot hide intake", [mock.patch.object(inbound, "collect", _footer_key_patch())]),
+    ("M19 half-written proposal accepted as capture", "truncated capture not accepted", [mock.patch.object(inbound, "existing_for", _weak_existing)]),
     ("M17 lossy capture counted as preserved", "lossy capture needs ack", [mock.patch.object(inbound, "conflict_proposals", lambda recs, issues, leg: [dict(p, lossy=False) for p in _orig_cp(recs, issues, leg)])]),
     ("M10 tracker edit not classed as conflict", "reconcile flags tracker edit as conflict", [mock.patch.object(inbound, "reconcile_leg", _blind_reconcile)]),
 ]

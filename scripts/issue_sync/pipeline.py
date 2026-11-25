@@ -56,42 +56,9 @@ def _capture(argv, **kw):
     return rc, buf.getvalue()
 
 
-def guard_conflicts(rest, ack_lossy=False, **kw):
-    """-> (bad, undetermined). bad = [(leg, item, number)] tracker edits whose text is NOT yet preserved as a proposal. Read-only; fails closed:
-    an unreadable or undetermined reconcile is reported as undetermined, never as 'no conflicts'. --json is stripped so the output is always JSON lines."""
-    rc, text = _capture(["reconcile"] + _strip(rest, ("--apply", "--write", "--json")), **kw)
-    bad, parsed, masked = [], 0, False
-    for line in text.splitlines():
-        try:
-            rep = json.loads(line)
-        except ValueError:
-            continue
-        if not isinstance(rep, dict):
-            continue
-        parsed += 1
-        for r in rep.get("records") or []:
-            if r.get("class") == "tracker-edited" and (not r.get("captured") or (r.get("lossy") and not ack_lossy)):
-                bad.append((rep.get("leg"), r.get("item"), r.get("number")))
-        if rep.get("verdict") == "UNDETERMINED" or rep.get("undetermined"):
-            masked = True
-    disabled = "disabled (default OFF)" in text
-    und = masked or (rc == 2) or (rc not in (0, 1)) or (parsed == 0 and not disabled)
-    return bad, und
-
-
 def cmd_apply(rest, out, kw):
-    ack = "--ack-lossy-capture" in rest
-    rest = _strip(rest, ("--ack-lossy-capture",))
-    if True:        # ALWAYS guard: argparse accepts abbreviations of --apply, so a literal-string test could be bypassed; cli refuses a non-apply run anyway
-        bad, und = guard_conflicts(rest, ack, **kw)
-        if und and not bad:
-            print("apply refused: cannot determine whether tracker edits would be overwritten (reconcile undetermined); nothing written", file=out)
-            return 2
-        if bad:
-            print("apply refused: %d tracker edit(s) would be overwritten (the database wins) before their text is preserved: %s. "
-                  "Run `pull --write` first (it saves each tracker version as a reviewable proposal; a proposal that had to withhold a secret shape or truncate the text is 'lossy' and needs --ack-lossy-capture after you have read the tracker text), then apply again." %
-                  (len(bad), "; ".join("%s #%s item %s" % b for b in bad)), file=out)
-            return 1
+    """Outbound apply. The tracker-edit guard lives in cli.run itself (inbound.apply_guard), so EVERY entry point (this facade, issue_sync.sh, the
+    post-merge hook) inherits it; nothing here can skip it."""
     return cli.run(["apply"] + rest, out=out, **kw)
 
 
@@ -150,9 +117,10 @@ def cmd_stage(rest, out_path, out, kw):
     if sub is None:
         print("stage: unknown stage %s" % name, file=sys.stderr)
         return 2
-    if name == "outbound" and "--apply" in opts:
-        sub = "apply"
-    rc, text = _capture([sub] + opts, **kw) if sub != "apply" else (cmd_apply_capture(opts, kw))
+    if "--apply" in opts or "--write" in opts:
+        print("stage refuses --apply/--write: a Docs Chain transform is re-run by `docs_chain verify` and must be side-effect free; use the facade's apply / pull --write", file=sys.stderr)
+        return 2
+    rc, text = _capture([sub] + opts, **kw)
     body = "Verdict: %s\n\n```text\n%s\n```" % ({0: "OK (0)", 1: "DRIFT (1)", 2: "UNDETERMINED (2: never a pass)"}.get(rc, "ERROR (%s)" % rc), text.rstrip())
     if name == "verify":
         rc2, t2 = _capture(["reconcile"] + _strip(opts, ("--apply", "--write")), **kw)
@@ -160,12 +128,6 @@ def cmd_stage(rest, out_path, out, kw):
     with open(out_path, "w") as f:
         f.write(_md("issues-sync stage: " + name, body))
     return 0
-
-
-def cmd_apply_capture(opts, kw):
-    buf = io.StringIO()
-    rc = cmd_apply(opts, buf, kw)
-    return rc, buf.getvalue()
 
 
 def cmd_run(args, out, kw):

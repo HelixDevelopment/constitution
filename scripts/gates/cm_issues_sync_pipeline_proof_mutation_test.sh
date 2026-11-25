@@ -18,7 +18,7 @@ PY
 }
 I="$W/r/scripts/issue_sync"
 fresh; want "CLEAN passes" 0
-fresh; mut "$I/pipeline.py" '        bad, und = guard_conflicts(rest, ack, **kw)' '        bad, und = [], False' && want "P1 conflict guard removed" 1
+fresh; mut "$I/cli.py" 'bad = inbound.apply_guard(' 'bad = [] and inbound.apply_guard(' && want "P1 conflict guard removed (cli, every entry point)" 1
 fresh; mut "$I/inbound.py" 'return "%stext\n%s\n%s" % (f, text, f)' 'return text' && want "P2 tracker text not fenced" 1
 fresh; mut "$I/inbound.py" '    if hits:
         return "[withheld' '    if False:
@@ -29,7 +29,7 @@ fresh; mut "$I/inbound.py" '        if write:
 fresh; mut "$I/inbound.py" '        if footer:
             owned += 1' '        if False:
             owned += 1' && want "P5 owned issue re-imported" 1
-fresh; mut "$I/inbound.py" 'with open(path, "x") as f:' 'with open(path, "w") as f:' && mut "$I/inbound.py" '        if os.path.exists(path):
+fresh; mut "$I/inbound.py" 'os.link(tmp, path)' 'os.replace(tmp, path)' && mut "$I/inbound.py" '        if os.path.exists(path):
             res["kept"]' '        if False:
             res["kept"]' && want "P6 reviewed proposal overwritten" 1
 fresh; mut "$I/pipeline.py" '    return "%s: %s" % (name or "|".join(token_vars), st)' '    return "%s: %s %s" % (name or "|".join(token_vars), st, _)' && want "P7 token value printed" 1
