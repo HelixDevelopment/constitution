@@ -5,7 +5,7 @@
 | Revision | 3 |
 | Created | 2026-11-24 |
 | Last modified | 2026-11-25T09:00:00Z |
-| Status | active, PROVISIONAL (NO host has a proven write path: every write verb of every host is UNCONFIRMED and `apply` refuses to write until `config/forge/issue_sync_proven.tsv` lists the host together with a recorded live create and read-back; the engine is proven only against test doubles) |
+| Status | active, PROVISIONAL (write path PROVEN by a recorded live create, update, close, reopen and read-back on gitlab.com, codeberg.org and git.m3w.org only, 2026-11-25, evidence under `docs/qa/issue_sync/`; github.com (the api_keys.sh token cannot PATCH), gitverse.ru (403 on create) and gitflic.ru (no update/close endpoint found) stay UNCONFIRMED, and `apply` refuses to write to any host not listed in `config/forge/issue_sync_proven.tsv`) |
 | Status summary | Reference, operator guide and FAQ for `scripts/issue_sync.sh`, `scripts/verify_issues_sync.sh` and `scripts/issue_sync/`. |
 | Authority | Anchor 11.4.300; 11.4.93, 11.4.106, 11.4.156, 11.4.289, 11.4.296, 11.4.299, 11.4.257 govern. |
 | Scope | Universal (11.4.17): a consuming project supplies its declaration and its tokens (by variable NAME) as DATA. |

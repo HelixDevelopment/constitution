@@ -1,0 +1,151 @@
+LIVE-CREATE-READBACK-RECORDED codeberg.org
+# live create + update + close + reopen + close, each read back from the listing; no token value recorded (variable NAME only)
+{
+ "host": "codeberg.org",
+ "repo": "vasic-digital/job_seeker",
+ "provider": "gitea",
+ "utc": "2026-11-25T11:07:00.760326+00:00Z",
+ "token_var": "CODEBERG_GITEA_TOKEN",
+ "verdict": "PASS",
+ "steps": [
+  {
+   "step": "repo_info",
+   "ok": true,
+   "result": {
+    "exists": true,
+    "private": true,
+    "issues_enabled": true
+   }
+  },
+  {
+   "step": "create",
+   "ok": true,
+   "result": {
+    "number": 1,
+    "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately.",
+    "state": "open",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_list_after_create",
+   "ok": true,
+   "result": [
+    {
+     "number": 1,
+     "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately.",
+     "state": "open",
+     "labels": []
+    }
+   ]
+  },
+  {
+   "step": "update",
+   "ok": true,
+   "result": {
+    "number": 1,
+    "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "open",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_after_update",
+   "ok": true,
+   "result": [
+    {
+     "number": 1,
+     "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "open",
+     "labels": []
+    }
+   ]
+  },
+  {
+   "step": "close",
+   "ok": true,
+   "result": {
+    "number": 1,
+    "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "closed",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_after_close",
+   "ok": true,
+   "result": [
+    {
+     "number": 1,
+     "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "closed",
+     "labels": []
+    }
+   ]
+  },
+  {
+   "step": "reopen",
+   "ok": true,
+   "result": {
+    "number": 1,
+    "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "open",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_after_reopen",
+   "ok": true,
+   "result": [
+    {
+     "number": 1,
+     "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "open",
+     "labels": []
+    }
+   ]
+  },
+  {
+   "step": "close_final",
+   "ok": true,
+   "result": {
+    "number": 1,
+    "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "closed",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_final",
+   "ok": true,
+   "result": [
+    {
+     "number": 1,
+     "url": "https://codeberg.org/vasic-digital/job_seeker/issues/1",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "closed",
+     "labels": []
+    }
+   ]
+  }
+ ]
+}

@@ -2,3 +2,6 @@
 # Columns (TAB separated): host<TAB>evidence-path   (evidence = a recorded live create + read-back under docs/qa/, relative to this repository root).
 # A host is write-capable only when its row exists AND the evidence file exists. EMPTY by design: no live write has been performed on any host,
 # so every write leg is UNCONFIRMED and `issue_sync apply` refuses to write. Add a row ONLY together with the recorded evidence file.
+git.m3w.org	docs/qa/issue_sync/live_create_readback_git_m3w_org_2026-11-25.txt
+codeberg.org	docs/qa/issue_sync/live_create_readback_codeberg_org_2026-11-25.txt
+gitlab.com	docs/qa/issue_sync/live_create_readback_gitlab_com_2026-11-25.txt

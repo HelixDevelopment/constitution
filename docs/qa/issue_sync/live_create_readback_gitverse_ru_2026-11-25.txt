@@ -1,0 +1,26 @@
+# live create + update + close + reopen + close, each read back from the listing; no token value recorded (variable NAME only)
+{
+ "host": "gitverse.ru",
+ "repo": "milosvasic/job_seeker",
+ "provider": "gitverse",
+ "utc": "2026-11-25T11:07:14.748738+00:00Z",
+ "token_var": "GITVERSE_TOKEN",
+ "verdict": "FAIL:AdapterError:unexpected_status_403",
+ "steps": [
+  {
+   "step": "repo_info",
+   "ok": true,
+   "result": {
+    "exists": true,
+    "private": true,
+    "issues_enabled": true
+   }
+  },
+  {
+   "step": "create",
+   "ok": false,
+   "error": "unexpected_status_403",
+   "status": 403
+  }
+ ]
+}

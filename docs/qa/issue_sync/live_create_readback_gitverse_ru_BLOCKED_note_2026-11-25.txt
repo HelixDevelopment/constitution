@@ -1,0 +1,3 @@
+# gitverse.ru, 2026-11-25: BLOCKED, NOT a proof. See live_create_readback_gitverse_ru_2026-11-25.txt (raw engine run, verdict FAIL).
+# Repo gitverse.ru/milosvasic/job_seeker (private) created by POST /user/repos. GET /repos/milosvasic/job_seeker/issues -> 200 [] ; POST the same path -> 403 with an empty body.
+# Cause UNKNOWN: the token (variable NAME GITVERSE_TOKEN, Bearer) authenticates (GET /user 200) but may lack an issues write scope, or the host forbids API issue creation. Operator action: check the token scopes in the GitVerse UI.
