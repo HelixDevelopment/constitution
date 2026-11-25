@@ -165,12 +165,42 @@ def chk_reconcile_flags_tracker_edit_as_conflict():
     return rc == 1 and '"tracker-edited"' in out
 
 
+def chk_guard_holds_with_json():
+    f, db, c = _synced()
+    f.issues[0]["title"] = "[A-1] HUMAN-EDIT"
+    d = tempfile.mkdtemp()
+    rc, _ = _go("apply", f, db, c, "--apply", "--json", "--out-dir", d)
+    return rc == 1 and f.issues[0]["title"] == "[A-1] HUMAN-EDIT" and os.listdir(d) == []
+
+
+def chk_db_moved_and_edited_is_conflict():
+    f, db, c = _synced()
+    f.issues[0]["title"] = "[A-1] HUMAN-EDIT"
+    k = sqlite3.connect(db); k.execute("update items set title='first v2' where atm_id='A-1'"); k.commit()
+    d = tempfile.mkdtemp()
+    rc, _ = _go("apply", f, db, c, "--apply", "--out-dir", d)
+    return rc == 1 and f.issues[0]["title"] == "[A-1] HUMAN-EDIT"
+
+
+def chk_forged_capture_not_accepted():
+    f, db, c = _synced()
+    f.issues[0]["title"] = "[A-1] HUMAN-EDIT"
+    d = tempfile.mkdtemp()
+    _go("pull", f, db, c, "--write", "--out-dir", d)
+    n = os.listdir(d)[0]
+    open(os.path.join(d, n), "w").write("")            # a stale/empty file with the right name is not a capture
+    rc, _ = _go("apply", f, db, c, "--apply", "--out-dir", d)
+    return rc == 1 and f.issues[0]["title"] == "[A-1] HUMAN-EDIT"
+
+
 CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_text), ("inbound text is inert data", chk_inbound_text_is_inert_data),
           ("conflict never silently applied", chk_conflict_never_silently_applied), ("conflict preserved then DB wins", chk_conflict_preserved_then_db_wins),
           ("token never printed", chk_token_never_printed), ("inbound secret withheld", chk_inbound_secret_withheld),
           ("engine-owned issue not re-imported", chk_engine_owned_not_reimported), ("pull dry-run writes nothing", chk_pull_dry_run_writes_nothing),
           ("reviewed proposal never overwritten", chk_reviewed_proposal_kept), ("proposal path confined", chk_path_confined),
-          ("reconcile flags tracker edit as conflict", chk_reconcile_flags_tracker_edit_as_conflict)]
+          ("reconcile flags tracker edit as conflict", chk_reconcile_flags_tracker_edit_as_conflict),
+          ("guard holds with --json", chk_guard_holds_with_json), ("DB moved + human edit is a conflict", chk_db_moved_and_edited_is_conflict),
+          ("forged capture not accepted", chk_forged_capture_not_accepted)]
 CHECK = dict(CHECKS)
 
 
@@ -186,7 +216,7 @@ def _unfenced_render(rec):                                                      
     return "# Proposal\n\nNew request: %s\n\n%s\n" % (rec.get("title", ""), rec.get("text", ""))
 
 def _no_guard(rest, **kw):                                                                           # M3: the conflict guard is gone: apply overwrites the tracker edit at once
-    return []
+    return [], False
 
 def _leaky_token_status(token_vars):                                                                 # M4: a diagnostic prints the token value
     st, name, val = pipeline.credentials.resolve(token_vars)
@@ -220,12 +250,27 @@ def _unsafe_write(props, out_dir, write):                                       
         open(path, "w").write(inbound.render_proposal(p))
     return {"new": [], "kept": []}
 
-def _blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None):          # M10: a tracker edit is classed as ordinary DB-ahead drift (no conflict)
-    recs, und = _orig_reconcile(items, leg, owner_vis, owner_repo, issues, fps, known_ids)
+def _blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None):          # M10: a tracker edit is classed as ordinary DB-ahead drift (no conflict)
+    recs, und = _orig_reconcile(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered)
     for r in recs:
         r["class"] = "db-ahead" if r["class"] == "tracker-edited" else r["class"]
     return recs, und
 _orig_reconcile = inbound.reconcile_leg
+
+def _stale_blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None):   # M11: the old rule: a conflict only when the DB did NOT move
+    recs, und = _orig_reconcile(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered)
+    for r in recs:
+        if r["class"] == "tracker-edited" and r.get("db_moved"):
+            r["class"] = "db-ahead"
+    return recs, und
+
+_real_guard = pipeline.guard_conflicts
+def _json_blind_guard(rest, **kw):                                                                   # M12: the guard reads the output with --json left in (multi-line JSON, nothing parsed)
+    return _real_guard(list(rest) + [], **kw) if "--json" not in rest else ([], False)
+
+def _weak_existing(out_dir, rec):                                                                    # M13: any file of that name counts as a capture
+    p = os.path.join(out_dir, inbound.proposal_filename(rec))
+    return p if os.path.isfile(p) else None
 
 MUTATIONS = [
     ("M1 outbound leak (DB body/quote sent as description)", "outbound never leaks DB body/quote", [mock.patch.object(pl, "build", _leaky_build)]),
@@ -237,6 +282,9 @@ MUTATIONS = [
     ("M7 pull ignores dry-run", "pull dry-run writes nothing", [mock.patch.object(inbound, "write_proposals", _always_write)]),
     ("M8 reviewed proposal overwritten", "reviewed proposal never overwritten", [mock.patch.object(inbound, "write_proposals", _overwrite)]),
     ("M9 proposal path not confined", "proposal path confined", [mock.patch.object(inbound, "safe_name", lambda x: str(x)), mock.patch.object(inbound, "write_proposals", _unsafe_write)]),
+    ("M11 DB-moved + human edit not a conflict (old rule)", "DB moved + human edit is a conflict", [mock.patch.object(inbound, "reconcile_leg", _stale_blind_reconcile)]),
+    ("M12 guard blind to --json output", "guard holds with --json", [mock.patch.object(pipeline, "guard_conflicts", _json_blind_guard)]),
+    ("M13 any same-named file counts as a capture", "forged capture not accepted", [mock.patch.object(inbound, "existing_for", _weak_existing)]),
     ("M10 tracker edit not classed as conflict", "reconcile flags tracker edit as conflict", [mock.patch.object(inbound, "reconcile_leg", _blind_reconcile)]),
 ]
 

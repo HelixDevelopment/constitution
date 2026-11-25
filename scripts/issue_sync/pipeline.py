@@ -57,23 +57,32 @@ def _capture(argv, **kw):
 
 
 def guard_conflicts(rest, **kw):
-    """-> list of (leg, item, number) tracker edits whose text is NOT yet preserved as a proposal. Read-only."""
-    rc, text = _capture(["reconcile"] + _strip(rest, ("--apply", "--write")), **kw)
-    bad = []
+    """-> (bad, undetermined). bad = [(leg, item, number)] tracker edits whose text is NOT yet preserved as a proposal. Read-only; fails closed:
+    an unreadable or undetermined reconcile is reported as undetermined, never as 'no conflicts'. --json is stripped so the output is always JSON lines."""
+    rc, text = _capture(["reconcile"] + _strip(rest, ("--apply", "--write", "--json")), **kw)
+    bad, parsed = [], 0
     for line in text.splitlines():
         try:
             rep = json.loads(line)
         except ValueError:
             continue
-        for r in (rep.get("records") or []) if isinstance(rep, dict) else []:
+        if not isinstance(rep, dict):
+            continue
+        parsed += 1
+        for r in rep.get("records") or []:
             if r.get("class") == "tracker-edited" and not r.get("captured"):
                 bad.append((rep.get("leg"), r.get("item"), r.get("number")))
-    return bad
+    disabled = "disabled (default OFF)" in text
+    und = (rc == 2) or (rc not in (0, 1)) or (parsed == 0 and not disabled)
+    return bad, und
 
 
 def cmd_apply(rest, out, kw):
     if "--apply" in rest:
-        bad = guard_conflicts(rest, **kw)
+        bad, und = guard_conflicts(rest, **kw)
+        if und and not bad:
+            print("apply refused: cannot determine whether tracker edits would be overwritten (reconcile undetermined); nothing written", file=out)
+            return 2
         if bad:
             print("apply refused: %d tracker edit(s) would be overwritten (the database wins) before their text is preserved: %s. "
                   "Run `pull --write` first (it saves each tracker version as a reviewable proposal), then apply again." %

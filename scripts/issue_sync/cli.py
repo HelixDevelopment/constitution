@@ -182,7 +182,11 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
             continue
         if a.cmd in ("reconcile", "pull"):     # C7: read-only toward trackers and the DB; `pull --write` writes only proposal files
             od = a.out_dir or os.path.join(os.path.dirname(os.path.abspath(a.config)), inbound.PROPOSAL_DIR)
-            r, rep = inbound.run_leg(a.cmd, items, leg, owner_vis, owner_repo, issues, fps, all_ids, cfg, od, a.write)
+            try:
+                rmap = store.load_rendered(con, leg.id)
+            except sqlite3.Error:
+                rmap = {}
+            r, rep = inbound.run_leg(a.cmd, items, leg, owner_vis, owner_repo, issues, fps, all_ids, cfg, od, a.write, rmap)
             report.append(rep)
             rc = 1 if (r == 1 or rc == 1) else max(rc, r)
             continue

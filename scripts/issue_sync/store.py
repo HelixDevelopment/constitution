@@ -42,11 +42,26 @@ def load_sub_projects(con):
 
 def ensure_map(con):
     con.execute(MAP_DDL)
+    if "rendered_sha" not in [r[1] for r in con.execute("PRAGMA table_info(issue_sync_map)").fetchall()]:
+        con.execute("ALTER TABLE issue_sync_map ADD COLUMN rendered_sha TEXT")     # sha of the tracker's title+body as last written by the engine (conflict detection)
     con.commit()
 
 
+def rendered_sha(issue):
+    import hashlib
+    return hashlib.sha256(((issue.get("title") or "") + "\n" + (issue.get("body") or "").strip()).encode()).hexdigest()
+
+
+def load_rendered(con, tracker):
+    """-> {atm_id: sha of the title+body the engine last left on `tracker`}; empty when the table or column does not exist (fail closed upstream)."""
+    try:
+        return {r[0]: r[1] for r in con.execute("SELECT atm_id, rendered_sha FROM issue_sync_map WHERE tracker=? AND rendered_sha IS NOT NULL", (tracker,)).fetchall()}
+    except sqlite3.Error:
+        return {}
+
+
 def record(con, atm_id, leg_id, host, repo, issue, content_hash, now, error=None):
-    con.execute("INSERT OR REPLACE INTO issue_sync_map VALUES (?,?,?,?,?,?,?,?,?,?)",
+    con.execute("INSERT OR REPLACE INTO issue_sync_map (atm_id, tracker, host, repo, issue_number, issue_url, content_hash, last_synced_at, state, last_error, rendered_sha) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (atm_id, leg_id, host, repo, issue["number"] if issue else None, issue["url"] if issue else None, content_hash, now,
-                 issue["state"] if issue else None, error))
+                 issue["state"] if issue else None, error, rendered_sha(issue) if issue else None))
     con.commit()

@@ -119,7 +119,7 @@ def collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees
     return props, und, owned
 
 
-def reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None):
+def reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None):
     """-> (records, undetermined). Record classes: missing-in-tracker, db-ahead, tracker-edited (CONFLICT), duplicate, orphan, anomaly.
     A keyed issue whose footer hash EQUALS the DB's current hash has not been touched by the DB since the last sync, so any visible difference
     (title, body, labels, state) was made on the tracker: that is the conflict class. A footer hash that differs means the DB moved ahead."""
@@ -148,8 +148,20 @@ def reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids
             fields = [n for n, bad in (("title", cur["title"] != title), ("body", (cur.get("body") or "").strip() != body.strip()),
                                        ("labels", bool(leg.adapter.capabilities.get("can_label")) and sorted(cur["labels"]) != engine.labels_for(res["payload"])),
                                        ("state", (cur["state"] == "closed") != engine.is_closed(res["payload"]["status"]))) if bad]
-            recs.append({"class": "tracker-edited" if cur_hash == h and fields else "db-ahead", "item": a["item"], "number": cur["number"], "fields": fields})
+            if cur_hash == h and fields:
+                cls = "tracker-edited"
+            elif cur_hash != h and (rendered or {}).get(a["item"]) != _rsha(cur):
+                cls = "tracker-edited"     # the DB moved AND the tracker text is not what the engine last wrote (or no record exists): fail closed, preserve it first
+                fields = fields or ["unknown"]
+            else:
+                cls = "db-ahead"
+            recs.append({"class": cls, "item": a["item"], "number": cur["number"], "fields": fields, "db_moved": cur_hash != h})
     return recs, und
+
+
+def _rsha(issue):
+    from . import store
+    return store.rendered_sha(issue)
 
 
 def conflict_proposals(recs, issues, leg):
@@ -167,9 +179,13 @@ def conflict_proposals(recs, issues, leg):
 
 
 def existing_for(out_dir, rec):
-    """Path of the proposal file for rec if present."""
+    """Path of the proposal file for rec if present AND it is a real proposal of THIS text (non-empty, carries the full text hash)."""
     p = os.path.join(out_dir, proposal_filename(rec))
-    return p if os.path.isfile(p) else None
+    try:
+        with open(p, errors="replace") as f:
+            return p if rec["sha"] in f.read() else None
+    except OSError:
+        return None
 
 
 def write_proposals(props, out_dir, write):
@@ -192,12 +208,12 @@ def write_proposals(props, out_dir, write):
     return res
 
 
-def run_leg(cmd, items, leg, owner_vis, owner_repo, issues, fps, known_ids, cfg, out_dir, write):
+def run_leg(cmd, items, leg, owner_vis, owner_repo, issues, fps, known_ids, cfg, out_dir, write, rendered=None):
     """-> (rc, report). cmd: reconcile | pull. 0 clean, 1 diffs/conflicts/proposals pending, 2 undetermined (never a pass)."""
     if issues is None:
         r = leg.unconfirmed_reason(["can_list"]) or "capability-unverified:can_list"
         return 2, {"leg": leg.id, "verdict": "UNDETERMINED", "reason": r}
-    recs, und = reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids)
+    recs, und = reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered)
     cprops = conflict_proposals(recs, issues, leg)
     for r in recs:               # tell the caller (and the apply guard) where each conflicting tracker version is, or must be, preserved
         c = next((p for p in cprops if p["number"] == r["number"]), None) if r["class"] == "tracker-edited" else None
@@ -215,7 +231,7 @@ def run_leg(cmd, items, leg, owner_vis, owner_repo, issues, fps, known_ids, cfg,
     for p in props:
         kinds[p["kind"]] = kinds.get(p["kind"], 0) + 1
     und_all = [u["reason"] for u in und] + und2
-    rc = 2 if und2 else 0          # pending proposals are not drift: they are reported, the reviewer decides
+    rc = 2 if (und2 or und) else 0          # an undetermined item is never a clean pull;  pending proposals are not drift: they are reported, the reviewer decides
     return rc, {"leg": leg.id, "mode": "write" if write else "dry-run", "proposals": kinds, "new": w["new"], "kept": w["kept"], "engine_owned_skipped": owned,
                 "conflicts": conflicts, **({} if intake else {"inbound": "inbound disabled (default OFF): intake not read; conflicts are still captured"}),
                 **({"undetermined": sorted(set(und_all))} if und_all else {})}

@@ -117,6 +117,31 @@ class T(unittest.TestCase):
         rc, _ = self.go("apply", f, db, c, "--apply", "--out-dir", d)
         self.assertEqual(rc, 0); self.assertEqual(f.issues[0]["title"], "[A-1] first")      # DB wins, the edit survives as a proposal
 
+    def test_apply_guard_holds_with_json_flag(self):
+        f, db, c = self.synced(); f.issues[0]["title"] = "[A-1] HUMAN EDIT"; d = tempfile.mkdtemp()
+        rc, _ = self.go("apply", f, db, c, "--apply", "--json", "--out-dir", d)
+        self.assertEqual((rc, f.issues[0]["title"], os.listdir(d)), (1, "[A-1] HUMAN EDIT", []))
+
+    def test_db_moved_and_human_edit_is_a_conflict_not_db_ahead(self):
+        import sqlite3
+        f, db, c = self.synced(); f.issues[0]["title"] = "[A-1] HUMAN EDIT"
+        k = sqlite3.connect(db); k.execute("update items set title='first v2' where atm_id='A-1'"); k.commit()
+        rc, out = self.go("reconcile", f, db, c)
+        self.assertIn("tracker-edited", out)
+        self.assertEqual(self.go("apply", f, db, c, "--apply", "--out-dir", tempfile.mkdtemp())[0], 1)
+
+    def test_forged_empty_capture_file_is_not_a_capture(self):
+        f, db, c = self.synced(); f.issues[0]["title"] = "[A-1] HUMAN EDIT"; d = tempfile.mkdtemp()
+        self.go("pull", f, db, c, "--write", "--out-dir", d); open(os.path.join(d, os.listdir(d)[0]), "w").write("")
+        self.assertEqual(self.go("apply", f, db, c, "--apply", "--out-dir", d)[0], 1)
+
+    def test_guard_refuses_with_2_when_reconcile_is_undetermined(self):
+        f, db, c = self.synced()
+        class Down(type(f)):
+            def __call__(self, m, u, h, b): return 429, {}, None
+        rc, out = self.go("apply", Down(), db, c, "--apply", "--out-dir", tempfile.mkdtemp())
+        self.assertEqual(rc, 2)
+
     def test_reviewed_proposal_is_never_overwritten(self):
         f, db, c = self.synced(); f.add_human("t1", "b1")
         d = tempfile.mkdtemp(); self.go("pull", f, db, c, "--write", "--out-dir", d)
