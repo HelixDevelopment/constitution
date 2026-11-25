@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # cm_issues_sync_pipeline_proof.sh -- CM-ISSUES-SYNC-PIPELINE-PROOF gate (anchor §11.4.300, facade + inbound C7, section 1.1 paired mutations).
-# Purpose: runs `scripts/issues_sync_pipeline.sh --prove-failure` (21 controls + 18 mutations over an in-memory tracker double: outbound leak, inbound
+# Purpose: runs `scripts/issues_sync_pipeline.sh --prove-failure` (24 controls + 21 mutations over an in-memory tracker double: outbound leak, inbound
 #   instruction-following, a silently applied conflict, a printed token, a copied secret, a re-imported owned issue, ignored dry-run, an overwritten
 #   reviewed proposal, an unconfined proposal path, a tracker edit not classed as conflict) and the pipeline unit tests, and, when a `docs_chain`
 #   binary is available (DOCS_CHAIN_BIN or PATH), that the shipped templates/docs_chain/issues-sync.yaml passes `docs_chain doctor`.

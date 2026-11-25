@@ -258,6 +258,41 @@ def chk_lossy_capture_needs_ack():
     return rc == 1 and f.issues[0]["title"] == "[A-1] HUMAN-EDIT"
 
 
+def chk_stage_refuses_abbreviated_write():
+    f, db, c = _synced()
+    f.add_human("t", "b")
+    root = tempfile.mkdtemp(); d = os.path.join(root, "p"); outf = os.path.join(root, "o.md")
+    ok = True
+    for flag in ("--wri", "--wr", "--w", "--appl", "--ap", "--write", "--apply"):
+        rc = pipeline.main(["db", outf, "--docs-chain-exec", "stage", "inbound", "--db", db, "--config", c, "--target", OR, "--owner-repo", OR, flag, "--out-dir", d],
+                           proven_hosts=PROVEN, transport_factory=lambda v, h: f, out=io.StringIO())
+        ok = ok and rc == 2 and not os.path.exists(d)
+    return ok
+
+
+def chk_annotated_proposal_still_captured():
+    f, db, c = _synced()
+    f.issues[0]["title"] = "[A-1] HUMAN-EDIT"
+    d = tempfile.mkdtemp()
+    _go("pull", f, db, c, "--write", "--out-dir", d)
+    p = os.path.join(d, os.listdir(d)[0])
+    open(p, "a").write("\nReviewer note: looks fine\n")
+    rc, _ = _go("apply", f, db, c, "--apply", "--out-dir", d)
+    return rc == 0
+
+
+def chk_unreported_assignees_is_undetermined_not_dropped():
+    f, db, c = _synced()
+    f.add_human("real request", "b", assignees=["someone-else"])
+    cfgs = applycfg("inbound:\n  enabled: true\n  assignees: [me]\n")
+    d = tempfile.mkdtemp()
+    from .adapters.github import GitHub
+    real = GitHub.norm
+    with mock.patch.object(GitHub, "norm", staticmethod(lambda j: {k: v for k, v in real(j).items() if k not in ("assignees", "comments")})):
+        rc, out = _go("pull", f, db, cfgs, "--write", "--out-dir", d)
+    return "assignees-unsupported" in out and rc == 2 and len(os.listdir(d)) == 1
+
+
 CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_text), ("inbound text is inert data", chk_inbound_text_is_inert_data),
           ("conflict never silently applied", chk_conflict_never_silently_applied), ("conflict preserved then DB wins", chk_conflict_preserved_then_db_wins),
           ("token never printed", chk_token_never_printed), ("inbound secret withheld", chk_inbound_secret_withheld),
@@ -269,7 +304,9 @@ CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_tex
           ("guard holds with abbreviated --apply", chk_guard_holds_with_abbreviation), ("label/state edit + DB moved is a conflict", chk_label_state_edit_with_db_moved_is_conflict),
           ("direct cli apply is guarded (hook path)", chk_direct_cli_apply_guarded), ("interrupted apply resumes", chk_interrupted_apply_resumes),
           ("forged footer cannot hide intake", chk_forged_footer_cannot_hide_intake), ("truncated capture not accepted", chk_truncated_capture_not_accepted),
-          ("lossy capture needs ack", chk_lossy_capture_needs_ack)]
+          ("lossy capture needs ack", chk_lossy_capture_needs_ack),
+          ("stage refuses abbreviated --write/--apply", chk_stage_refuses_abbreviated_write), ("annotated proposal still captured", chk_annotated_proposal_still_captured),
+          ("unreported assignees is undetermined, not dropped", chk_unreported_assignees_is_undetermined_not_dropped)]
 CHECK = dict(CHECKS)
 
 
@@ -352,6 +389,17 @@ def _footer_key_patch():
         return real(items, leg, owner_vis, owner_repo, fixed, *a, **k)
     return collect
 
+def _tail_existing(out_dir, rec):                                                                     # M22: completeness judged by the file TAIL (a reviewer note breaks it)
+    p = os.path.join(out_dir, inbound.proposal_filename(rec))
+    try:
+        return p if open(p).read().rstrip().endswith("(text sha256 %s)." % rec["sha"]) else None
+    except OSError:
+        return None
+
+_orig_collect2 = inbound.collect
+def _drop_unreported(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees=()):          # M23: issues without an assignees key are silently dropped
+    return _orig_collect2(items, leg, owner_vis, owner_repo, [i for i in (issues or []) if "assignees" in i or not assignees], fps, known_ids, assignees)
+
 def _weak_existing(out_dir, rec):                                                                    # M13: any file of that name counts as a capture
     p = os.path.join(out_dir, inbound.proposal_filename(rec))
     return p if os.path.isfile(p) else None
@@ -374,6 +422,9 @@ MUTATIONS = [
     ("M18 forged footer believed", "forged footer cannot hide intake", [mock.patch.object(inbound, "collect", _footer_key_patch())]),
     ("M19 half-written proposal accepted as capture", "truncated capture not accepted", [mock.patch.object(inbound, "existing_for", _weak_existing)]),
     ("M17 lossy capture counted as preserved", "lossy capture needs ack", [mock.patch.object(inbound, "conflict_proposals", lambda recs, issues, leg: [dict(p, lossy=False) for p in _orig_cp(recs, issues, leg)])]),
+    ("M20 stage keyed on exact --apply/--write strings", "stage refuses abbreviated --write/--apply", [mock.patch.object(pipeline, "forbidden_stage_opts", lambda o: any(t in ("--apply", "--write") for t in o))]),
+    ("M22 completeness judged by file tail", "annotated proposal still captured", [mock.patch.object(inbound, "existing_for", _tail_existing)]),
+    ("M23 intake without assignees dropped silently", "unreported assignees is undetermined, not dropped", [mock.patch.object(inbound, "collect", _drop_unreported)]),
     ("M10 tracker edit not classed as conflict", "reconcile flags tracker edit as conflict", [mock.patch.object(inbound, "reconcile_leg", _blind_reconcile)]),
 ]
 

@@ -87,7 +87,7 @@ def collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees
     """-> (proposals, undetermined_reasons, owned_skipped). Pure given the adapter's read verbs."""
     known = set(known_ids or ()) | {i["atm_id"] for i in items}
     props, und, owned = [], [], 0
-    unsupported = False
+    unsupported = noassign = False
     for iss in issues or []:
         body = iss.get("body") or ""
         tm = re.match(r"\[([A-Za-z0-9._-]+)\]", iss.get("title") or "")
@@ -116,9 +116,13 @@ def collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees
             kind, item = "adoption-candidate", key        # a human issue whose title claims an item id: adoption is a human decision, never automatic
         elif engine.FOOTER.search(body) or engine.SYNC_LABEL in (iss.get("labels") or []):
             kind = "footer-stripped"                      # carries the mirror label but no footer: tampered or foreign
-        if kind == "new-issue" and assignees and not set(assignees) & set(iss.get("assignees") or []):
+        if kind == "new-issue" and assignees and "assignees" not in iss:
+            noassign = True                                # the adapter cannot report assignees: keep the proposal, flag the leg undetermined (never a silent drop)
+        elif kind == "new-issue" and assignees and not set(assignees) & set(iss.get("assignees") or []):
             continue                                       # 11.4.296: intake is for issues assigned to a declared account
         props.append(dict(base, kind=kind, item=item, title=iss.get("title", ""), text=body, sha=_sha(tracker, iss["number"], iss.get("title"), body)))
+    if noassign:
+        und.append("assignees-unsupported:%s" % leg.adapter.provider)
     if unsupported:
         und.append("comments-unsupported:%s" % leg.adapter.provider)
     return props, und, owned
@@ -191,7 +195,7 @@ def existing_for(out_dir, rec):
             t = f.read().rstrip()
     except OSError:
         return None
-    return p if t.endswith("End of proposal (text sha256 %s)." % rec["sha"]) and ("Text sha256 | %s" % rec["sha"]) in t else None
+    return p if ("\nEnd of proposal (text sha256 %s)." % rec["sha"]) in t and ("Text sha256 | %s" % rec["sha"]) in t else None     # a reviewer may append notes
 
 
 def write_proposals(props, out_dir, write):
@@ -215,9 +219,16 @@ def write_proposals(props, out_dir, write):
                 f.flush()
                 os.fsync(f.fileno())
             try:
-                os.link(tmp, path)
+                try:
+                    os.link(tmp, path)
+                except FileExistsError:
+                    pass
+                except OSError:                       # no hard links on this filesystem: re-check, then rename into place
+                    if not os.path.exists(path):
+                        os.replace(tmp, path)
             finally:
-                os.unlink(tmp)
+                if os.path.exists(tmp):
+                    os.unlink(tmp)
     return res
 
 
