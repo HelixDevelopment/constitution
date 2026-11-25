@@ -201,6 +201,9 @@ class TestR4PrivateCorpusLive(unittest.TestCase):
         zw = {"atm_id": "A-4", "type": "Bug", "status": "Queued", "title": "A the\u200bquick brown fox jumps over the lazy", "severity": "", "description": "d",
               "body_md": "x the quick brown fox jumps over the lazy dog"}
         self.assertEqual(payload.prepare(zw)["verdict"], "BLOCKED")
+        short = {"atm_id": "A-5", "type": "Bug", "status": "Queued", "title": "six seven eight nine ten eleven twelve", "severity": "", "description": "d",
+                 "body_md": "one two three four five six\nseven eight nine ten eleven twelve"}
+        self.assertEqual(payload.prepare(short)["verdict"], "BLOCKED")      # a run stitched across two SHORT lines is caught by the joined-words pass
         # the allowance never covers the verbatim operator quote
         q = dict(ok, forensic_anchor="Only 5 of 42 areas carry a test")
         self.assertEqual(payload.prepare(q)["verdict"], "BLOCKED")

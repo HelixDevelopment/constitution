@@ -31,7 +31,7 @@ def own_private_fingerprints(item, k=RUN_WORDS):
     The one allowance: when ONE LINE of the body repeats the item's WHOLE title (its heading, 'the question put to the operator was: <title>'), the title is
     public restated, and the title's own shingles are not counted as private. A title that is NOT repeated whole in the body gets no allowance, so
     a title that splices in 7 or more verbatim words of the body or the quote is blocked. `forensic_anchor` never gets the allowance.
-    Residual, stated plainly: a title that is exactly a private body sentence is indistinguishable from a restated title and passes."""
+    Fingerprints are taken per line AND over the joined words, so a run stitched across hard-wrapped or short lines is caught too. Residual, stated plainly: a title that is exactly a private body sentence is indistinguishable from a restated title and passes (so does a confusable-homoglyph title)."""
     title = " ".join(redact._words(str(item.get("title") or "")))
     fps, anchor, body = set(), set(), set()
     whole = False                      # is the WHOLE title on ONE body line? (a title stitched from adjacent lines gets no allowance)
@@ -42,6 +42,8 @@ def own_private_fingerprints(item, k=RUN_WORDS):
                 dest |= redact.fingerprints(w, k)
                 if field == "body_md" and title and (" " + title + " ") in (" " + w + " "):
                     whole = True
+    for field, dest in (("forensic_anchor", anchor), ("body_md", body)):    # plus the JOINED words, so a run that spans short or hard-wrapped lines is caught
+        dest |= redact.fingerprints(" ".join(redact._words(redact.normalise(str(item.get(field) or "")))), k)
     if whole:
         body -= redact.fingerprints(title, k)
     return anchor | body
