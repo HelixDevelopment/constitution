@@ -1,0 +1,13 @@
+{
+  "name": "pi-constitution",
+  "version": "1.0.0",
+  "description": "Pi extension that binds the Helix Constitution governance layer into Pi: validates Constitution compliance, surfaces governance status, and routes failures through triage-error.",
+  "main": "pi-constitution.ts",
+  "schema": "pi.extension.v1",
+  "hooks": ["session_start", "tool_call"],
+  "constitution": {
+    "submodule_path": "submodules/constitution",
+    "governance_files": ["Constitution.md", "CLAUDE.md", "AGENTS.md"],
+    "mandate_sections": ["§11.4.26", "§11.4.28", "§11.4.31", "§11.4.32"]
+  }
+}
