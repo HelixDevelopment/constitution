@@ -35,13 +35,13 @@ def _words(text):
     return re.sub(r"[^a-z0-9]+", " ", normalise(text).lower()).split()
 
 
-def fingerprints(corpus, k=8):
+def fingerprints(corpus, k=7):
     """Set of hashes of k-word shingles of a private corpus (hashes only are kept)."""
     w = _words(corpus)
     return {hashlib.sha256(" ".join(w[i:i + k]).encode()).hexdigest()[:24] for i in range(max(0, len(w) - k + 1))}
 
 
-def scan(payload, fingerprint_set=None, k=8):
+def scan(payload, fingerprint_set=None, k=7):
     hits = []
     for field, val in sorted(payload.items()):
         if not isinstance(val, str):

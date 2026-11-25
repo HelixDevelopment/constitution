@@ -79,7 +79,7 @@ class TestCli(unittest.TestCase):
                 return super().__call__(m, url, h, body)
         f = NoPriv(); rc, out = run(self.args("plan", mkdb(ROWS), cfgfile()), f); self.assertEqual(rc, 2); self.assertIn("visibility-undetermined", out); self.assertEqual(f.writes, 0)
     def test_redaction_blocks_item_by_id_only(self):
-        rows = [("A-1", "Bug", "Queued", "t", "", "leaked ghp_" + "a"*36 + " here", None, None, "Issues")]
+        rows = [("A-1", "Bug", "Queued", "leaked ghp_" + "a"*36 + " here", "", "d", None, None, "Issues")]
         f = FakeGitHub(); rc, out = run(self.args("plan", mkdb(rows), cfgfile()), f)
         self.assertEqual(rc, 2); self.assertIn("blocked", out); self.assertNotIn("aaaa", out)
     def test_third_party_never_synced(self):

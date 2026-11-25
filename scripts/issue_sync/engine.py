@@ -22,16 +22,22 @@ def labels_for(p):
     return sorted([SYNC_LABEL, "status:" + slug(p["status"]), "type:" + p["type"].lower()])
 
 
-def render(p, h, doc_path=None):
-    """-> (title, body). Body holds only mirrored fields, a repo-relative pointer and the hidden footer."""
+def render(p, h, doc_path=None, repo_url=None):
+    """-> (title, body). A FIXED template: generated summary, type, status, severity, a link to the owning repository and a repo-relative
+    pointer to its workable-items DB, then the hidden footer. No free text of the DB is ever placed here except the (redaction-gated) title."""
     body = p["description"].strip()
     if p["severity"]:
         body += "\n\nSeverity: " + p["severity"]
     body += "\n\nStatus: %s | Type: %s" % (p["status"], p["type"])
-    if doc_path:
-        body += "\nDetails (repo readers only): `%s`" % doc_path
+    if repo_url:
+        body += "\nRepository: %s" % repo_url
+    body += "\nDetails (repository readers only): `%s`, item `%s`" % (doc_path or pl.DOC_POINTER, p["atm_id"])
     body += "\n\n<!-- workable-item: %s | sha256: %s -->" % (p["atm_id"], h)
     return "[%s] %s" % (p["atm_id"], p["title"]), body
+
+
+def _repo_url(leg):
+    return "https://%s/%s/%s" % (leg.host, leg.owner, leg.repo)
 
 
 def key_of(issue):
@@ -113,7 +119,7 @@ def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None, kn
             acts.append({"op": "anomaly", "item": aid, "number": cur["number"], "reason": "unkeyed-title-match"})
             continue
         _, cur_hash = key_of(cur)
-        want_title, want_body = render(res["payload"], h)
+        want_title, want_body = render(res["payload"], h, repo_url=_repo_url(leg))
         if cur_hash != h or cur["title"] != want_title or (cur.get("body") or "").strip() != want_body.strip() \
                 or (leg.adapter.capabilities.get("can_label") and sorted(cur["labels"]) != labels_for(res["payload"])):
             r = leg.unconfirmed_reason(["can_update"])
@@ -152,7 +158,7 @@ def apply_leg(items, leg, actions, doc_path_for=lambda it: None, on_done=None, a
         if res["verdict"] != "OK":                      # re-gate immediately before the write
             out.append(dict(a, done=False, error="redaction-regate"))
             continue
-        title, body = render(res["payload"], res["hash"], doc_path_for(it))
+        title, body = render(res["payload"], res["hash"], doc_path_for(it), _repo_url(leg))
         lab = labels_for(res["payload"])
         ad = leg.adapter
         if a["op"] == "create":

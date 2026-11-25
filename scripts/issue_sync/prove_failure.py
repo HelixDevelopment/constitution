@@ -3,6 +3,7 @@
 control verdict is 0, then applies each mutation and asserts the verdict flips to its expected non-zero code. Exit 0 only when the control is green
 AND every mutation is caught. Tests THIS tool's logic with a test double (anchor 11.4.289); it is not evidence about any host."""
 import io
+import json
 import os
 import re
 import sqlite3
@@ -42,7 +43,7 @@ def m_footer(f, db): f.issues[0]["body"] = re.sub(r"<!--.*?-->", "", f.issues[0]
 def m_corrupt_hash(f, db): f.issues[0]["body"] = re.sub(r"sha256: [0-9a-f]{8}", "sha256: 00000000", f.issues[0]["body"])
 def m_db_status(f, db): c = sqlite3.connect(db); c.execute("update items set status='In progress' where atm_id='A-1'"); c.commit()
 def m_orphan(f, db): c = sqlite3.connect(db); c.execute("delete from items where atm_id='A-1'"); c.commit()
-def m_canary(f, db): c = sqlite3.connect(db); c.execute("update items set description='canary ghp_%s here' where atm_id='A-1'" % ("c" * 36)); c.commit()
+def m_canary(f, db): c = sqlite3.connect(db); c.execute("update items set title='canary ghp_%s here' where atm_id='A-1'" % ("c" * 36)); c.commit()
 def m_label(f, db): f.issues[0]["labels"] = []
 def m_rate(f, db): f.always = 429
 
@@ -57,7 +58,7 @@ def main():
     for fn, exp, name in [(m_delete, 1, "tracker issue deleted"), (m_title, 1, "title edited"), (m_close, 1, "open item's issue closed"),
                           (m_reopen_closed, 1, "closed item's issue reopened"), (m_dup, 1, "duplicate key"), (m_footer, 1, "hidden footer stripped"),
                           (m_corrupt_hash, 1, "footer hash corrupted"), (m_db_status, 1, "DB status change without sync"), (m_orphan, 1, "keyed issue with no item"),
-                          (m_label, 1, "labels stripped"), (m_canary, 2, "redaction canary in description (hard stop, never a pass)")]:
+                          (m_label, 1, "labels stripped"), (m_canary, 2, "redaction canary in title (hard stop, never a pass)")]:
         scenario(fn, exp, name, results)
     # visibility/ownership cases run the REAL apply path against two doubles (GitHub owner, GitLab mirror) with DIFFERENT per-repo visibility;
     # the case passes only when the verdict is the expected rc, NO double saw a write and the report names the expected reason.
@@ -95,6 +96,11 @@ def main():
     _run(db3, cfg, f3, cmd="apply", extra=["--apply"])
     leaked = any("WSP-1" in i["title"] for i in f3.issues)
     results.append(("private-prefix item routed to public tracker", 0, 1 if leaked else 0, not leaked))
+    # the DB description and body are NEVER mirrored: a marker planted in both must not reach the tracker (catches a mutant that sends them)
+    rowsd = [("D-1", "Bug", "Queued", "marker title", "", "DESCRIPTION-MARKER-XYZ text", "Q", "BODY-MARKER-XYZ text", "Issues")]
+    fd = FakeGitHub(); rcd = _run(mkdb(rowsd), cfg, fd, cmd="apply", extra=["--apply"])
+    sent = json.dumps(fd.issues)
+    results.append(("DB description/body never sent (generated summary only)", 0, rcd, rcd == 0 and len(fd.issues) == 1 and "MARKER-XYZ" not in sent))
     bad = 0
     for name, exp, rc, ok in results:
         print("%s %-55s expected rc %s got rc %s" % ("OK  " if ok else "FAIL", name, exp, rc))

@@ -55,9 +55,9 @@ class T(unittest.TestCase):
         c = dict(a); c["body_md"] = "ignored"
         self.assertEqual(p.content_hash(p.build(a)), p.content_hash(p.build(c)))
     def test_gate_blocks_on_hit(self):
-        item = {"atm_id": "A-2", "type": "Task", "status": "Queued", "title": "t", "severity": "", "description": "token ghp_" + "q"*36}
+        item = {"atm_id": "A-2", "type": "Task", "status": "Queued", "title": "token ghp_" + "q"*36, "severity": "", "description": "d"}
         res = p.prepare(item)
         self.assertEqual(res["verdict"], "BLOCKED"); self.assertEqual(res["item"], "A-2"); self.assertNotIn("qqqq", repr(res))
-        ok = p.prepare({**item, "description": "fine"}); self.assertEqual(ok["verdict"], "OK"); self.assertIn("hash", ok)
+        ok = p.prepare({**item, "title": "fine"}); self.assertEqual(ok["verdict"], "OK"); self.assertIn("hash", ok)
 
 if __name__ == "__main__": unittest.main()

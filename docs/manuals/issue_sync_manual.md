@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Revision | 2 |
+| Revision | 3 |
 | Created | 2026-11-24 |
 | Last modified | 2026-11-25T09:00:00Z |
 | Status | active, PROVISIONAL (NO host has a proven write path: every write verb of every host is UNCONFIRMED and `apply` refuses to write until `config/forge/issue_sync_proven.tsv` lists the host together with a recorded live create and read-back; the engine is proven only against test doubles) |
@@ -25,7 +25,7 @@
 
 ## 1. What it does
 
-The workable-items SQLite database (11.4.93) is the source of truth. The engine mirrors each item, one way, to the Issues of the repository that owns it, on every declared upstream whose repository exists and has Issues enabled. A tracker edit never changes an item; the next run resets the tracker. Only `atm_id`, `type`, `status`, `title`, `severity` and `description` are sent. Mirror issues are the carve-out of §11.4.300(H): they are exempt from the §11.4.296 scope ruling only while they carry the hidden footer; an issue without the footer is never created, adopted, commented, labelled, changed or closed (an unkeyed issue whose title starts with `[ID]` is reported as an anomaly and counts as drift). Verbatim operator quotes, long bodies, reproduction evidence and test diaries are never sent.
+The workable-items SQLite database (11.4.93) is the source of truth. The engine mirrors each item, one way, to the Issues of the repository that owns it, on every declared upstream whose repository exists and has Issues enabled. A tracker edit never changes an item; the next run resets the tracker. The issue text is a GENERATED PUBLIC SUMMARY (operator decision 2026-11-25). Only `atm_id`, `type`, `status`, `title` and `severity` come from the database; `description` is a generated field (a fixed sentence), and the body is a fixed template: summary, severity, status and type, a link to the owning repository and a repository-relative pointer to `docs/workable_items.db` with the item id. The database's description and body text are NEVER mirrored. Mirror issues are the carve-out of §11.4.300(H): they are exempt from the §11.4.296 scope ruling only while they carry the hidden footer; an issue without the footer is never created, adopted, commented, labelled, changed or closed (an unkeyed issue whose title starts with `[ID]` is reported as an anomaly and counts as drift). Verbatim operator quotes, long bodies, reproduction evidence and test diaries are never sent.
 
 ## 2. Turning it on (default OFF)
 
@@ -42,13 +42,13 @@ scripts/verify_issues_sync.sh --prove-failure     # paired mutations over a test
 python3 -m issue_sync.live_probe H/O/R ...        # read-only repo existence, visibility, issues-enabled
 ```
 
-`--db-repo` is REQUIRED when the DB has parent prefixes (the parent's items go to the repo you name, never to whichever `--owner-repo` was passed). A DB with no routing data (no or empty `sub_projects`) is routed only when ALL its items share ONE prefix; otherwise nothing is sent. `--private-corpus FILE` (repeatable, also `ISSUE_SYNC_PRIVATE_CORPUS`) fingerprints a private corpus whose 8-word shingles may never appear in an outgoing title or description; an unreadable or empty corpus is exit 2. Independently of any corpus, each item's own `forensic_anchor` and `body_md` text is fingerprinted against its outgoing fields. `--only-open` and `--limit` verify only part of the items: they never create orphans, but a partial verify is not a statement about the rest. `verify` with no routed item is exit 2, never 0.
+`--db-repo` is REQUIRED when the DB has parent prefixes (the parent's items go to the repo you name, never to whichever `--owner-repo` was passed). A DB with no routing data (no or empty `sub_projects`) is routed only when ALL its items share ONE prefix; otherwise nothing is sent. `--private-corpus FILE` (repeatable, also `ISSUE_SYNC_PRIVATE_CORPUS`) fingerprints a private corpus whose 8-word shingles may never appear in an outgoing title or description; an unreadable or empty corpus is exit 2. Independently of any corpus, each item's own `forensic_anchor` and `body_md` text is fingerprinted (7-word runs) against every outgoing field, the title above all. One allowance: a body that repeats the item's WHOLE title (its heading) does not make the title block itself; a title that is not repeated whole in the body, or any run of the operator quote, gets no allowance. Residual: a title that is exactly a private body sentence cannot be told from a restated title. `--only-open` and `--limit` verify only part of the items: they never create orphans, but a partial verify is not a statement about the rest. `verify` with no routed item is exit 2, never 0.
 
 Exit: 0 in sync (or disabled), 1 drift (item ids and trackers named), 2 cannot determine (no token, host unreachable, capability unverified, visibility undetermined, redaction stop, quota). 2 is never a pass; precedence 1 over 2 over 0.
 
 ## 4. Visibility and redaction rules
 
-The owning repository is probed itself; an item goes only to trackers of that repository (any host mirror of the same owner and name). Private to public is refused; GitLab `internal` (readable by every signed-in user) and any unknown visibility value are undetermined, never private; undetermined visibility on either side blocks; third-party prefixes (`sub_projects.class = third-party`) are never synced. Every payload is scanned before every write for secret shapes (GitHub, GitLab, AWS, Slack, Stripe, Google, SendGrid, npm and LLM keys, JWT, private keys, URL credentials, quoted assignments), personal data (email, phone), operator-quote markers and, optionally, fingerprints of a private corpus. A hit is a hard stop that names the item by id and the kind only.
+The owning repository is probed itself; an item goes only to trackers of that repository (any host mirror of the same owner and name). Private to public is refused; GitLab `internal` (readable by every signed-in user) and any unknown visibility value are undetermined, never private; undetermined visibility on either side blocks; third-party prefixes (`sub_projects.class = third-party`) are never synced. Every payload is scanned before every write for secret shapes (GitHub, GitLab, AWS, Slack, Stripe, Google, SendGrid, npm and LLM keys, JWT, private keys, URL credentials, quoted assignments), personal data (email, phone), operator-quote markers and, optionally, fingerprints of a private corpus. A hit is a hard stop that names the item by id and the kind only. (Because the DB description is not mirrored, it is not scanned; the title and every generated field are.)
 
 ## 5. Identity, idempotency and resume
 
@@ -74,6 +74,8 @@ Issues assigned to a declared account enter through 11.4.296, once. An issue car
 ## 9. FAQ
 
 **Why is a leg UNCONFIRMED?** The host's write API is not proven by a live create and read-back (Gitea family, GitVerse, GitFlic), the repository does not exist there, or Issues are disabled. It is never counted in sync.
+
+**Why does an issue not show the item's description?** The issue text is a generated public summary (operator decision 2026-11-25): title, type, status, severity, a link to the owning repository and a pointer to `docs/workable_items.db` with the item id. The database's description and body are never mirrored, so they can neither leak nor block an item; read them in the repository.
 
 **Can a tracker edit change an item?** No. The next run resets it.
 

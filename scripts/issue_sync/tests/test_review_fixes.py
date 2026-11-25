@@ -43,6 +43,8 @@ class TestB1CapabilitiesUnconfirmed(unittest.TestCase):
         self.assertEqual(registry.load_proven(t, root=d), set())
         os.makedirs(os.path.join(d, "docs/qa")); open(os.path.join(d, "docs/qa/none.txt"), "w").write("a read-only probe, no write")
         self.assertEqual(registry.load_proven(t, root=d), set())            # an existing file without the recorded create+read-back marker proves nothing
+        open(os.path.join(d, "docs/qa/none.txt"), "w").write("notes\n" + registry.EVIDENCE_MARKER + " gitlab.com 2026-11-25\n")
+        self.assertEqual(registry.load_proven(t, root=d), set())            # a marker line for ANOTHER host proves nothing for this one
         open(os.path.join(d, "docs/qa/none.txt"), "w").write("notes\n" + registry.EVIDENCE_MARKER + " github.com 2026-11-25\n")
         self.assertEqual(registry.load_proven(t, root=d), {"github.com"})
         open(t, "w").write("unknown.example\tdocs/qa/none.txt\n")
@@ -161,7 +163,7 @@ class TestR3EmptyVerifyIsNotAPass(unittest.TestCase):
 
 class TestR4PrivateCorpusLive(unittest.TestCase):
     CORPUS = "the private roadmap says we will acquire the competitor in march after the board vote and then announce it"
-    ROW = [("A-1", "Bug", "Queued", "t", "", "note we will acquire the competitor in march after the board vote ok", None, None, "Issues")]
+    ROW = [("A-1", "Bug", "Queued", "note we will acquire the competitor in march after the board vote ok", "", "d", None, None, "Issues")]
     def corpus(self):
         p = os.path.join(tempfile.mkdtemp(), "c.txt"); open(p, "w").write(self.CORPUS); return p
     def test_plan_apply_verify_block_a_corpus_overlap(self):
@@ -178,14 +180,23 @@ class TestR4PrivateCorpusLive(unittest.TestCase):
         rc, out = go(base("plan", db, cfgfile(), "--private-corpus", "/nonexistent/c.txt"), f); self.assertEqual((rc, f.calls), (2, []))
         e = os.path.join(tempfile.mkdtemp(), "e.txt"); open(e, "w").write("short")
         rc, out = go(base("plan", db, cfgfile(), "--private-corpus", e), f); self.assertEqual((rc, f.calls), (2, []))
-    def test_item_own_forensic_anchor_and_body_overlap_blocks(self):
-        text = "operator said never ship the unreleased pricing table before the quarterly board meeting"
-        rows = [("A-1", "Bug", "Queued", "t", "", "we should never ship the unreleased pricing table before the quarterly board meeting", text, None, "Issues"),
-                ("A-2", "Bug", "Queued", "t2", "", "plain unrelated description of the parser bug", text, text, "Issues")]
+    def test_item_own_forensic_anchor_overlap_blocks_the_title(self):
+        quote = "operator said never ship the unreleased pricing table before the quarterly board meeting"
+        rows = [("A-1", "Bug", "Queued", "we must never ship the unreleased pricing table before the quarterly board meeting", "", "d", quote, None, "Issues"),
+                ("A-2", "Bug", "Queued", "plain parser bug", "", "d", quote, None, "Issues")]
         f = FakeGitHub(); rc, out = go(base("plan", mkdb(rows), cfgfile()), f)
         self.assertEqual(rc, 2); self.assertIn('"blocked": 1', out); self.assertIn('"create": 1', out)
-        res = payload.prepare({"atm_id": "A-1", "type": "Bug", "status": "Queued", "title": "t", "severity": "", "description": rows[0][5], "body_md": text})
-        self.assertEqual(res["verdict"], "BLOCKED")
+    def test_title_splicing_seven_words_of_the_body_is_blocked_but_a_restated_title_passes(self):
+        body = "## A-1 heading\n\nThe private rollout plan moves the vendor contract to the second quarter after legal sign off.\n"
+        spliced = {"atm_id": "A-1", "type": "Bug", "status": "Queued", "title": "fix: moves the vendor contract to the second quarter after legal", "severity": "", "description": "d", "body_md": body}
+        self.assertEqual(payload.prepare(spliced)["verdict"], "BLOCKED")
+        restated_title = "Only 5 of 42 areas carry a test"
+        ok = {"atm_id": "A-2", "type": "Bug", "status": "Queued", "title": restated_title, "severity": "", "description": "d",
+              "body_md": "## A-2 - " + restated_title + "\n\nThe question put to the operator was: " + restated_title + "\n"}
+        self.assertEqual(payload.prepare(ok)["verdict"], "OK")
+        # the allowance never covers the verbatim operator quote
+        q = dict(ok, forensic_anchor="Only 5 of 42 areas carry a test")
+        self.assertEqual(payload.prepare(q)["verdict"], "BLOCKED")
 
 
 class TestR5MalformedBody(unittest.TestCase):
@@ -291,3 +302,46 @@ class TestR6CanonicalRepo(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestGeneratedPublicSummary(unittest.TestCase):
+    """Operator decision 2026-11-25: issue text is a GENERATED public summary; no DB description or body is ever mirrored."""
+    SECRET_DESC = "UNIQUE-DB-DESCRIPTION-MARKER should never be mirrored anywhere in a tracker"
+    ROWS = [("A-1", "Bug", "Queued", "first title", "High", SECRET_DESC, "Q", "BODYTEXT-MARKER body", "Issues")]
+    def test_db_description_and_body_are_never_sent(self):
+        f = FakeGitHub(); go(base("apply", mkdb(self.ROWS), applycfg(), "--apply"), f)
+        blob = json.dumps(f.issues); self.assertEqual(len(f.issues), 1)
+        for m in ("UNIQUE-DB-DESCRIPTION-MARKER", "BODYTEXT-MARKER", "should never be mirrored"): self.assertNotIn(m, blob)
+    def test_fixed_template_shape(self):
+        f = FakeGitHub(); go(base("apply", mkdb(self.ROWS), applycfg(), "--apply"), f)
+        i = f.issues[0]
+        self.assertEqual(i["title"], "[A-1] first title")
+        self.assertIn(payload.GENERATED_DESCRIPTION, i["body"]); self.assertIn("Severity: High", i["body"]); self.assertIn("Status: Queued | Type: Bug", i["body"])
+        self.assertIn("Repository: https://github.com/o/r", i["body"]); self.assertIn("`docs/workable_items.db`, item `A-1`", i["body"])
+        self.assertRegex(i["body"], r"<!-- workable-item: A-1 \| sha256: [0-9a-f]{64} -->")
+    def test_description_edit_alone_changes_nothing_in_the_mirror(self):
+        f = FakeGitHub(); db = mkdb(self.ROWS); c = applycfg(); go(base("apply", db, c, "--apply"), f)
+        k = sqlite3.connect(db); k.execute("update items set description='something else entirely'"); k.commit()
+        rc, _ = go(base("verify", db, cfgfile()), f); self.assertEqual(rc, 0)
+        w = f.writes; go(base("apply", db, c, "--apply"), f); self.assertEqual(f.writes, w)
+    def test_allowlist_and_generated_fields(self):
+        self.assertEqual(payload.ALLOWED_FIELDS, ("atm_id", "type", "status", "title", "severity")); self.assertEqual(payload.GENERATED_FIELDS, ("description",))
+        pl = payload.build({"atm_id": "A-1", "title": "t", "description": "DB TEXT", "body_md": "B"}); self.assertEqual(pl["description"], payload.GENERATED_DESCRIPTION)
+    def test_secret_in_the_db_description_cannot_leak_and_does_not_block(self):
+        rows = [("A-1", "Bug", "Queued", "t", "", "token ghp_" + "a" * 36, None, None, "Issues")]
+        f = FakeGitHub(); rc, out = go(base("apply", mkdb(rows), applycfg(), "--apply"), f); self.assertEqual(rc, 0); self.assertNotIn("ghp_", json.dumps(f.issues))
+    def test_real_shaped_umbrella_rows_route_unblocked_and_private_prefixes_never_sent(self):
+        body = lambda t: "## %s - %s\n\n**Status:** Queued\n\nWHAT - the question put to the operator was: %s\n" % ("VSC-1", t, t)
+        t1 = "operator decision 2026-09-07 #3 - Only 5 of 42 areas carry a test"
+        rows = [("VSC-1", "Task", "Queued", t1, "", "WHAT - " + t1, "docs/OPERATOR-DECISIONS.md row 3", body(t1), "Issues"),
+                ("VSC-2", "Task", "Queued", "second title", "", "d", None, "b", "Issues"),
+                ("WSP-1", "Task", "Queued", "private", "", "private description", None, "b", "Issues"),
+                ("AII-1", "Task", "Queued", "private2", "", "private description", None, "b", "Issues"),
+                ("MON-1", "Task", "Queued", "private3", "", "private description", None, "b", "Issues")]
+        subs = [("VSC", ".", "parent", "operator", "", "", "x")] + [(p, p.lower(), "owned", "operator", "git@github.com:z/%s.git" % p.lower(), "", "x") for p in ("WSP", "AII", "MON")]
+        f = FakeGitHub(); out = io.StringIO()
+        rc = cli.run(base("plan", mkdb(rows, subs), cfgfile(), "--db-repo", OR, "--json"), proven_hosts=PROVEN, transport_factory=lambda v, h: f, out=out)
+        r = json.loads(out.getvalue()); self.assertEqual(rc, 0)
+        self.assertEqual(r[0]["counts"], {"create": 2}); self.assertEqual(r[1]["routing"]["not-owned-by-this-repo (never sent)"], 3)
+
+
