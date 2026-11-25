@@ -28,19 +28,21 @@ def content_hash(payload):
 def own_private_fingerprints(item, k=RUN_WORDS):
     """Fingerprints of the item's OWN non-allowlisted fields (operator quote, long body), computed per LINE so no shingle spans two lines:
     text that must never leave must not reappear, even partly, in an outgoing field, the title above all.
-    The one allowance: when the body repeats the item's WHOLE title (its heading, 'the question put to the operator was: <title>'), the title is
+    The one allowance: when ONE LINE of the body repeats the item's WHOLE title (its heading, 'the question put to the operator was: <title>'), the title is
     public restated, and the title's own shingles are not counted as private. A title that is NOT repeated whole in the body gets no allowance, so
     a title that splices in 7 or more verbatim words of the body or the quote is blocked. `forensic_anchor` never gets the allowance.
     Residual, stated plainly: a title that is exactly a private body sentence is indistinguishable from a restated title and passes."""
     title = " ".join(redact._words(str(item.get("title") or "")))
     fps, anchor, body = set(), set(), set()
+    whole = False                      # is the WHOLE title on ONE body line? (a title stitched from adjacent lines gets no allowance)
     for field, dest in (("forensic_anchor", anchor), ("body_md", body)):
         for line in redact.normalise(str(item.get(field) or "")).split("\n"):
             w = " ".join(redact._words(line))
             if w:
                 dest |= redact.fingerprints(w, k)
-    body_all = " " + " ".join(redact._words(str(item.get("body_md") or ""))) + " "
-    if title and (" " + title + " ") in body_all:
+                if field == "body_md" and title and (" " + title + " ") in (" " + w + " "):
+                    whole = True
+    if whole:
         body -= redact.fingerprints(title, k)
     return anchor | body
 

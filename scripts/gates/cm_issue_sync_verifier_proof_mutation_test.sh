@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # cm_issue_sync_verifier_proof_mutation_test.sh -- §1.1 paired mutation for CM-ISSUE-SYNC-VERIFIER-PROOF (§11.4.300).
 # In a throwaway copy: V1 verifier that always reports in sync (engine drift list emptied) MUST FAIL the gate; V2 the verifier ignoring titles
-# MUST FAIL; V3 blocked/unconfirmed legs treated as pass MUST FAIL; V4-V17 visibility, proof, decision, routing, corpus, config and adoption mutations MUST FAIL; the clean copy MUST PASS. Exit 0 META PASS, 1 survivor.
+# MUST FAIL; V3 blocked/unconfirmed legs treated as pass MUST FAIL; V4-V18 visibility, proof, decision, routing, corpus, config and adoption mutations MUST FAIL; the clean copy MUST PASS. Exit 0 META PASS, 1 survivor.
 # Side-effects: temp dir only. Classification: universal (§11.4.17).
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; SRC="$(cd "$HERE/../.." && pwd)"; W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT; bad=0
@@ -37,4 +37,5 @@ fresh; mut "$I/engine.py" 'if not FOOTER.search(cur.get("body") or ""):' 'if Fal
 fresh; mut "$I/payload.py" '    pl["description"] = GENERATED_DESCRIPTION' '    pl["description"] = str(item.get("description") or "")' && want "V15 DB description sent instead of the generated summary" 1
 fresh; mut "$I/payload.py" 'if title and (" " + title + " ") in body_all:' 'if title:' && want "V16 title allowance without the whole title in the body" 1
 fresh; mut "$I/payload.py" 'return anchor | body' 'return body' && want "V17 forensic_anchor not fingerprinted" 1
+fresh; mut "$I/payload.py" 'and (" " + title + " ") in (" " + w + " "):' 'and (" " + title + " ") in (" " + " ".join(redact._words(str(item.get("body_md") or ""))) + " "):' && want "V18 whole-title test matched across body lines" 1
 [ "$bad" -eq 0 ] && { echo "META PASS: CM-ISSUE-SYNC-VERIFIER-PROOF is a genuine gate"; exit 0; }; exit 1

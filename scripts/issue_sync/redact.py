@@ -32,7 +32,8 @@ _PATTERNS = [
 
 
 def _words(text):
-    return re.sub(r"[^a-z0-9]+", " ", normalise(text).lower()).split()
+    # zero-width characters become a SPACE here (not deleted as in normalise()): 'the<ZWSP>quick' must still match the private 'the quick'
+    return re.sub(r"[^a-z0-9]+", " ", _ZERO_WIDTH.sub(" ", unicodedata.normalize("NFKC", text)).lower()).split()
 
 
 def fingerprints(corpus, k=7):
@@ -46,12 +47,12 @@ def scan(payload, fingerprint_set=None, k=7):
     for field, val in sorted(payload.items()):
         if not isinstance(val, str):
             continue
-        val = normalise(val)
+        raw, val = val, normalise(val)
         for kind, rx in _PATTERNS:
             if rx.search(val):
                 hits.append({"field": field, "kind": kind})
         if fingerprint_set:
-            w = _words(val)
+            w = _words(raw)       # zero-width characters act as word breaks for the corpus match (see _words)
             if any(hashlib.sha256(" ".join(w[i:i + k]).encode()).hexdigest()[:24] in fingerprint_set for i in range(max(0, len(w) - k + 1))):
                 hits.append({"field": field, "kind": "private-corpus"})
     return hits

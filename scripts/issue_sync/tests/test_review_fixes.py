@@ -194,6 +194,13 @@ class TestR4PrivateCorpusLive(unittest.TestCase):
         ok = {"atm_id": "A-2", "type": "Bug", "status": "Queued", "title": restated_title, "severity": "", "description": "d",
               "body_md": "## A-2 - " + restated_title + "\n\nThe question put to the operator was: " + restated_title + "\n"}
         self.assertEqual(payload.prepare(ok)["verdict"], "OK")
+        # a title stitched from two ADJACENT body lines is not "repeated whole": no allowance
+        stitched = {"atm_id": "A-3", "type": "Bug", "status": "Queued", "title": "Fix thing: the quick brown fox jumps over the lazy dog", "severity": "",
+                    "description": "d", "body_md": "Fix thing\nthe quick brown fox jumps over the lazy dog today"}
+        self.assertEqual(payload.prepare(stitched)["verdict"], "BLOCKED")
+        zw = {"atm_id": "A-4", "type": "Bug", "status": "Queued", "title": "A the\u200bquick brown fox jumps over the lazy", "severity": "", "description": "d",
+              "body_md": "x the quick brown fox jumps over the lazy dog"}
+        self.assertEqual(payload.prepare(zw)["verdict"], "BLOCKED")
         # the allowance never covers the verbatim operator quote
         q = dict(ok, forensic_anchor="Only 5 of 42 areas carry a test")
         self.assertEqual(payload.prepare(q)["verdict"], "BLOCKED")
