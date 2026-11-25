@@ -35,7 +35,7 @@ def _legs(targets, hosts, transport_factory, proven=()):
 
 def _transport_factory(token_vars, host):
     st, _, tok = credentials.resolve(token_vars)
-    return HttpTransport(tok if st == "found" else None)
+    return HttpTransport(tok if st == "found" else None, auth_header=registry.transport_auth(host))
 
 
 def _decision_problem(cfg_path, decision):
@@ -161,7 +161,10 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
     tf = _transport_factory if transport_factory is None else transport_factory
     _, owner_leg, _ = _legs([a.owner_repo], hosts, tf, proven)[0]           # the OWNING repo's own visibility, resolved live
     owner_vis = owner_leg.visibility if owner_leg else "undetermined"
-    legs = _legs(a.target, hosts, tf, proven)
+    mirror_of = {vis.canonical_repo("ssh://git@%s.git" % m): vis.canonical_repo("ssh://git@%s.git" % o) for m, o in cfg["mirrors"].items()}
+    declared = {m for m, o in mirror_of.items() if o == owner_repo}            # only mirrors declared for THIS owning repository
+    targets = list(a.target) + [m for m in cfg["mirrors"] if mirror_of[vis.canonical_repo("ssh://git@%s.git" % m)] == owner_repo and m not in a.target]
+    legs = _legs(targets, hosts, tf, proven)
     for tid, leg, err in legs:
         if leg is None:
             report.append({"leg": tid, "verdict": "UNDETERMINED", "reason": err})
@@ -174,11 +177,11 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
             rc = 1 if rc == 1 else 2
             continue
         if a.cmd == "verify":
-            r, f = engine.verify_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids)
+            r, f = engine.verify_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids, vis.canonical_repo("ssh://git@%s/%s/%s.git" % (leg.host, leg.owner, leg.repo)) in declared)
             report.append({"leg": leg.id, "rc": r, "findings": f})
             rc = 1 if (r == 1 or rc == 1) else max(rc, r)
             continue
-        acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids)
+        acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids, vis.canonical_repo("ssh://git@%s/%s/%s.git" % (leg.host, leg.owner, leg.repo)) in declared)
         if a.cmd == "apply":
             try:
                 store.ensure_map(con)

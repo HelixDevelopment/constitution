@@ -33,7 +33,7 @@ _StrictLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _n
 
 DEFAULTS = {
     "enabled": False, "scope": {"recursive": False}, "mode": "dry-run", "trackers": [], "visibility_policy": "owning-repo",
-    "interval_hours": 24, "inbound": {"enabled": False, "assignees": []}, "docs_chain": {"context": "issues-sync"}, "token_vars": {},
+    "interval_hours": 24, "mirrors": {}, "inbound": {"enabled": False, "assignees": []}, "docs_chain": {"context": "issues-sync"}, "token_vars": {},
 }
 _NAME = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 _KEYS = set(DEFAULTS) | {"apply_decision"}
@@ -76,6 +76,13 @@ def validate(raw):
         errs.append("trackers must be a list of non-empty strings")
     elif any(not re.match(r"^[A-Za-z0-9][A-Za-z0-9.-]*$", t) or redact.scan({"v": t}) for t in cfg["trackers"]):
         errs.append("trackers must be bare host names (no URL, no credentials)")
+    mi = cfg["mirrors"]
+    if not isinstance(mi, dict):
+        errs.append("mirrors must be a mapping HOST/OWNER/REPO -> HOST/OWNER/REPO (mirror -> the owning repository it mirrors)")
+    else:
+        for k, v in mi.items():
+            if not all(isinstance(x, str) and re.match(r"^[A-Za-z0-9][A-Za-z0-9.-]*/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", x) and not redact.scan({"v": x}) for x in (k, v)):
+                errs.append("mirrors entries must be HOST/OWNER/REPO strings (no URL, no credentials): %s" % (k,))
     if cfg["visibility_policy"] != "owning-repo":
         errs.append("visibility_policy must be owning-repo")
     ih = cfg["interval_hours"]

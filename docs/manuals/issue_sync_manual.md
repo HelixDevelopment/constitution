@@ -5,7 +5,7 @@
 | Revision | 3 |
 | Created | 2026-11-24 |
 | Last modified | 2026-11-25T09:00:00Z |
-| Status | active, PROVISIONAL (write path PROVEN by a recorded live create, update, close, reopen and read-back on gitlab.com, codeberg.org and git.m3w.org only, 2026-11-25, evidence under `docs/qa/issue_sync/`; github.com (the api_keys.sh token cannot PATCH), gitverse.ru (403 on create) and gitflic.ru (no update/close endpoint found) stay UNCONFIRMED, and `apply` refuses to write to any host not listed in `config/forge/issue_sync_proven.tsv`) |
+| Status | active, PROVISIONAL (write path PROVEN by a recorded live create, update, close, reopen and read-back on gitlab.com, codeberg.org, git.m3w.org and gitflic.ru only, 2026-11-25, evidence under `docs/qa/issue_sync/`; github.com (the api_keys.sh fine-grained token lacks `Issues: write`, so PATCH answers 403 `x-accepted-github-permissions: issues=write; pull_requests=write`) and gitverse.ru (POST /issues answers 403 with an empty body; labels and milestones are writable with the same token) stay UNCONFIRMED, and `apply` refuses to write to any host not listed in `config/forge/issue_sync_proven.tsv`) |
 | Status summary | Reference, operator guide and FAQ for `scripts/issue_sync.sh`, `scripts/verify_issues_sync.sh` and `scripts/issue_sync/`. |
 | Authority | Anchor 11.4.300; 11.4.93, 11.4.106, 11.4.156, 11.4.289, 11.4.296, 11.4.299, 11.4.257 govern. |
 | Scope | Universal (11.4.17): a consuming project supplies its declaration and its tokens (by variable NAME) as DATA. |
@@ -73,7 +73,7 @@ Issues assigned to a declared account enter through 11.4.296, once. An issue car
 
 ## 9. FAQ
 
-**Why is a leg UNCONFIRMED?** The host's write API is not proven by a live create and read-back (Gitea family, GitVerse, GitFlic), the repository does not exist there, or Issues are disabled. It is never counted in sync.
+**Why is a leg UNCONFIRMED?** The host's write API is not proven by a live create and read-back (GitHub, GitVerse), the repository does not exist there, or Issues are disabled. It is never counted in sync.
 
 **Why does an issue not show the item's description?** The issue text is a generated public summary (operator decision 2026-11-25): title, type, status, severity, a link to the owning repository and a pointer to `docs/workable_items.db` with the item id. The database's description and body are never mirrored, so they can neither leak nor block an item; read them in the repository.
 

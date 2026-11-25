@@ -57,6 +57,12 @@ def load_proven(path=PROVEN_TSV, root=None):
     return proven
 
 
+def transport_auth(host, hosts=None):
+    """The auth-header builder a host's adapter class declares as `transport_auth` (GitFlic wants `Authorization: token ...`), else None (Bearer)."""
+    h = (hosts or load_hosts()).get(host)
+    return getattr(CLASSES[h["provider"]], "transport_auth", None) if h else None
+
+
 def make(host, transport_factory, hosts=None, proven=()):
     """-> adapter or None (unknown host: nothing is guessed). transport_factory(token_vars, host) -> transport.
     Write verbs are enabled only for hosts in `proven`."""

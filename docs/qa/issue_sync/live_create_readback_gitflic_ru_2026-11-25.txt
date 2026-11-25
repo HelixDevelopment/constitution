@@ -1,9 +1,151 @@
-# gitflic.ru, 2026-11-25: PARTIAL, NOT a proof (no LIVE-CREATE-READBACK-RECORDED marker). Token variable NAME only: GITFLIC_TOKEN (header "Authorization: token ...").
-# Repo gitflic.ru/milosvasic/job_seeker (private, created via POST /project with ownerAlias+ownerAliasType). Observed, raw HTTP, no adapter exists for issues:
-GET  /project/milosvasic/job_seeker/issue            -> 200 {"page":{"size":10,"totalElements":0,...}}            (list works)
-POST /project/milosvasic/job_seeker/issue            -> 422 until body carries "assignedUsers":[]; then 200, localId 1, status.id OPEN  (create works)
-GET  /project/milosvasic/job_seeker/issue/1          -> 200                                                        (single read works)
-POST|PUT|PATCH /project/milosvasic/job_seeker/issue/1, .../1/edit, .../1/update, .../1/close, .../1/status, .../1/state  -> 405 or 404 (update/close endpoint NOT found)
-GET  api.gitflic.ru/{v2,v3}/api-docs, /swagger-ui, /openapi.json -> 403 (the API description is not readable)
-# Result: update / close / reopen UNDISCOVERED. Throwaway issue localId 1 ("[LIVETEST-ISSUESYNC] ...") is still OPEN in the private job_seeker mirror and cannot be closed through any endpoint found.
-# gitflic stays OUT of issue_sync_proven.tsv; the engine GitFlic adapter has no issue endpoints and is unchanged.
+LIVE-CREATE-READBACK-RECORDED gitflic.ru
+# live create + update + close + reopen + close through the engine's own adapter (registry.make + cli._transport_factory), each read back from the listing; no token value recorded (variable NAME only)
+{
+ "host": "gitflic.ru",
+ "repo": "milosvasic/job_seeker",
+ "provider": "gitflic",
+ "utc": "2026-11-25T11:28:42.784196+00:00Z",
+ "token_var": "GITFLIC_TOKEN",
+ "verdict": "PASS",
+ "steps": [
+  {
+   "step": "repo_info",
+   "ok": true,
+   "result": {
+    "exists": true,
+    "private": true,
+    "issues_enabled": null
+   }
+  },
+  {
+   "step": "create",
+   "ok": true,
+   "result": {
+    "number": 2,
+    "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+    "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately.",
+    "state": "open",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_after_create",
+   "ok": true,
+   "result": [
+    {
+     "number": 2,
+     "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+     "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately.",
+     "state": "open",
+     "labels": []
+    }
+   ]
+  },
+  {
+   "step": "update",
+   "ok": true,
+   "result": {
+    "number": 2,
+    "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+    "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "open",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_after_update",
+   "ok": true,
+   "result": [
+    {
+     "number": 2,
+     "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+     "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "open",
+     "labels": []
+    }
+   ]
+  },
+  {
+   "step": "close",
+   "ok": true,
+   "result": {
+    "number": 2,
+    "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+    "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "closed",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_after_close",
+   "ok": true,
+   "result": [
+    {
+     "number": 2,
+     "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+     "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "closed",
+     "labels": []
+    }
+   ]
+  },
+  {
+   "step": "reopen",
+   "ok": true,
+   "result": {
+    "number": 2,
+    "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+    "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "open",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_after_reopen",
+   "ok": true,
+   "result": [
+    {
+     "number": 2,
+     "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+     "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "open",
+     "labels": []
+    }
+   ]
+  },
+  {
+   "step": "close_again",
+   "ok": true,
+   "result": {
+    "number": 2,
+    "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+    "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "closed",
+    "labels": []
+   }
+  },
+  {
+   "step": "readback_after_final_close",
+   "ok": true,
+   "result": [
+    {
+     "number": 2,
+     "url": "https://gitflic.ru/project/milosvasic/job_seeker/issue/2",
+     "title": "[LIVETEST-ISSUESYNC] adapter proof 2026-11-25",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "closed",
+     "labels": []
+    }
+   ]
+  }
+ ]
+}

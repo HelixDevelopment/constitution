@@ -62,11 +62,38 @@ class TestAdapters(unittest.TestCase):
         self.assertFalse(a.capabilities["can_close"]); self.assertTrue(a.capabilities["can_create"])
         self.assertIn("gitverse.object", a.default_headers["Accept"])
         with self.assertRaises(AdapterError): a.set_state("o", "r", 1, "closed")
-    def test_gitflic_all_unverified(self):
+    def test_gitflic_writes_unverified_until_proven(self):
         a = GitFlic(Fake())
-        self.assertFalse(any(a.capabilities.values()))
-        for fn in (lambda: a.repo_info("o", "r"), lambda: a.list_issues("o", "r"), lambda: a.create_issue("o", "r", "t", "b", [])):
-            with self.assertRaises(AdapterError): fn()
+        self.assertTrue(a.capabilities["can_list"]); self.assertFalse(a.capabilities["can_create"] or a.capabilities["can_close"] or a.capabilities["can_label"])
+        for fn in (lambda: a.create_issue("o", "r", "t", "b", []), lambda: a.update_issue("o", "r", 1, "t", "b", []), lambda: a.set_state("o", "r", 1, "closed")):
+            with self.assertRaises(AdapterError) as c: fn()
+            self.assertTrue(c.exception.code.startswith("capability_unverified"))
+    def test_gitflic_request_shapes_when_proven(self):
+        iss = {"localId": 3, "title": "T", "description": "B", "status": {"id": "OPEN"}, "labels": []}
+        f = Fake((200, {}, iss), (200, {}, dict(iss, status={"id": "COMPLETED"})), (200, {}, iss), (200, {}, iss))
+        a = GitFlic(f, proven=True)
+        self.assertEqual(a.create_issue("o", "r", "T", "B", [])["state"], "open")
+        self.assertEqual(f.calls[0][0:2], ("POST", "https://api.gitflic.ru/project/o/r/issue")); self.assertEqual(f.calls[0][2]["assignedUsers"], [])
+        f2 = Fake((200, {}, iss), (200, {}, dict(iss, status={"id": "COMPLETED"})))
+        r = GitFlic(f2, proven=True).set_state("o", "r", 3, "closed")
+        self.assertEqual(r["state"], "closed")
+        self.assertEqual(f2.calls[1][0:2], ("PUT", "https://api.gitflic.ru/project/o/r/issue/3/edit"))
+        self.assertEqual(f2.calls[1][2]["status"], {"id": "COMPLETED"}); self.assertEqual(f2.calls[1][2]["title"], "T")
+        f3 = Fake((200, {}, iss), (200, {}, dict(iss, status={"id": "CLOSED"})))
+        GitFlic(f3, proven=True).set_state("o", "r", 3, "closed", not_planned=True); self.assertEqual(f3.calls[1][2]["status"], {"id": "CLOSED"})
+    def test_gitflic_list_pages_and_repo_info(self):
+        page = lambda n, tp: {"_embedded": {"issueModelList": [{"localId": n, "title": "t", "description": None, "status": {"id": "IN_PROGRESS"}, "labels": []}]}, "page": {"totalPages": tp}}
+        out = GitFlic(Fake((200, {}, page(1, 2)), (200, {}, page(2, 2)))).list_issues("o", "r")
+        self.assertEqual([i["number"] for i in out], [1, 2]); self.assertEqual(out[0]["state"], "open")
+        self.assertEqual(GitFlic(Fake((404, {}, None))).repo_info("o", "r")["exists"], False)
+        self.assertTrue(GitFlic(Fake((200, {}, {"private": True}))).repo_info("o", "r")["private"])
+        with self.assertRaises(AdapterError): GitFlic(Fake((200, {}, {"name": "x"}))).repo_info("o", "r")   # visibility missing: never guessed
+    def test_gitflic_uses_token_scheme_not_bearer(self):
+        from issue_sync.adapters import base
+        self.assertEqual(registry.transport_auth("gitflic.ru"), GitFlic.transport_auth)
+        self.assertIsNone(registry.transport_auth("codeberg.org"))
+        self.assertEqual(base.HttpTransport("tok-abcdefgh", auth_header=GitFlic.transport_auth).auth_header("x"), {"Authorization": "token x"})
+        self.assertEqual(base.HttpTransport("tok-abcdefgh").auth_header("x"), {"Authorization": "Bearer x"})
     def test_registry_unknown_host_and_known(self):
         hosts = registry.load_hosts()
         self.assertIn("github.com", hosts); self.assertEqual(hosts["gitflic.ru"]["provider"], "gitflic")
