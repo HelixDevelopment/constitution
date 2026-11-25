@@ -15,7 +15,7 @@ class GitFlic(Adapter):
     default_headers = {"Accept": "application/json", "Content-Type": "application/json"}
     transport_auth = staticmethod(lambda t: {"Authorization": "token " + t})
     capabilities = dict(Adapter.capabilities, can_list=True)       # list proven by a read-only probe; writes only through `proven`
-    write_capabilities = {"can_create": True, "can_update": True, "can_close": True, "can_reopen": True, "not_planned": True}
+    write_capabilities = {"can_create": True, "can_update": True, "can_close": True, "can_reopen": True}   # not_planned stays False: CLOSED is not live-proven
 
     @staticmethod
     def norm(j, owner, repo):
