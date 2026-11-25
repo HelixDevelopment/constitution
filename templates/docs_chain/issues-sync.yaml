@@ -1,18 +1,36 @@
-# Docs Chain context template for the workable-items Issues mirror (anchor §11.4.300(F)).
-# Copy into a consumer's .docs_chain/contexts/issues-sync.yaml (data only; the engine stays in the constitution submodule).
-# The database is the upstream node; the status documents, exports and the tracker mirror are downstream nodes of ONE sync.
-# The tracker node is a transform that calls the constitution's scripts: `plan` always, `apply` only when .workable-items-sync.yaml has mode: apply.
+# Docs Chain context `issues-sync`: the ONE pipeline of the bidirectional workable-items <-> Issues sync (anchor §11.4.300(F); §11.4.93, §11.4.106).
+# Install with:  bash submodules/constitution/scripts/issues_sync_pipeline.sh init-context --root . --owner-repo HOST/OWNER/REPO --write
+# (the HOST/OWNER/REPO placeholder below is replaced by --owner-repo; the file must pass `docs_chain doctor --root . issues-sync`).
+# Run it:        bash submodules/constitution/scripts/issues_sync_pipeline.sh run            (read-only: doctor + verify)
+#                bash submodules/constitution/scripts/issues_sync_pipeline.sh run --write    (docs_chain sync, then pull --write, then verify)
+# Pipeline (a DAG, order = edges):
+#   workable_items_db -> issues_md, fixed_md -> outbound_report -> inbound_report -> verify_report
+#   DB -> generated docs -> issue sync outbound (PLAN here; apply is a separate, recorded decision) -> inbound proposals preview -> verify + reconcile.
+# Policy: the database wins; inbound text becomes reviewable proposal files only via `pull --write` (docs/issues_sync/inbound/), never via a stage:
+# a stage is re-run by `docs_chain verify`, which must stay free of side effects. The stages write ONLY their staged output file.
+# Why this file used to be invalid (root cause, 2026-11-25): it declared `derived_from`, `run`, `verify`, `verify_rc` on nodes and no `edges:` /
+# `transforms:`; the Docs Chain loader rejects unknown node fields and requires edges (docs_chain doctor exit 4), so no consumer could load it.
+# Paths below are the umbrella layout (docs/workable-items/Issues.md); edit them if your Issues.md / Fixed.md live elsewhere.
+# The exec transforms call this facade as `<in...> <out> --docs-chain-exec stage NAME <options>` (the marker splits Docs Chain's temp paths from the options).
+# To let the outbound stage WRITE trackers, add "--apply" to its args AND set mode: apply with a tracked apply_decision in .workable-items-sync.yaml.
 context: issues-sync
-description: workable_items.db -> status docs, exports and the Issues mirror of every declared upstream (§11.4.93, §11.4.106, §11.4.300)
+description: workable_items.db -> Issues.md/Fixed.md -> tracker mirror plan -> inbound proposals preview -> verify report (§11.4.93, §11.4.106, §11.4.300)
 nodes:
-  workable_items_db:   { kind: sqlite,   path: docs/workable_items.db }
-  issues_md:           { kind: markdown, path: docs/Issues.md,  derived_from: [workable_items_db] }
-  fixed_md:            { kind: markdown, path: docs/Fixed.md,   derived_from: [workable_items_db] }
-  issues_summary_md:   { kind: markdown, path: docs/Issues_Summary.md, derived_from: [workable_items_db] }
-  fixed_summary_md:    { kind: markdown, path: docs/Fixed_Summary.md,  derived_from: [workable_items_db] }
-  issues_mirror:
-    kind: transform
-    derived_from: [workable_items_db]
-    run: "bash submodules/constitution/scripts/issue_sync.sh plan --config .workable-items-sync.yaml --db docs/workable_items.db"
-    verify: "bash submodules/constitution/scripts/verify_issues_sync.sh --config .workable-items-sync.yaml --db docs/workable_items.db"
-    verify_rc: { 0: in-sync, 1: stale, 2: cannot-determine-never-a-pass }
+  workable_items_db: { kind: sqlite,   path: docs/workable_items.db }
+  issues_md:         { kind: markdown, path: docs/workable-items/Issues.md }
+  fixed_md:          { kind: markdown, path: docs/workable-items/Fixed.md }
+  outbound_report:   { kind: summary,  path: docs/issues_sync/outbound.md }
+  inbound_report:    { kind: summary,  path: docs/issues_sync/inbound/INDEX.md }
+  verify_report:     { kind: summary,  path: docs/issues_sync/verify.md }
+edges:
+  - { type: derive-from, from: workable_items_db, to: issues_md,       transform: db-to-issues-md }
+  - { type: derive-from, from: workable_items_db, to: fixed_md,        transform: db-to-fixed-md }
+  - { type: derive-from, from: [issues_md, fixed_md], to: outbound_report, transform: outbound-plan }
+  - { type: derive-from, from: outbound_report,   to: inbound_report,  transform: inbound-preview }
+  - { type: derive-from, from: inbound_report,    to: verify_report,   transform: verify-reconcile }
+transforms:
+  db-to-issues-md:  { exec: submodules/constitution/scripts/issues_sync_pipeline.sh, args: ["--docs-chain-exec", "stage", "db-to-issues-md", "--db", "docs/workable_items.db"] }
+  db-to-fixed-md:   { exec: submodules/constitution/scripts/issues_sync_pipeline.sh, args: ["--docs-chain-exec", "stage", "db-to-fixed-md", "--db", "docs/workable_items.db"] }
+  outbound-plan:    { exec: submodules/constitution/scripts/issues_sync_pipeline.sh, args: ["--docs-chain-exec", "stage", "outbound", "--config", ".workable-items-sync.yaml", "--db", "docs/workable_items.db", "--owner-repo", "HOST/OWNER/REPO", "--db-repo", "HOST/OWNER/REPO", "--target", "HOST/OWNER/REPO"] }
+  inbound-preview:  { exec: submodules/constitution/scripts/issues_sync_pipeline.sh, args: ["--docs-chain-exec", "stage", "inbound", "--config", ".workable-items-sync.yaml", "--db", "docs/workable_items.db", "--owner-repo", "HOST/OWNER/REPO", "--db-repo", "HOST/OWNER/REPO", "--target", "HOST/OWNER/REPO"] }
+  verify-reconcile: { exec: submodules/constitution/scripts/issues_sync_pipeline.sh, args: ["--docs-chain-exec", "stage", "verify", "--config", ".workable-items-sync.yaml", "--db", "docs/workable_items.db", "--owner-repo", "HOST/OWNER/REPO", "--db-repo", "HOST/OWNER/REPO", "--target", "HOST/OWNER/REPO"] }

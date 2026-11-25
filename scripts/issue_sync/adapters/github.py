@@ -14,7 +14,8 @@ class GitHub(Adapter):
     @staticmethod
     def norm(j):
         return {"number": j["number"], "url": j["html_url"], "title": j["title"], "body": j.get("body") or "",
-                "state": j["state"], "labels": sorted(l["name"] if isinstance(l, dict) else l for l in j.get("labels", []))}
+                "state": j["state"], "labels": sorted(l["name"] if isinstance(l, dict) else l for l in j.get("labels", [])),
+                "comments": j.get("comments", 0), "assignees": sorted(a.get("login", "") for a in (j.get("assignees") or []) if isinstance(a, dict))}
 
     def repo_info(self, owner, repo):
         st, _, js = self.t("GET", "%s/repos/%s/%s" % (self.api_base, owner, repo), self.default_headers, None)
@@ -30,6 +31,16 @@ class GitHub(Adapter):
         while True:
             js, _ = self._call("GET", "/repos/%s/%s/issues?state=all&per_page=100&page=%d" % (owner, repo, page))
             out += [self.norm(i) for i in js if "pull_request" not in i]
+            if len(js) < 100:
+                return out
+            page += 1
+
+    def list_comments(self, owner, repo, number):
+        """READ-ONLY (inbound intake, C7): -> [{id, author, body}] of one issue's comments. Never writes."""
+        out, page = [], 1
+        while True:
+            js, _ = self._call("GET", "/repos/%s/%s/issues/%d/comments?per_page=100&page=%d" % (owner, repo, number, page))
+            out += [{"id": c["id"], "author": (c.get("user") or {}).get("login", ""), "body": c.get("body") or ""} for c in js]
             if len(js) < 100:
                 return out
             page += 1

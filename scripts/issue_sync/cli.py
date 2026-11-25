@@ -11,7 +11,7 @@ import os
 import subprocess
 import sys
 
-from . import config as cfgmod, credentials, redact, registry, store, engine, visibility as vis
+from . import config as cfgmod, credentials, redact, registry, store, engine, inbound, visibility as vis
 from .adapters.base import AdapterError, HttpTransport
 
 
@@ -71,7 +71,7 @@ def _fingerprints(paths):
 
 def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts=None):
     ap = argparse.ArgumentParser(prog="issue_sync")
-    ap.add_argument("cmd", choices=["plan", "apply", "verify", "status"])
+    ap.add_argument("cmd", choices=["plan", "apply", "verify", "status", "reconcile", "pull"])
     ap.add_argument("--config", default=".workable-items-sync.yaml")
     ap.add_argument("--db", default="docs/workable_items.db")
     ap.add_argument("--target", action="append", default=[])
@@ -82,6 +82,8 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
     ap.add_argument("--only-open", action="store_true", help="tier 1: skip items in a closed status")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--write", action="store_true", help="pull: write the proposal files (default: dry-run, nothing written)")
+    ap.add_argument("--out-dir", help="pull/apply: proposals directory (default: docs/issues_sync/inbound next to the config)")
     a = ap.parse_args(argv)
     cfg, errs = cfgmod.load(a.config)
     if errs:
@@ -176,6 +178,12 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
         if a.cmd == "verify":
             r, f = engine.verify_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids)
             report.append({"leg": leg.id, "rc": r, "findings": f})
+            rc = 1 if (r == 1 or rc == 1) else max(rc, r)
+            continue
+        if a.cmd in ("reconcile", "pull"):     # C7: read-only toward trackers and the DB; `pull --write` writes only proposal files
+            od = a.out_dir or os.path.join(os.path.dirname(os.path.abspath(a.config)), inbound.PROPOSAL_DIR)
+            r, rep = inbound.run_leg(a.cmd, items, leg, owner_vis, owner_repo, issues, fps, all_ids, cfg, od, a.write)
+            report.append(rep)
             rc = 1 if (r == 1 or rc == 1) else max(rc, r)
             continue
         acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues, fps, all_ids)

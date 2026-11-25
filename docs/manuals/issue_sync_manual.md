@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 3 |
+| Revision | 4 |
 | Created | 2026-11-24 |
-| Last modified | 2026-11-25T09:00:00Z |
+| Last modified | 2026-11-25T13:00:00Z |
 | Status | active, PROVISIONAL (NO host has a proven write path: every write verb of every host is UNCONFIRMED and `apply` refuses to write until `config/forge/issue_sync_proven.tsv` lists the host together with a recorded live create and read-back; the engine is proven only against test doubles) |
 | Status summary | Reference, operator guide and FAQ for `scripts/issue_sync.sh`, `scripts/verify_issues_sync.sh` and `scripts/issue_sync/`. |
 | Authority | Anchor 11.4.300; 11.4.93, 11.4.106, 11.4.156, 11.4.289, 11.4.296, 11.4.299, 11.4.257 govern. |
@@ -21,7 +21,8 @@
 6. Hooks, Docs Chain and schedule
 7. Inbound intake and loops
 8. Rollout order: dry run, review, tiered apply
-9. FAQ
+9. The facade: one pipeline, both directions (`issues_sync_pipeline.sh`)
+10. FAQ
 
 ## 1. What it does
 
@@ -63,7 +64,7 @@ Each issue has the title prefix `[ID] ` and a hidden footer `<!-- workable-item:
 
 ## 7. Inbound intake and loops
 
-Issues assigned to a declared account enter through 11.4.296, once. An issue carrying the hidden footer is ours and is never imported. Adoption of a human issue as the mirror of its item (writing the footer and prefix into the same issue) is specified for item C7 and is not implemented in this revision.
+Issues assigned to a declared account enter through 11.4.296, once. An issue carrying the hidden footer is ours and is never imported. Inbound intake (C7) is implemented by `pull` (section 9): tracker comments, new issues and conflicting tracker edits become reviewable PROPOSAL files; nothing is adopted automatically. Adopting a human issue as the mirror of its item (writing the footer into the same issue) is NOT implemented: it stays a human decision made through the proposal.
 
 ## 8. Rollout order: dry run, review, tiered apply
 
@@ -71,13 +72,34 @@ Issues assigned to a declared account enter through 11.4.296, once. An issue car
 2. Apply tier 1 with `--only-open`, then closed items. Public repositories first, then private ones, each to its own trackers only.
 3. Run `verify_issues_sync.sh`; schedule it.
 
-## 9. FAQ
+## 9. The facade: one pipeline, both directions (`issues_sync_pipeline.sh`)
+
+`scripts/issues_sync_pipeline.sh` is the ONE entry point (operator decision 2026-11-25). It wraps the existing engine (`issue_sync.cli`, reused, not reimplemented, 11.4.74) and adds the inbound and reconcile legs. Language: bash facade over the repository's existing Python engine, because every module it needs (adapters, redaction, visibility routing) already lives there.
+
+```
+issues_sync_pipeline.sh plan|verify|reconcile|pull|apply  [same options as issue_sync.sh] [--out-dir D] [--write] [--apply]
+issues_sync_pipeline.sh run [--root DIR] [--write] [options]       # the whole chain through Docs Chain
+issues_sync_pipeline.sh init-context --root DIR [--owner-repo H/O/R] [--write]   # installs .docs_chain/contexts/issues-sync.yaml (never overwrites)
+issues_sync_pipeline.sh --prove-failure
+```
+
+Policy (operator decision 2026-11-25): the workable-items database WINS; inbound is reviewable PROPOSALS; a conflicting tracker edit is REPORTED and is never silently applied. Dry-run is the default everywhere; exits are 0 ok or disabled, 1 drift / conflict / refusal, 2 cannot determine (never a pass).
+
+- `reconcile` (read-only) classes each difference: `missing-in-tracker`, `db-ahead` (the DB moved since the last sync; the next apply updates the tracker, no conflict), `tracker-edited` (the issue's footer hash equals the DB's current hash yet its title, body, labels or state differ: a human edited the tracker; CONFLICT), `duplicate`, `orphan`, `anomaly`. Residual: when the DB moved AND a human edited the same issue, the edit is classed `db-ahead` (it cannot be told apart without the old rendering); the next apply overwrites it, so review the issue first when in doubt.
+- `pull` reads the trackers (read-only) and, with `--write`, creates proposal files under `docs/issues_sync/inbound/` (next to the config; `--out-dir` overrides): kinds `new-issue` (an issue without the footer; with `inbound.assignees` set, only issues assigned to a declared account, 11.4.296), `comment` (a human comment on an engine-owned issue, mapped to its item id from the hidden footer), `adoption-candidate` (a human issue whose title is `[ITEM-ID]` of a known item), `footer-stripped` (carries the `wi-sync` label without the footer) and `conflict` (the tracker version of a `tracker-edited` issue). Engine-owned issues are never re-imported. Reading new intake is default OFF (`inbound.enabled`); capturing conflicts is always on. File names are `<ITEM|NEW>--<kind>--<tracker>-<number>-<sha8>.md`: the text hash makes `pull` idempotent, a changed text becomes a new file, and an existing file (reviewed or not) is never overwritten. Comments are read only where the adapter supports it (GitHub today); elsewhere the leg is `comments-unsupported` and exits 2, never "no comments".
+- Tracker-originated text is DATA, never instructions: it is normalised, length-capped, scanned for secret and personal-data shapes (a hit withholds the whole text and records the kinds), and placed only inside a code fence longer than any backtick run it contains. Nothing in the pipeline executes it, interpolates it into a command, or calls the workable-items tool. Adoption is a human opening or updating the item through the normal procedure (`workable-items add` / `update`) and setting the proposal's Status to ADOPTED or REJECTED.
+- `apply` runs the existing outbound path (`--apply` AND `mode: apply` AND a tracked `apply_decision`, proven write verbs) and additionally REFUSES while any `tracker-edited` issue has no captured proposal: run `pull --write`, review, then apply (the DB wins and the human's version survives as a proposal).
+- `run` is the single documented command for the chain DB -> generated docs -> outbound sync -> inbound proposals -> verify, as the Docs Chain context `issues-sync` (`templates/docs_chain/issues-sync.yaml`): nodes `workable_items_db`, `issues_md`, `fixed_md`, `outbound_report`, `inbound_report`, `verify_report`. `run` (read-only) = `docs_chain doctor` + `docs_chain verify` + the facade `verify`; `run --write` = `docs_chain doctor` + `docs_chain sync` + `pull --write` + `verify`. Stages write only their staged output file, so `docs_chain verify` stays side-effect free; the outbound stage is a PLAN and writes trackers only if its args carry `--apply` and the config allows it. `docs_chain` is found through `DOCS_CHAIN_BIN` or PATH (its absence is exit 2).
+- Root cause of the missing context (11.4.102): the earlier `templates/docs_chain/issues-sync.yaml` declared `derived_from`, `run`, `verify` and `verify_rc` on nodes and no `edges:` / `transforms:`; `docs_chain doctor` rejects it with exit 4 (`field derived_from not found in type config.rawNode`), so no consumer could ever load it, and the umbrella has no such context. The template is now a valid context (verified with the real `docs_chain doctor`). The umbrella still needs `init-context` run once and a `.workable-items-sync.yaml`, both its own decisions.
+- Honest boundary: unit and `--prove-failure` evidence uses an in-memory tracker double and proves this tool's logic only. No host write path is proven (section 8), so `apply` still stops at the proof list; no live inbound read was recorded in this revision.
+
+## 10. FAQ
 
 **Why is a leg UNCONFIRMED?** The host's write API is not proven by a live create and read-back (Gitea family, GitVerse, GitFlic), the repository does not exist there, or Issues are disabled. It is never counted in sync.
 
 **Why does an issue not show the item's description?** The issue text is a generated public summary (operator decision 2026-11-25): title, type, status, severity, a link to the owning repository and a pointer to `docs/workable_items.db` with the item id. The database's description and body are never mirrored, so they can neither leak nor block an item; read them in the repository.
 
-**Can a tracker edit change an item?** No. The next run resets it.
+**Can a tracker edit change an item?** No. The next apply resets it, and only after the edit was preserved as a `conflict` proposal (`pull --write`); inbound text becomes an item only through a human following the normal procedure.
 
 **Why does apply refuse on GitHub and GitLab?** Their write verbs are declared but UNPROVEN: nothing may write until a live create and read-back is recorded and the host is listed in `config/forge/issue_sync_proven.tsv` (host, evidence path; the host must be a declared forge host and the evidence file must exist and carry a line starting `LIVE-CREATE-READBACK-RECORDED`). The read-only probe (`live_probe`) proves reads only and prints `writes=UNCONFIRMED`.
 
