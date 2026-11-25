@@ -13,7 +13,7 @@ def probe(spec):
     if host not in hosts:
         return "%s UNKNOWN host_not_in_hosts_tsv" % spec
     st, name, tok = credentials.resolve(hosts[host]["token_vars"])
-    tr = HttpTransport(tok if st == "found" else None, min_interval=0.5)
+    tr = HttpTransport(tok if st == "found" else None, min_interval=0.5, auth_header=registry.transport_auth(host))
     ad = registry.CLASSES[hosts[host]["provider"]](tr, hosts[host]["api_base"], proven=host in registry.load_proven())
     try:
         info = ad.repo_info(owner, repo)

@@ -1,0 +1,9 @@
+# SUPERSEDED same day by live_create_readback_gitflic_ru_2026-11-25.txt (PASS through the adapter). Original raw-HTTP notes follow; the "update/close NOT found" result is WRONG: the endpoint is PUT ./issue/{localId}/edit (docs.gitflic.ru/latest/api/issue/), earlier attempts lacked the full body.
+# Repo gitflic.ru/milosvasic/job_seeker (private, created via POST /project with ownerAlias+ownerAliasType). Observed, raw HTTP, no adapter exists for issues:
+GET  /project/milosvasic/job_seeker/issue            -> 200 {"page":{"size":10,"totalElements":0,...}}            (list works)
+POST /project/milosvasic/job_seeker/issue            -> 422 until body carries "assignedUsers":[]; then 200, localId 1, status.id OPEN  (create works)
+GET  /project/milosvasic/job_seeker/issue/1          -> 200                                                        (single read works)
+POST|PUT|PATCH /project/milosvasic/job_seeker/issue/1, .../1/edit, .../1/update, .../1/close, .../1/status, .../1/state  -> 405 or 404 (update/close endpoint NOT found)
+GET  api.gitflic.ru/{v2,v3}/api-docs, /swagger-ui, /openapi.json -> 403 (the API description is not readable)
+# Result: update / close / reopen UNDISCOVERED. Throwaway issue localId 1 ("[LIVETEST-ISSUESYNC] ...") is still OPEN in the private job_seeker mirror and cannot be closed through any endpoint found.
+# gitflic stays OUT of issue_sync_proven.tsv; the engine GitFlic adapter has no issue endpoints and is unchanged.

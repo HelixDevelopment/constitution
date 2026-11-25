@@ -133,13 +133,13 @@ def collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees
     return props, und, owned
 
 
-def reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None):
+def reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None, declared_mirror=False):
     """-> (records, undetermined). Record classes: missing-in-tracker, db-ahead, tracker-edited (CONFLICT), duplicate, orphan, anomaly.
     A keyed issue whose footer hash EQUALS the DB's current hash has not been touched by the DB since the last sync, so any visible difference
     (title, body, labels, state) was made on the tracker: that is the conflict class. A footer hash that differs means the DB moved ahead, and the
     issue is db-ahead only when its title, body, state and labels still equal what the engine last recorded (issue_sync_map.rendered_sha); anything
     else (or no record, e.g. a row synced before the column existed) is a conflict, fail closed."""
-    acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids)
+    acts = engine.plan_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids, declared_mirror)
     idx = engine.index_issues(issues or [])
     by_id = {i["atm_id"]: i for i in items}
     recs, und = [], []
@@ -237,10 +237,10 @@ def write_proposals(props, out_dir, write):
     return res
 
 
-def apply_guard(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered, out_dir, ack_lossy=False):
+def apply_guard(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered, out_dir, ack_lossy=False, declared_mirror=False):
     """-> [(item, number)] of tracker edits that apply would overwrite while their text is NOT preserved as a complete proposal (a lossy one needs
     ack_lossy). Read-only; runs on the SAME listing the apply uses."""
-    recs, _ = reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered)
+    recs, _ = reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered, declared_mirror)
     bad = []
     for c in conflict_proposals(recs, issues, leg):
         if existing_for(out_dir, c) is None or (c["lossy"] and not ack_lossy):
@@ -248,12 +248,12 @@ def apply_guard(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rende
     return bad
 
 
-def run_leg(cmd, items, leg, owner_vis, owner_repo, issues, fps, known_ids, cfg, out_dir, write, rendered=None):
+def run_leg(cmd, items, leg, owner_vis, owner_repo, issues, fps, known_ids, cfg, out_dir, write, rendered=None, declared_mirror=False):
     """-> (rc, report). cmd: reconcile | pull. 0 clean, 1 diffs/conflicts/proposals pending, 2 undetermined (never a pass)."""
     if issues is None:
         r = leg.unconfirmed_reason(["can_list"]) or "capability-unverified:can_list"
         return 2, {"leg": leg.id, "verdict": "UNDETERMINED", "reason": r}
-    recs, und = reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered)
+    recs, und = reconcile_leg(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered, declared_mirror)
     cprops = conflict_proposals(recs, issues, leg)
     for r in recs:               # tell the caller (and the apply guard) where each conflicting tracker version is, or must be, preserved
         c = next((p for p in cprops if p["number"] == r["number"]), None) if r["class"] == "tracker-edited" else None

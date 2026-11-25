@@ -389,16 +389,16 @@ def _unsafe_write(props, out_dir, write):                                       
         open(path, "w").write(inbound.render_proposal(p))
     return {"new": [], "kept": []}
 
-def _blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None):          # M10: a tracker edit is classed as ordinary DB-ahead drift (no conflict)
-    recs, und = _orig_reconcile(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered)
+def _blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None, dm=False):          # M10: a tracker edit is classed as ordinary DB-ahead drift (no conflict)
+    recs, und = _orig_reconcile(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered, dm)
     for r in recs:
         r["class"] = "db-ahead" if r["class"] == "tracker-edited" else r["class"]
     return recs, und
 _orig_reconcile = inbound.reconcile_leg
 _orig_cp = inbound.conflict_proposals
 
-def _stale_blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None):   # M11: the old rule: a conflict only when the DB did NOT move
-    recs, und = _orig_reconcile(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered)
+def _stale_blind_reconcile(items, leg, owner_vis, owner_repo, issues, fps=None, known_ids=None, rendered=None, dm=False):   # M11: the old rule: a conflict only when the DB did NOT move
+    recs, und = _orig_reconcile(items, leg, owner_vis, owner_repo, issues, fps, known_ids, rendered, dm)
     for r in recs:
         if r["class"] == "tracker-edited" and r.get("db_moved"):
             r["class"] = "db-ahead"

@@ -81,7 +81,7 @@ class Leg:
         return None
 
 
-def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None, known_ids=None):
+def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None, known_ids=None, declared_mirror=False):
     """Return a list of actions for one leg. Action: {op, item, number?, reason?}. ops: create update close reopen noop
     blocked unconfirmed duplicate orphan anomaly. `issues` is the leg's full issue listing (state=all). `known_ids` = every item id this
     repository owns (default: the ids in `items`); a filtered run (--only-open/--limit) passes the unfiltered set so out-of-scope items'
@@ -91,6 +91,8 @@ def plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None, kn
         return [{"op": "unconfirmed", "item": it["atm_id"], "reason": r} for it in items]
     acts = []
     target = vis.canonical_repo("ssh://git@%s/%s/%s.git" % (leg.host, leg.owner, leg.repo))   # same canonical form as the owner (case, nested groups)
+    if declared_mirror:      # the operator declared this leg as a mirror of THIS owning repository under a different owner name; every other check still applies
+        target = owner_repo
     ok, why = vis.allowed_target(owner_repo, target, owner_vis, leg.visibility)
     idx = index_issues(issues)
     known = set(known_ids or ())
@@ -178,9 +180,9 @@ def apply_leg(items, leg, actions, doc_path_for=lambda it: None, on_done=None, a
     return out
 
 
-def verify_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None, known_ids=None):
+def verify_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set=None, known_ids=None, declared_mirror=False):
     """-> (rc, findings). 1 drift, 2 cannot determine, 0 in sync; precedence 1 over 2 over 0. Reads only."""
-    acts = plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set, known_ids)
+    acts = plan_leg(items, leg, owner_vis, owner_repo, issues, fingerprint_set, known_ids, declared_mirror)
     drift = [a for a in acts if a["op"] in ("create", "update", "close", "reopen", "duplicate", "orphan", "anomaly")]
     und = [a for a in acts if a["op"] in ("blocked", "unconfirmed")]
     if drift:

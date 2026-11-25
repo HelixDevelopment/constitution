@@ -40,6 +40,10 @@ class T(unittest.TestCase):
         for text in ["enabled: true\ninterval_hours: 99\n", "enabled: true\nbogus: 1\n", "enabled: true\nmode: apply\n"]:
             cfg, errs = load(text); self.assertTrue(errs); self.assertFalse(cfg["enabled"])
         _, errs = load("token_vars: {github.com: [AKIAABCDEFGHIJKLMNOP]}\n"); self.assertTrue(errs)
+    def test_mirrors_validated(self):
+        cfg, errs = load("enabled: true\nmirrors:\n  codeberg.org/a/r: github.com/b/r\n"); self.assertEqual(errs, []); self.assertEqual(cfg["mirrors"], {"codeberg.org/a/r": "github.com/b/r"})
+        for bad in ("mirrors: [x]\n", "mirrors:\n  https://x.org/a/r: github.com/b/r\n", "mirrors:\n  codeberg.org/a/r: oops\n", "mirrors:\n  u:p@codeberg.org/a/r: github.com/b/r\n"):
+            cfg, errs = load("enabled: true\n" + bad); self.assertTrue(errs, bad); self.assertFalse(cfg["enabled"])
     def test_invalid_yaml(self):
         _, errs = load("a: [\n"); self.assertTrue(errs)
     def test_template_ships_off(self):
