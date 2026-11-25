@@ -35,7 +35,7 @@ fresh; mut "$I/payload.py" 'fps = set(fingerprint_set or ()) | own_private_finge
 fresh; mut "$I/config.py" '        if dup:' '        if False:' && want "V13 duplicate YAML keys accepted" 1
 fresh; mut "$I/engine.py" 'if not FOOTER.search(cur.get("body") or ""):' 'if False:' && want "V14 unkeyed title match adopted and overwritten" 1
 fresh; mut "$I/payload.py" '    pl["description"] = GENERATED_DESCRIPTION' '    pl["description"] = str(item.get("description") or "")' && want "V15 DB description sent instead of the generated summary" 1
-fresh; mut "$I/payload.py" 'if title and (" " + title + " ") in body_all:' 'if title:' && want "V16 title allowance without the whole title in the body" 1
+fresh; mut "$I/payload.py" '    if whole:' '    if True:' && want "V16 title allowance without the whole title in the body" 1
 fresh; mut "$I/payload.py" 'return anchor | body' 'return body' && want "V17 forensic_anchor not fingerprinted" 1
 fresh; mut "$I/payload.py" 'and (" " + title + " ") in (" " + w + " "):' 'and (" " + title + " ") in (" " + " ".join(redact._words(str(item.get("body_md") or ""))) + " "):' && want "V18 whole-title test matched across body lines" 1
 [ "$bad" -eq 0 ] && { echo "META PASS: CM-ISSUE-SYNC-VERIFIER-PROOF is a genuine gate"; exit 0; }; exit 1
