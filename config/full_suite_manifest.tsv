@@ -634,6 +634,7 @@ scripts/gates/cm_pr_delivery_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-
 scripts/gates/cm_provisional_done_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_readme_badge_row_at_top_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_release_gate_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
+scripts/gates/cm_release_tag_carry_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_reporting_directives_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_repro_first_anchor_wired_mutation_test.sh	sh	entry	heavy	bash	-	auto
 scripts/gates/cm_rule_binds_to_seam_mutation_test.sh	sh	entry	heavy	sh	-	auto
