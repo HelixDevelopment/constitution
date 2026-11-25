@@ -1,0 +1,171 @@
+# NOTE: NOT a proof for the api_keys.sh GITHUB_TOKEN. This run injected the operator gh keyring OAuth token as GITHUB_TOKEN because the api_keys.sh fine-grained PAT can create issues but gets 403 "Resource not accessible by personal access token" on PATCH (update/close). github.com therefore stays OUT of issue_sync_proven.tsv until a write-capable token is named in api_keys.sh.
+# live create + update + close + reopen + close, each read back from the listing; no token value recorded (variable NAME only)
+{
+ "host": "github.com",
+ "repo": "milos85vasic/vasic",
+ "provider": "github",
+ "utc": "2026-11-25T11:08:33.663311+00:00Z",
+ "token_var": "GITHUB_TOKEN",
+ "verdict": "PASS",
+ "steps": [
+  {
+   "step": "repo_info",
+   "ok": true,
+   "result": {
+    "exists": true,
+    "private": false,
+    "issues_enabled": true
+   }
+  },
+  {
+   "step": "create",
+   "ok": true,
+   "result": {
+    "number": 111,
+    "url": "https://github.com/milos85vasic/vasic/issues/111",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately.",
+    "state": "open",
+    "labels": [
+     "livetest"
+    ]
+   }
+  },
+  {
+   "step": "readback_list_after_create",
+   "ok": true,
+   "result": [
+    {
+     "number": 111,
+     "url": "https://github.com/milos85vasic/vasic/issues/111",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately.",
+     "state": "open",
+     "labels": [
+      "livetest"
+     ]
+    }
+   ]
+  },
+  {
+   "step": "update",
+   "ok": true,
+   "result": {
+    "number": 111,
+    "url": "https://github.com/milos85vasic/vasic/issues/111",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "open",
+    "labels": [
+     "livetest"
+    ]
+   }
+  },
+  {
+   "step": "readback_after_update",
+   "ok": true,
+   "result": [
+    {
+     "number": 111,
+     "url": "https://github.com/milos85vasic/vasic/issues/111",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "open",
+     "labels": [
+      "livetest"
+     ]
+    }
+   ]
+  },
+  {
+   "step": "close",
+   "ok": true,
+   "result": {
+    "number": 111,
+    "url": "https://github.com/milos85vasic/vasic/issues/111",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "closed",
+    "labels": [
+     "livetest"
+    ]
+   }
+  },
+  {
+   "step": "readback_after_close",
+   "ok": true,
+   "result": [
+    {
+     "number": 111,
+     "url": "https://github.com/milos85vasic/vasic/issues/111",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "closed",
+     "labels": [
+      "livetest"
+     ]
+    }
+   ]
+  },
+  {
+   "step": "reopen",
+   "ok": true,
+   "result": {
+    "number": 111,
+    "url": "https://github.com/milos85vasic/vasic/issues/111",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "open",
+    "labels": [
+     "livetest"
+    ]
+   }
+  },
+  {
+   "step": "readback_after_reopen",
+   "ok": true,
+   "result": [
+    {
+     "number": 111,
+     "url": "https://github.com/milos85vasic/vasic/issues/111",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "open",
+     "labels": [
+      "livetest"
+     ]
+    }
+   ]
+  },
+  {
+   "step": "close_final",
+   "ok": true,
+   "result": {
+    "number": 111,
+    "url": "https://github.com/milos85vasic/vasic/issues/111",
+    "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+    "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+    "state": "closed",
+    "labels": [
+     "livetest"
+    ]
+   }
+  },
+  {
+   "step": "readback_final",
+   "ok": true,
+   "result": [
+    {
+     "number": 111,
+     "url": "https://github.com/milos85vasic/vasic/issues/111",
+     "title": "[LIVETEST-ISSUESYNC] throwaway verification issue 2026-11-25 (safe to ignore)",
+     "body": "Automated live create + read-back test of the workable-items issue sync engine (anchor 11.4.300(G)). Throwaway; closed immediately. (updated)",
+     "state": "closed",
+     "labels": [
+      "livetest"
+     ]
+    }
+   ]
+  }
+ ]
+}
