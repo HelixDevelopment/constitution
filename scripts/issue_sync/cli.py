@@ -187,7 +187,10 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
                 rmap = store.load_rendered(con, leg.id)
             except sqlite3.Error:
                 rmap = {}
-            r, rep = inbound.run_leg(a.cmd, items, leg, owner_vis, owner_repo, issues, fps, all_ids, cfg, od, a.write, rmap)
+            try:
+                r, rep = inbound.run_leg(a.cmd, items, leg, owner_vis, owner_repo, issues, fps, all_ids, cfg, od, a.write, rmap)
+            except Exception as e:       # untrusted tracker text must never turn 'cannot determine' (2) into a crash
+                r, rep = 2, {"leg": leg.id, "verdict": "UNDETERMINED", "reason": "unexpected-%s" % type(e).__name__}
             report.append(rep)
             rc = 1 if (r == 1 or rc == 1) else max(rc, r)
             continue
@@ -198,7 +201,12 @@ def run(argv, transport_factory=_transport_factory, out=sys.stdout, proven_hosts
             except sqlite3.Error:
                 rmap = {}
             od = a.out_dir or os.path.join(os.path.dirname(os.path.abspath(a.config)), inbound.PROPOSAL_DIR)
-            bad = inbound.apply_guard(items, leg, owner_vis, owner_repo, issues, fps, all_ids, rmap, od, a.ack_lossy_capture) if issues is not None else []
+            try:
+                bad = inbound.apply_guard(items, leg, owner_vis, owner_repo, issues, fps, all_ids, rmap, od, a.ack_lossy_capture) if issues is not None else []
+            except Exception as e:       # fail closed: a guard that cannot decide stops the write
+                report.append({"leg": leg.id, "verdict": "UNDETERMINED", "reason": "guard-unexpected-%s" % type(e).__name__})
+                rc = 1 if rc == 1 else 2
+                continue
             if bad:
                 report.append({"leg": leg.id, "verdict": "REFUSED", "reason": "tracker-edits-not-preserved", "items": ["%s #%s" % b for b in bad],
                                "next": "run `pull --write` (saves each tracker version as a proposal; a lossy one also needs --ack-lossy-capture after you read it), then apply again"})

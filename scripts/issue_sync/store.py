@@ -50,7 +50,7 @@ def ensure_map(con):
 def rendered_sha(issue):
     import hashlib
     return hashlib.sha256(((issue.get("title") or "") + "\n" + (issue.get("body") or "").strip() + "\n" + (issue.get("state") or "") + "\n"
-                           + ",".join(sorted(issue.get("labels") or []))).encode()).hexdigest()
+                           + ",".join(sorted(issue.get("labels") or []))).encode("utf-8", "replace")).hexdigest()
 
 
 def load_rendered(con, tracker):

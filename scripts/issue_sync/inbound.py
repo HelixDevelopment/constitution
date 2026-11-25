@@ -16,7 +16,7 @@ PROPOSAL_DIR = os.path.join("docs", "issues_sync", "inbound")
 MAX_TEXT = 4000
 STATUS_OPEN = "PROPOSAL (unreviewed)"
 _SAFE = re.compile(r"[^A-Za-z0-9._-]+")
-_CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_CTRL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\ud800-\udfff\u2028\u2029\x85]")     # control characters, lone surrogates, odd line separators
 
 
 def safe_name(s):
@@ -77,7 +77,7 @@ End of proposal (text sha256 %(sha)s).
 
 
 def _sha(*parts):
-    return hashlib.sha256("\x1f".join(str(p) for p in parts).encode()).hexdigest()
+    return hashlib.sha256("\x1f".join(str(p) for p in parts).encode("utf-8", "replace")).hexdigest()
 
 
 def proposal_filename(rec):
@@ -106,8 +106,8 @@ def collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees
                 continue
             try:
                 cs = leg.adapter.list_comments(leg.owner, leg.repo, iss["number"])
-            except AdapterError as e:
-                und.append("comments-unreadable:%s" % e.code)       # a tracker error is 'cannot determine' (2) with a named reason, never a crash
+            except (AdapterError, KeyError, TypeError) as e:
+                und.append("comments-unreadable:%s" % getattr(e, "code", type(e).__name__))       # a tracker error is 'cannot determine' (2) with a named reason, never a crash
                 continue
             if cs is None:
                 unsupported = True
@@ -219,11 +219,11 @@ def write_proposals(props, out_dir, write):
         if write:
             os.makedirs(root, exist_ok=True)
             tmp = "%s.tmp%d" % (path, os.getpid())       # complete-or-absent: write aside, fsync, then link (never overwrites), so a crash leaves no half proposal
-            with open(tmp, "w") as f:
-                f.write(render_proposal(rec))
-                f.flush()
-                os.fsync(f.fileno())
             try:
+                with open(tmp, "w", encoding="utf-8", errors="replace") as f:
+                    f.write(render_proposal(rec))
+                    f.flush()
+                    os.fsync(f.fileno())
                 try:
                     os.link(tmp, path)
                 except FileExistsError:

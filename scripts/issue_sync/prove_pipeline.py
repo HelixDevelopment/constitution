@@ -310,6 +310,20 @@ def chk_comment_read_error_is_2_not_crash():
     return rc == 2 and "comments-unreadable:rate_limited" in out and any("--conflict--" in n for n in os.listdir(d))
 
 
+def chk_surrogate_text_is_not_a_crash():
+    f, db, c = _synced()
+    f.issues[0]["body"] += "\n\ud800"
+    f.add_human("hi", "b\ud800")
+    d = tempfile.mkdtemp()
+    try:
+        r1, _ = _go("reconcile", f, db, c)
+        r2, _ = _go("pull", f, db, c, "--write", "--out-dir", d)
+        r3, _ = _go("apply", f, db, c, "--apply", "--out-dir", d)
+    except Exception:
+        return False
+    return r1 in (1, 2) and r2 == 0 and r3 in (0, 1, 2) and any(n.startswith("NEW--") for n in os.listdir(d)) and not any(n.endswith(".tmp") or ".tmp" in n for n in os.listdir(d))
+
+
 CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_text), ("inbound text is inert data", chk_inbound_text_is_inert_data),
           ("conflict never silently applied", chk_conflict_never_silently_applied), ("conflict preserved then DB wins", chk_conflict_preserved_then_db_wins),
           ("token never printed", chk_token_never_printed), ("inbound secret withheld", chk_inbound_secret_withheld),
@@ -324,7 +338,8 @@ CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_tex
           ("lossy capture needs ack", chk_lossy_capture_needs_ack),
           ("stage refuses abbreviated --write/--apply", chk_stage_refuses_abbreviated_write), ("annotated proposal still captured", chk_annotated_proposal_still_captured),
           ("unreported assignees is undetermined, not dropped", chk_unreported_assignees_is_undetermined_not_dropped),
-          ("comment read error is 2, not a crash", chk_comment_read_error_is_2_not_crash)]
+          ("comment read error is 2, not a crash", chk_comment_read_error_is_2_not_crash),
+          ("lone-surrogate tracker text is not a crash", chk_surrogate_text_is_not_a_crash)]
 CHECK = dict(CHECKS)
 
 
@@ -425,6 +440,10 @@ def _raw_collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assi
             leg.adapter.list_comments(leg.owner, leg.repo, iss["number"])      # unguarded: AdapterError escapes
     return _orig_collect3(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees)
 
+def _strict_sha(*parts):                                                                              # M25: strict UTF-8 hashing of tracker text
+    import hashlib
+    return hashlib.sha256("\x1f".join(str(p) for p in parts).encode()).hexdigest()
+
 def _weak_existing(out_dir, rec):                                                                    # M13: any file of that name counts as a capture
     p = os.path.join(out_dir, inbound.proposal_filename(rec))
     return p if os.path.isfile(p) else None
@@ -451,6 +470,7 @@ MUTATIONS = [
     ("M22 completeness judged by file tail", "annotated proposal still captured", [mock.patch.object(inbound, "existing_for", _tail_existing)]),
     ("M23 intake without assignees dropped silently", "unreported assignees is undetermined, not dropped", [mock.patch.object(inbound, "collect", _drop_unreported)]),
     ("M24 comment read error escapes as a crash", "comment read error is 2, not a crash", [mock.patch.object(inbound, "collect", _raw_collect)]),
+    ("M25 strict utf-8 hashing and unguarded leg (crash on lone surrogate)", "lone-surrogate tracker text is not a crash", [mock.patch.object(inbound, "_sha", _strict_sha)]),
     ("M10 tracker edit not classed as conflict", "reconcile flags tracker edit as conflict", [mock.patch.object(inbound, "reconcile_leg", _blind_reconcile)]),
 ]
 

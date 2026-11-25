@@ -112,8 +112,12 @@ def cmd_stage(rest, out_path, out, kw):
         a, _ = ap.parse_known_args(opts)
         d = tempfile.mkdtemp()
         try:
-            p = subprocess.run([a.workable_items_bin, "sync", "db-to-md", "--db", a.db, "--out-issues", os.path.join(d, "I.md"), "--out-fixed", os.path.join(d, "F.md")],
-                               capture_output=True, text=True)
+            try:
+                p = subprocess.run([a.workable_items_bin, "sync", "db-to-md", "--db", a.db, "--out-issues", os.path.join(d, "I.md"), "--out-fixed", os.path.join(d, "F.md")],
+                                   capture_output=True, text=True)
+            except OSError as e:
+                print("stage %s: cannot run workable-items (%s)" % (name, type(e).__name__), file=sys.stderr)
+                return 2
             src = os.path.join(d, "I.md" if name == "db-to-issues-md" else "F.md")
             if p.returncode != 0 or not os.path.isfile(src):
                 print("stage %s: workable-items failed (rc %s)" % (name, p.returncode), file=sys.stderr)
@@ -156,11 +160,15 @@ def cmd_run(args, out, kw):
     steps.append(("sync" if a.write else "verify", [dc, "sync" if a.write else "verify", "--root", a.root, CONTEXT_NAME]))
     rc = 0
     for label, cmd in steps:
-        p = subprocess.run(cmd, capture_output=True, text=True)
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True)
+        except OSError as e:
+            print("cannot determine: docs_chain could not run (%s)" % type(e).__name__, file=out)
+            return 2
         print("docs_chain %s: rc %d" % (label, p.returncode), file=out)
-        if p.returncode != 0:         # doctor: invalid context (cannot proceed, 2); verify/sync: a stale or failed chain (1)
+        if p.returncode != 0:         # doctor: invalid context (cannot proceed, 2); verify/sync: rc 1 stale/failed chain (1), others (cannot determine) 2
             print((p.stdout + p.stderr).strip()[-1500:], file=out)
-            return 2 if label == "doctor" else 1
+            return 2 if (label == "doctor" or p.returncode != 1) else 1
     if a.write:
         r, t = _capture(["pull", "--write"] + rest, **kw)
         print("pull --write: rc %d" % r, file=out); print(t.rstrip(), file=out)
