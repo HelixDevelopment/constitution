@@ -293,6 +293,23 @@ def chk_unreported_assignees_is_undetermined_not_dropped():
     return "assignees-unsupported" in out and rc == 2 and len(os.listdir(d)) == 1
 
 
+def chk_comment_read_error_is_2_not_crash():
+    from .adapters.github import GitHub
+    from .adapters.base import AdapterError
+    f, db, c = _synced()
+    f.issues[0]["comments"] = ["x"]
+    f.issues[0]["title"] = "[A-1] HUMAN-EDIT"
+    def boom(self, *a):
+        raise AdapterError("rate_limited", 429)
+    d = tempfile.mkdtemp()
+    with mock.patch.object(GitHub, "list_comments", boom):
+        try:
+            rc, out = _go("pull", f, db, c, "--write", "--out-dir", d)
+        except AdapterError:
+            return False
+    return rc == 2 and "comments-unreadable:rate_limited" in out and any("--conflict--" in n for n in os.listdir(d))
+
+
 CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_text), ("inbound text is inert data", chk_inbound_text_is_inert_data),
           ("conflict never silently applied", chk_conflict_never_silently_applied), ("conflict preserved then DB wins", chk_conflict_preserved_then_db_wins),
           ("token never printed", chk_token_never_printed), ("inbound secret withheld", chk_inbound_secret_withheld),
@@ -306,7 +323,8 @@ CHECKS = [("outbound never leaks DB body/quote", chk_outbound_never_leaks_db_tex
           ("forged footer cannot hide intake", chk_forged_footer_cannot_hide_intake), ("truncated capture not accepted", chk_truncated_capture_not_accepted),
           ("lossy capture needs ack", chk_lossy_capture_needs_ack),
           ("stage refuses abbreviated --write/--apply", chk_stage_refuses_abbreviated_write), ("annotated proposal still captured", chk_annotated_proposal_still_captured),
-          ("unreported assignees is undetermined, not dropped", chk_unreported_assignees_is_undetermined_not_dropped)]
+          ("unreported assignees is undetermined, not dropped", chk_unreported_assignees_is_undetermined_not_dropped),
+          ("comment read error is 2, not a crash", chk_comment_read_error_is_2_not_crash)]
 CHECK = dict(CHECKS)
 
 
@@ -400,6 +418,13 @@ _orig_collect2 = inbound.collect
 def _drop_unreported(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees=()):          # M23: issues without an assignees key are silently dropped
     return _orig_collect2(items, leg, owner_vis, owner_repo, [i for i in (issues or []) if "assignees" in i or not assignees], fps, known_ids, assignees)
 
+_orig_collect3 = inbound.collect
+def _raw_collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees=()):
+    for iss in issues or []:
+        if inbound.engine.FOOTER.search(iss.get("body") or "") and iss.get("comments") != 0:
+            leg.adapter.list_comments(leg.owner, leg.repo, iss["number"])      # unguarded: AdapterError escapes
+    return _orig_collect3(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees)
+
 def _weak_existing(out_dir, rec):                                                                    # M13: any file of that name counts as a capture
     p = os.path.join(out_dir, inbound.proposal_filename(rec))
     return p if os.path.isfile(p) else None
@@ -425,6 +450,7 @@ MUTATIONS = [
     ("M20 stage keyed on exact --apply/--write strings", "stage refuses abbreviated --write/--apply", [mock.patch.object(pipeline, "forbidden_stage_opts", lambda o: any(t in ("--apply", "--write") for t in o))]),
     ("M22 completeness judged by file tail", "annotated proposal still captured", [mock.patch.object(inbound, "existing_for", _tail_existing)]),
     ("M23 intake without assignees dropped silently", "unreported assignees is undetermined, not dropped", [mock.patch.object(inbound, "collect", _drop_unreported)]),
+    ("M24 comment read error escapes as a crash", "comment read error is 2, not a crash", [mock.patch.object(inbound, "collect", _raw_collect)]),
     ("M10 tracker edit not classed as conflict", "reconcile flags tracker edit as conflict", [mock.patch.object(inbound, "reconcile_leg", _blind_reconcile)]),
 ]
 

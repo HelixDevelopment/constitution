@@ -10,6 +10,7 @@ import os
 import re
 
 from . import engine, payload as pl, redact
+from .adapters.base import AdapterError
 
 PROPOSAL_DIR = os.path.join("docs", "issues_sync", "inbound")
 MAX_TEXT = 4000
@@ -103,7 +104,11 @@ def collect(items, leg, owner_vis, owner_repo, issues, fps, known_ids, assignees
             n = iss.get("comments")
             if n == 0:
                 continue
-            cs = leg.adapter.list_comments(leg.owner, leg.repo, iss["number"])
+            try:
+                cs = leg.adapter.list_comments(leg.owner, leg.repo, iss["number"])
+            except AdapterError as e:
+                und.append("comments-unreadable:%s" % e.code)       # a tracker error is 'cannot determine' (2) with a named reason, never a crash
+                continue
             if cs is None:
                 unsupported = True
                 continue
