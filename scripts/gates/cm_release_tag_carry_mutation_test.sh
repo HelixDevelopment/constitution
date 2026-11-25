@@ -64,10 +64,13 @@ tf good_left   p-10.0.0
 tf good_rc     p-1.0.0-rc1
 tf foreign     other-1.0.0-dev-0.0.10 p-1.0.0-dev-0.1.0
 tf none        other-1.0.0-dev-0.0.1
+tf digit_prefix v2-1.0.0-dev-0.1.0
+tf bad_dotted_suffix p-1.0.0-dev-0.0.9-rc.1.12
 tf comments    '# comment' '' p-1.0.0-dev-0.0.9
 
-for c in bad_00_10 bad_mid bad_rel bad_lead0 bad_dash bad_hidden; do run "MUST-FAIL $c" 1 FAIL --prefix p --tags-file "$T/$c.tags"; done
+for c in bad_dotted_suffix bad_00_10 bad_mid bad_rel bad_lead0 bad_dash bad_hidden; do run "MUST-FAIL $c" 1 FAIL --prefix p --tags-file "$T/$c.tags"; done
 for c in good_carry good_ladder good_99 good_left good_rc foreign comments; do run "MUST-PASS $c" 0 PASS --prefix p --tags-file "$T/$c.tags"; done
+run "MUST-PASS digit-ending prefix (no false dash-join)" 0 PASS --prefix v2 --tags-file "$T/digit_prefix.tags"
 run "SKIP no prefixed tag" 4 SKIP --prefix p --tags-file "$T/none.tags"
 run "SKIP declared exemption" 4 SKIP --prefix p --tags-file "$T/bad_00_10.tags" --exempt-decision-ref OD-1
 run "ERROR no prefix" 2 ERROR --tags-file "$T/good_carry.tags"

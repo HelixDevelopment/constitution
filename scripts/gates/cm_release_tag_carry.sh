@@ -89,12 +89,12 @@ if [ -z "$tags" ]; then
     echo "VERDICT: SKIP"; exit 4
 fi
 
-report="$(printf '%s\n' "$tags" | awk '
+report="$(printf '%s\n' "$tags" | awk -v plen="$((${#prefix}+1))" '
 function bad(t, why) { printf "FAIL %s: %s\n", t, why; n++ }
 {
-    t = $0; s = t
+    t = $0; s = substr(t, plen + 1)   # the prefix itself is not part of the version grammar
     # (ii) two numeric runs joined by a single dash: digit-dash-digit
-    if (t ~ /[0-9]-[0-9]/) { bad(t, "two numeric runs joined by a single dash (ambiguous owned group)"); next }
+    if (s ~ /[0-9]-[0-9]/) { bad(t, "two numeric runs joined by a single dash (ambiguous owned group)"); next }
     # every dotted numeric group: runs of digits joined by dots, 2+ positions
     while (match(s, /[0-9]+(\.[0-9]+)+/)) {
         g = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
