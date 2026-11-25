@@ -57,6 +57,11 @@ class TestAdapters(unittest.TestCase):
             self.assertTrue(c.exception.code.startswith("capability_unverified"))
         j = {"number": 1, "html_url": "u", "title": "t", "body": "b", "state": "open", "labels": []}
         f = Fake((201, {}, j)); self.assertEqual(Gitea(f, proven=True).create_issue("o", "r", "t", "b", [])["number"], 1)
+    def test_gitverse_list_uses_per_page_not_limit(self):
+        j = {"number": 1, "html_url": "u", "title": "t", "body": "b", "state": "open", "labels": []}
+        f = Fake((200, {}, [j, dict(j, number=2, pull_request={})]))
+        out = GitVerse(f).list_issues("o", "r")
+        self.assertEqual([i["number"] for i in out], [1]); self.assertIn("per_page=50", f.calls[0][1]); self.assertNotIn("limit=", f.calls[0][1]); self.assertNotIn("type=", f.calls[0][1])
     def test_gitverse_never_claims_close(self):
         a = GitVerse(Fake(), proven=True)
         self.assertFalse(a.capabilities["can_close"]); self.assertTrue(a.capabilities["can_create"])
