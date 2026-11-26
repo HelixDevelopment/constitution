@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Revision | 1 |
+| Revision | 2 |
 | Created | 2026-11-02 |
-| Last modified | 2026-11-02 |
+| Last modified | 2026-11-25 |
 | Status | draft |
 | Status summary | First catalogue enumerated from the real tree (skills, plugin, MCP, hooks, adapters, jev, extension engine); LSP none. Compatibility cells are derived only from installer code, tests and docs present in the repo; tests were NOT executed while writing this document, so SUPPORTED means "installer code plus a test file exist", not "re-verified today". |
 | Authority | §11.4.228 (B) provenance and (C) catalogue with per-platform matrix; §11.4.6 no guessing; §11.4.212 README reachability. |
@@ -56,6 +56,7 @@ flowchart LR
 | skill-catalog | skill | `skills/skill-catalog` | git@github.com:HelixDevelopment/constitution.git | a24b762 | `tests/test_cli_agent_plugins.sh`, `tests/constitution_cmd/test_register.sh` |
 | workable-item-lifecycle | skill | `skills/workable-item-lifecycle` | git@github.com:HelixDevelopment/constitution.git | 09dacd6 | `tests/test_cli_agent_plugins.sh`, `tests/constitution_cmd/test_register.sh` |
 | helix (plugin) | plugin (generated slash commands) | `plugins/helix + actions/registry.yaml + actions/generated/` | git@github.com:HelixDevelopment/constitution.git | e7b897c | `tests/test_cli_agent_plugins.sh`, `tests/action_prefix/test_hook_e2e.sh`; Gemini/Qwen shims: none |
+| pi-constitution | plugin (Pi extension, schema pi.extension.v1) | `plugins/pi-constitution/ + plugin.json + pi-constitution.ts` | git@github.com:HelixDevelopment/constitution.git | ecfb6339 | `plugins/pi-constitution/pi-constitution.ts` (session_start audit + tool_call guard + pi-constitution-doctor tool); verified via `pi-constitution-doctor` on HEAD ecfb6339 |
 | label-sync (MCP) | MCP server | `mcp/label-sync-mcp.json -> scripts/label-sync/mcp/label-mcp.sh` | git@github.com:HelixDevelopment/constitution.git | 47353b6 | `scripts/label-sync/mcp/prove_mcp_mutations.sh` |
 | media-validator (MCP) | MCP server | `mcp/media-validator-mcp.json -> skills/media-validator/media-validator.sh` | git@github.com:HelixDevelopment/constitution.git | 0a6aea9 | none |
 | scheduled-work (MCP) | MCP server | `mcp/scheduled-work-mcp.json -> scripts/scheduled-work-engine/bin/scheduled-work` | git@github.com:HelixDevelopment/constitution.git | 2c338a4 | `scripts/scheduled-work-engine/test/integration_test.go`, `scripts/scheduled-work-engine/test/live_smoke.sh` |
@@ -88,6 +89,7 @@ Provenance files: `skills/constitution/EXTENSION_SOURCE.yaml` and `skills/jev-de
 | skill-catalog | SUPPORTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED |
 | workable-item-lifecycle | SUPPORTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED |
 | helix (plugin) | SUPPORTED | UNTESTED | CONFIG-ONLY | CONFIG-ONLY | UNTESTED | UNTESTED |
+| pi-constitution | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | CONFIG-ONLY |
 | label-sync (MCP) | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED |
 | media-validator (MCP) | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED |
 | scheduled-work (MCP) | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED |
@@ -104,6 +106,7 @@ Evidence behind the non-UNTESTED cells:
 
 - Skills, SUPPORTED on Claude Code: `scripts/install_cli_agent_plugins.sh` step 2 symlinks each skill into `<project>/.claude/skills/<name>`; `tests/test_cli_agent_plugins.sh` and `tests/constitution_cmd/test_register.sh` exist.
 - helix plugin: Claude Code via the `claude plugin` CLI path in the same installer; Gemini and Qwen get generated TOML shims (`actions/generated/gemini`, `actions/generated/qwen`), which `skills/constitution/EXTENSION_SOURCE.yaml` itself records as "liveness UNTESTED", hence CONFIG-ONLY.
+- pi-constitution: pi — CONFIG-ONLY. The extension file exists at `plugins/pi-constitution/pi-constitution.ts` and loads under Pi (verified: `pi --help` loads without extension errors; `pi-constitution-doctor` returns a healthy audit). Wiring into `~/.pi/agent/extensions/` and `settings.json` is manual (symlink or copy), not driven by the constitution installer, so the pi cell is CONFIG-ONLY pending installer integration.
 - Jev: `skills/jev-decision-layer/register.sh` header lists claude, kimi, opencode and pi as installed targets (opencode and pi with a coverage-gap note / documented fallback), so those are CONFIG-ONLY; the test file `tests/jev/test_mcp_register_hardening.sh` references kimi and opencode.
 - label-sync adapters: adapter files exist for kimi, opencode, gemini, qwen; `install_label_sync.sh` states opencode/gemini/qwen hooks are UNSUPPORTED by that installer (hooks), the adapters are a separate path, so CONFIG-ONLY.
 - MCP servers: no platform registration code was traced for the three first-party MCP JSON files in this task, so every cell is UNTESTED.

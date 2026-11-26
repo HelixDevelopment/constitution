@@ -70,4 +70,38 @@ Exit 0 ok, 3 refused (nothing changed). `rollback` restores backed-up files byte
 
 The engine is experimental and dormant and has not been independently reviewed to a GO. Known, unfixed ownership limits (shared-tree removal after re-consent with a copied lock, records not bound to the constitution root, a directory-swap race in the tree copy, no reference counting) are listed in the [manual](../manuals/extensions_manual.md#known-limits-added-in-round-12-not-fixed). Do not share one constitution root between projects you do not control.
 
+## pi-constitution — Pi extension binding
+
+The [pi-constitution plugin](../plugins/pi-constitution/README.md) binds the
+Constitution governance layer into the Pi coding agent. Unlike skills (which are
+wired by this engine into `.claude/skills/`), pi-constitution is a Pi extension
+loaded from `~/.pi/agent/extensions/pi-constitution.ts`.
+
+### Install
+
+```sh
+# From the consuming project root
+ln -s submodules/constitution/plugins/pi-constitution/pi-constitution.ts \
+    ~/.pi/agent/extensions/pi-constitution.ts
+```
+
+Then add `"pi-constitution"` to the `extensions` array in
+`~/.pi/agent/settings.json` (or via `pi config`), and restart Pi.
+
+### Verify
+
+```sh
+pi-constitution-doctor
+```
+
+All checks should be green: submodule present, governance files present,
+mandate sections referenced.
+
+### Governance
+
+pi-constitution follows the Constitution submodule update workflow
+(§11.4.26): changes are committed inside `submodules/constitution`,
+pushed to all Constitution upstreams, merged to `main`, then the consuming
+project bumps its submodule pointer. See [GOVERNANCE.md](../plugins/pi-constitution/GOVERNANCE.md).
+
 Next: [manual](../manuals/extensions_manual.md), [FAQ](../faq/extensions_faq.md), [tutorial 07](../tutorials/07_installing_an_extension.md), [troubleshooting](troubleshooting_guide.md).
